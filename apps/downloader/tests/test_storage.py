@@ -1,0 +1,53 @@
+import os
+import uuid
+from pathlib import Path
+
+import pytest
+
+from app.storage import Storage
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("R2_ENDPOINT"), reason="butuh MinIO berjalan"
+)
+
+
+@pytest.fixture
+def storage() -> Storage:
+    s = Storage(
+        endpoint=os.environ["R2_ENDPOINT"],
+        access_key=os.environ["R2_ACCESS_KEY_ID"],
+        secret_key=os.environ["R2_SECRET_ACCESS_KEY"],
+        bucket=os.environ["R2_BUCKET"],
+    )
+    s.ensure_bucket()
+    return s
+
+
+@pytest.fixture
+def prefix() -> str:
+    """Prefix unik per tes.
+
+    MinIO menyimpan objek antar-run, jadi key tetap akan membuat assertion
+    "belum ada" gagal pada eksekusi kedua.
+    """
+    return f"tes/{uuid.uuid4().hex}"
+
+
+def test_put_lalu_exists(storage: Storage, tmp_path: Path, prefix: str):
+    f = tmp_path / "x.txt"
+    f.write_text("isi")
+    key = f"{prefix}/x.txt"
+    assert storage.exists(key) is False
+    storage.put_file(key, f, "text/plain")
+    assert storage.exists(key) is True
+
+
+def test_presigned_get_dapat_diunduh(storage: Storage, tmp_path: Path, prefix: str):
+    import httpx
+
+    f = tmp_path / "y.txt"
+    f.write_text("isi presigned")
+    key = f"{prefix}/y.txt"
+    storage.put_file(key, f, "text/plain")
+    url = storage.presigned_get(key, expires_sec=60)
+    assert httpx.get(url).text == "isi presigned"
