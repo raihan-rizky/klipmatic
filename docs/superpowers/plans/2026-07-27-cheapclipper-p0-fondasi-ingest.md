@@ -1366,7 +1366,7 @@ dependencies = [
   "psycopg[binary,pool]>=3.2",
   "boto3>=1.35",
   "httpx>=0.27",
-  "yt-dlp==2026.06.10",
+  "yt-dlp==2026.7.4",
 ]
 
 [dependency-groups]
