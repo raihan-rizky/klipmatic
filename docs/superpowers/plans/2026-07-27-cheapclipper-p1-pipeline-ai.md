@@ -3141,7 +3141,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: cheapclipper
-        ports: ["54322:5432"]
+        ports: ["55432:5432"]
         options: >-
           --health-cmd pg_isready --health-interval 2s --health-retries 15
     steps:
@@ -3159,7 +3159,7 @@ jobs:
       - run: uv run pytest -v
         working-directory: apps/downloader
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:54322/cheapclipper
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:55432/cheapclipper
 ```
 
 Tes storage otomatis dilewati di CI karena `R2_ENDPOINT` tidak diset, sesuai penjaga `pytest.mark.skipif` di P0 Task 9.

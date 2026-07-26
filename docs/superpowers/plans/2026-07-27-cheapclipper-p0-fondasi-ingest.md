@@ -108,7 +108,7 @@ cheapclipper/
 
 **Interfaces:**
 - Consumes: tidak ada
-- Produces: perintah `bun run test` yang menjalankan Vitest di seluruh workspace; layanan Docker `postgres` di `localhost:54322` dan `minio` di `localhost:9000`
+- Produces: perintah `bun run test` yang menjalankan Vitest di seluruh workspace; layanan Docker `postgres` di `localhost:55432` dan `minio` di `localhost:9000`
 
 - [ ] **Step 1: Buat file konfigurasi root**
 
@@ -193,7 +193,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cheapclipper
-    ports: ["54322:5432"]
+    ports: ["55432:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
@@ -211,7 +211,7 @@ services:
 
 ```bash
 # Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:54322/cheapclipper
+DATABASE_URL=postgresql://postgres:postgres@localhost:55432/cheapclipper
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
@@ -622,7 +622,7 @@ import { join } from 'node:path'
 import postgres from 'postgres'
 
 export const TEST_DB_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:54322/cheapclipper'
+  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:55432/cheapclipper'
 
 /** Membuat schema bersih dari nol untuk satu berkas tes. */
 export async function freshDb() {
@@ -928,7 +928,7 @@ export * from './client'
 
 Run:
 ```bash
-cd packages/db && DATABASE_URL=postgresql://postgres:postgres@localhost:54322/cheapclipper bun run generate
+cd packages/db && DATABASE_URL=postgresql://postgres:postgres@localhost:55432/cheapclipper bun run generate
 ```
 Ganti nama berkas yang dihasilkan menjadi `migrations/0000_init.sql` bila belum bernama demikian, karena `test/helpers.ts` merujuk nama itu.
 
@@ -1366,7 +1366,7 @@ dependencies = [
   "psycopg[binary,pool]>=3.2",
   "boto3>=1.35",
   "httpx>=0.27",
-  "yt-dlp==2026.06.10",
+  "yt-dlp==2026.7.4",
 ]
 
 [dependency-groups]
@@ -1391,7 +1391,7 @@ import pytest
 
 TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:54322/cheapclipper",
+    "postgresql://postgres:postgres@localhost:55432/cheapclipper",
 )
 DB_PKG = Path(__file__).resolve().parents[3] / "packages" / "db"
 
