@@ -1,0 +1,57 @@
+{
+  "_fixture_origin": "DISUSUN MANUAL, bukan rekaman panggilan nyata. Mengikuti bentuk respons OpenAI-compatible verbose_json dengan timestamp_granularities word. Ganti dengan rekaman asli lewat scripts/spike_transcription.py setelah API key tersedia. Lihat docs/adr/0001-transcription-provider.md.",
+  "task": "transcribe",
+  "language": "indonesian",
+  "duration": 14.52,
+  "text": " Jadi banyak orang tanya ke saya, kenapa sih susah banget berhenti menunda pekerjaan. Padahal jawabannya sederhana, kita bukan malas, kita cuma takut hasilnya jelek.",
+  "words": [
+    { "word": "Jadi", "start": 0.0, "end": 0.34 },
+    { "word": "banyak", "start": 0.34, "end": 0.72 },
+    { "word": "orang", "start": 0.72, "end": 1.06 },
+    { "word": "tanya", "start": 1.06, "end": 1.44 },
+    { "word": "ke", "start": 1.44, "end": 1.58 },
+    { "word": "saya,", "start": 1.58, "end": 2.02 },
+    { "word": "kenapa", "start": 2.24, "end": 2.68 },
+    { "word": "sih", "start": 2.68, "end": 2.86 },
+    { "word": "susah", "start": 2.86, "end": 3.3 },
+    { "word": "banget", "start": 3.3, "end": 3.74 },
+    { "word": "berhenti", "start": 3.74, "end": 4.26 },
+    { "word": "menunda", "start": 4.26, "end": 4.82 },
+    { "word": "pekerjaan.", "start": 4.82, "end": 5.6 },
+    { "word": "Padahal", "start": 6.1, "end": 6.62 },
+    { "word": "jawabannya", "start": 6.62, "end": 7.34 },
+    { "word": "sederhana,", "start": 7.34, "end": 8.06 },
+    { "word": "kita", "start": 8.32, "end": 8.6 },
+    { "word": "bukan", "start": 8.6, "end": 8.98 },
+    { "word": "malas,", "start": 8.98, "end": 9.52 },
+    { "word": "kita", "start": 9.78, "end": 10.06 },
+    { "word": "cuma", "start": 10.06, "end": 10.42 },
+    { "word": "takut", "start": 10.42, "end": 10.86 },
+    { "word": "hasilnya", "start": 10.86, "end": 11.46 },
+    { "word": "jelek.", "start": 11.46, "end": 12.04 }
+  ],
+  "segments": [
+    {
+      "id": 0,
+      "seek": 0,
+      "start": 0.0,
+      "end": 5.6,
+      "text": " Jadi banyak orang tanya ke saya, kenapa sih susah banget berhenti menunda pekerjaan.",
+      "temperature": 0.0,
+      "avg_logprob": -0.21,
+      "compression_ratio": 1.42,
+      "no_speech_prob": 0.01
+    },
+    {
+      "id": 1,
+      "seek": 0,
+      "start": 6.1,
+      "end": 12.04,
+      "text": " Padahal jawabannya sederhana, kita bukan malas, kita cuma takut hasilnya jelek.",
+      "temperature": 0.0,
+      "avg_logprob": -0.19,
+      "compression_ratio": 1.38,
+      "no_speech_prob": 0.01
+    }
+  ]
+}
