@@ -1,0 +1,22 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"candidates\":[{\"start_sec\":10,\"end_sec\":80,\"score\":0.92,\"title\":\"Cara berhenti menunda\",\"hook_text\":\"Kebiasaan ini yang bikin kamu stuck\",\"reason\":\"Opini tajam dan langsung bisa dipakai\"}]}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 16240,
+    "candidatesTokenCount": 148,
+    "totalTokenCount": 16388
+  },
+  "modelVersion": "gemini-3.1-flash-lite"
+}

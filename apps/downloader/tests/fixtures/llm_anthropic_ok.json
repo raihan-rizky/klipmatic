@@ -1,0 +1,14 @@
+{
+  "id": "msg_contoh",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-4-5",
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"candidates\":[{\"start_sec\":10,\"end_sec\":80,\"score\":0.92,\"title\":\"Cara berhenti menunda\",\"hook_text\":\"Kebiasaan ini yang bikin kamu stuck\",\"reason\":\"Opini tajam dan langsung bisa dipakai\"}]}"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "usage": { "input_tokens": 16240, "output_tokens": 148 }
+}

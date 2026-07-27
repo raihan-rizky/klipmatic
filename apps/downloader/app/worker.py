@@ -45,9 +45,19 @@ def run_once(
 
 
 def main() -> None:
+    # Diimpor di dalam fungsi: handler menarik boto3, httpx, dan yt-dlp,
+    # sementara run_once diuji dengan handler suntikan tanpa perlu semua itu.
+    from app.handlers.analyze import handle_analyze
+    from app.handlers.fetch_segments import handle_fetch_segments
     from app.handlers.ingest import handle_ingest
+    from app.handlers.transcribe import handle_transcribe
 
-    handlers: dict[str, Handler] = {"ingest": handle_ingest}
+    handlers: dict[str, Handler] = {
+        "ingest": handle_ingest,
+        "transcribe": handle_transcribe,
+        "analyze": handle_analyze,
+        "fetch_segments": handle_fetch_segments,
+    }
     worker_id = os.environ.get("WORKER_ID", "worker-1")
     poll = float(os.environ.get("WORKER_POLL_INTERVAL_SEC", "2"))
     reap_every = 60.0

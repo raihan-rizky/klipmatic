@@ -1,0 +1,17 @@
+{
+  "id": "chatcmpl-contoh",
+  "object": "chat.completion",
+  "created": 1785000000,
+  "model": "MiniMax-M2.7-highspeed",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"candidates\":[{\"start_sec\":10,\"end_sec\":80,\"score\":0.92,\"title\":\"Cara berhenti menunda\",\"hook_text\":\"Kebiasaan ini yang bikin kamu stuck\",\"reason\":\"Opini tajam dan langsung bisa dipakai\"}]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": { "prompt_tokens": 16240, "completion_tokens": 148, "total_tokens": 16388 }
+}
