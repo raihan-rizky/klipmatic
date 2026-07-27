@@ -44,6 +44,23 @@ class Storage:
             },
         )
 
+    def put_bytes(self, key: str, data: bytes, content_type: str) -> None:
+        self._s3.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=data,
+            ContentType=content_type,
+            CacheControl="public, max-age=31536000, immutable",
+        )
+
+    def get_bytes(self, key: str) -> bytes:
+        return self._s3.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+
+    def download_to(self, key: str, dest: Path) -> Path:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        self._s3.download_file(self.bucket, key, str(dest))
+        return dest
+
     def exists(self, key: str) -> bool:
         try:
             self._s3.head_object(Bucket=self.bucket, Key=key)

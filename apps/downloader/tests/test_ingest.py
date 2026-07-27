@@ -180,6 +180,58 @@ def test_sumber_privat_tidak_dipakai_ulang_lintas_user(conn, deps):
     )
 
 
+def test_merantai_ke_transcribe_setelah_berhasil(conn, deps):
+    u = _user(conn, "rantai@test.id")
+    s = _source(conn, u)
+    p = _project(conn, u, s)
+
+    handle_ingest(conn, _job(conn, s, p, u), **deps)
+
+    row = conn.execute(
+        "select payload->>'source_id', payload->>'project_id', user_id "
+        "from jobs where type = 'transcribe'"
+    ).fetchone()
+    assert row[0] == s
+    assert row[1] == p
+    assert str(row[2]) == u
+
+
+def test_cache_hit_tetap_merantai_ke_transcribe(conn, deps):
+    """Proyek user kedua harus tetap maju ke transkripsi meski audionya
+    dipakai ulang, bukan berhenti diam-diam."""
+    a = _user(conn, "rantai-a@test.id")
+    sa = _source(conn, a)
+    pa = _project(conn, a, sa)
+    handle_ingest(conn, _job(conn, sa, pa, a), **deps)
+
+    b = _user(conn, "rantai-b@test.id")
+    sb = _source(conn, b)
+    pb = _project(conn, b, sb)
+    handle_ingest(conn, _job(conn, sb, pb, b), **deps)
+
+    row = conn.execute(
+        "select payload->>'source_id' from jobs "
+        "where type = 'transcribe' and project_id = %s",
+        (pb,),
+    ).fetchone()
+    assert row is not None
+    assert row[0] == sa  # menunjuk sumber bersama, bukan baris yang dihapus
+
+
+def test_kegagalan_tidak_merantai_ke_transcribe(conn, deps):
+    u = _user(conn, "gagal@test.id")
+    s = _source(conn, u)
+    p = _project(conn, u, s)
+    deps["probe"] = lambda url: (_ for _ in ()).throw(
+        JobError("SOURCE_BLOCKED", "diblokir", terminal=False)
+    )
+
+    with pytest.raises(JobError):
+        handle_ingest(conn, _job(conn, s, p, u), **deps)
+
+    assert conn.execute("select count(*) from jobs where type = 'transcribe'").fetchone()[0] == 0
+
+
 def test_error_terminal_menandai_sumber_failed(conn, deps):
     u = _user(conn, "c@test.id")
     s = _source(conn, u)

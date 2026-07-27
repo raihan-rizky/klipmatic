@@ -9,7 +9,7 @@ import psycopg
 from app.errors import JobError
 from app.ffmpeg import extract_audio as _extract_audio
 from app.ffmpeg import sha256_file
-from app.queue import Job, heartbeat
+from app.queue import Job, enqueue, heartbeat
 from app.storage import Storage, storage_from_env
 from app.ytdlp import SourceMeta
 from app.ytdlp import download_audio as _download_audio
@@ -47,6 +47,18 @@ def _repoint_and_drop(
     )
     conn.execute("delete from sources where id = %s", (drop_source_id,))
     conn.commit()
+
+
+def _enqueue_transcribe(
+    conn: psycopg.Connection, job: Job, source_id: str, project_id: str
+) -> None:
+    enqueue(
+        conn,
+        "transcribe",
+        {"source_id": source_id, "project_id": project_id},
+        user_id=job.user_id,
+        project_id=project_id,
+    )
 
 
 def _promote_or_keep_private(
@@ -113,6 +125,9 @@ def handle_ingest(
     reusable = _find_reusable_source(conn, kind, external_id, owner)
     if reusable and reusable != source_id:
         _repoint_and_drop(conn, project_id, reusable, source_id)
+        # Rantai tetap dipasang pada cache hit: proyek user kedua harus maju
+        # ke tahap berikutnya, bukan berhenti diam-diam karena audionya sudah ada.
+        _enqueue_transcribe(conn, job, reusable, project_id)
         heartbeat(conn, job.id, 100)
         return
 
@@ -155,7 +170,12 @@ def handle_ingest(
         )
         conn.commit()
 
-        _promote_or_keep_private(conn, source_id, project_id, meta, kind, external_id)
+        # Promosi dapat mengalihkan proyek ke baris publik yang sudah ada bila
+        # ada worker lain yang menang balapan, jadi id final yang dipakai.
+        final_source_id = _promote_or_keep_private(
+            conn, source_id, project_id, meta, kind, external_id
+        )
+        _enqueue_transcribe(conn, job, final_source_id, project_id)
 
     except JobError as e:
         conn.execute(
