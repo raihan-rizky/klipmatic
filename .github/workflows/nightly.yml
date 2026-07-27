@@ -1,0 +1,40 @@
+name: Nightly
+
+# Sengaja dipisahkan dari CI: kanari menyentuh jaringan dan karenanya tidak
+# stabil. Tanpa pemicu push maupun pull_request, workflow ini tidak pernah
+# muncul sebagai status check pada PR — kegagalannya adalah sinyal operasional
+# bagi kita, bukan penghalang merge bagi kontributor.
+on:
+  schedule: [{ cron: '0 21 * * *' }] # 04:00 WIB
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - run: uv sync
+        working-directory: apps/downloader
+
+      - name: Healthcheck extractor yt-dlp
+        run: uv run python -m scripts.canary
+        working-directory: apps/downloader
+        env:
+          # Setiap platform disuntik dari variabel repositori, bukan hanya
+          # gdrive: ketika sebuah URL kanari membusuk, operator mengganti
+          # variabel dan run berikutnya sudah benar — tanpa menunggu rilis.
+          #
+          # CANARY_GDRIVE_URL tidak punya default di source. Selama variabel
+          # itu belum dibuat, skrip keluar dengan kode 2 dan nightly merah:
+          # itu memang action item-nya, bukan gangguan.
+          CANARY_YOUTUBE_URL: ${{ vars.CANARY_YOUTUBE_URL }}
+          CANARY_TIKTOK_URL: ${{ vars.CANARY_TIKTOK_URL }}
+          CANARY_GDRIVE_URL: ${{ vars.CANARY_GDRIVE_URL }}

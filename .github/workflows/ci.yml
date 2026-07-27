@@ -1,0 +1,71 @@
+name: CI
+
+on: [push, pull_request]
+
+# Membatalkan run yang sudah tersalip pada ref yang sama: saat commit beruntun
+# didorong, hanya yang terakhir yang menentukan sinyal.
+#
+# Ini TIDAK menyatukan run push dan run pull_request atas commit yang sama —
+# github.ref berbeda antar kedua event (refs/heads/x vs refs/pull/N/merge),
+# jadi keduanya tetap jalan penuh. Itu disengaja: menyatukannya berarti salah
+# satu run dibatalkan, dan bila yang dibatalkan adalah run yang melapor ke PR,
+# check-nya tampak "cancelled" dan justru menghalangi merge.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cheapclipper
+        # Di runner Linux port 5432 bebas dipakai. Angka 55432 di
+        # docker-compose.dev.yml hanya menghindari rentang yang dicadangkan
+        # Windows, jadi tidak relevan di sini — asalkan TEST_DATABASE_URL
+        # diset eksplisit, karena default kode menunjuk ke 55432.
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 2s --health-retries 15
+
+    env:
+      # Yang sungguh dibaca tes: helper di packages/db membaca ini.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cheapclipper
+      # Belum ada satu tes pun yang membacanya. Tetap diset karena
+      # apps/web/lib/db.ts memanggil postgres(DATABASE_URL) saat modul dimuat,
+      # sehingga tes pertama yang mengimpor route handler akan meledak di impor
+      # — bukan di assertion — kalau variabel ini hilang.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cheapclipper
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run test
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      # test_ffmpeg membangkitkan WAV-nya sendiri lewat ffmpeg, jadi binernya
+      # wajib ada; tanpa ini tesnya gagal, bukan terlewat.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - run: uv sync
+        working-directory: apps/downloader
+      - run: uv run pytest -v
+        working-directory: apps/downloader
+
+      # Tes storage melewatkan dirinya sendiri karena R2_ENDPOINT tidak diset.
+      # Itu disengaja: menyalakan MinIO di CI menambah waktu tanpa menutup
+      # risiko yang belum ditutup tes lain.
