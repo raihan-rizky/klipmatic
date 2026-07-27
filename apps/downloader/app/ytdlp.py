@@ -108,3 +108,38 @@ def download_audio(url: str, dest: Path, on_progress: Callable[[int], None]) -> 
     if not dest.exists():
         raise JobError("INTERNAL", "yt-dlp selesai tanpa menghasilkan berkas")
     return dest
+
+
+def download_section(url: str, start: float, end: float, dest: Path) -> Path:
+    """Mengunduh satu rentang waktu saja (fase 2, spec §3.1).
+
+    --force-keyframes-at-cuts memaksa yt-dlp memotong tepat di batas yang
+    diminta alih-alih di keyframe terdekat, sehingga awal klip tidak meleset.
+
+    Format dikunci ke H.264 (avc1) maksimal 1080p: WebCodecs mendekode H.264
+    secara hardware di seluruh platform sedangkan AV1 belum merata, jadi
+    pembatasan ini menghindari transcoding di server pada P2.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    proc = _run(
+        [
+            "yt-dlp",
+            "--download-sections",
+            f"*{start:.3f}-{end:.3f}",
+            "--force-keyframes-at-cuts",
+            "-f",
+            "bestvideo[height<=1080][vcodec^=avc1]+bestaudio/best[height<=1080]",
+            "--merge-output-format",
+            "mp4",
+            "--no-playlist",
+            "--no-warnings",
+            "-o",
+            str(dest),
+            url,
+        ]
+    )
+    if proc.returncode != 0:
+        raise classify_ytdlp_error(proc.stderr)
+    if not dest.exists():
+        raise JobError("INTERNAL", "yt-dlp selesai tanpa menghasilkan segmen")
+    return dest
