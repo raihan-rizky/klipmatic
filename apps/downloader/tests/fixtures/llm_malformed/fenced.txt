@@ -1,0 +1,5 @@
+Tentu, ini hasil analisisnya:
+
+```json
+{"candidates":[{"start_sec":10,"end_sec":80,"score":0.9,"title":"Judul","hook_text":"Hook","reason":"Alasan"}]}
+```

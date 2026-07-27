@@ -1,0 +1,2 @@
+Berikut sepuluh momen paling menarik dari podcast tersebut.
+{"candidates":[{"start_sec":"10","end_sec":"80","score":"0.9","title":"Judul","hook_text":"Hook"}]}
