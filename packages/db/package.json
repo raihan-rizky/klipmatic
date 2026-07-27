@@ -6,7 +6,8 @@
   "exports": { ".": "./src/index.ts", "./schema": "./src/schema.ts" },
   "scripts": {
     "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate"
+    "migrate": "drizzle-kit migrate",
+    "gen:crypto-fixture": "bun run scripts/genCryptoFixture.ts"
   },
   "dependencies": {
     "@cheapclipper/shared": "workspace:*",

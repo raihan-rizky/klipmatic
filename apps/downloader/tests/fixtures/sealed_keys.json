@@ -1,0 +1,32 @@
+{
+  "masterKey": "Y2hlYXBjbGlwcGVyLXRlc3QtbWFzdGVyLWtleS0zMmI=",
+  "cases": [
+    {
+      "name": "ascii",
+      "plaintext": "sk-proj-abcdef1234567890",
+      "sealed": {
+        "encryptedKey": "94HJernBjj32+0wAckrlV60JqzKkbqT4",
+        "keyIv": "ivazo0FcfO2ke7E8",
+        "keyTag": "S28oRNEFNobHiZf9zLJhww=="
+      }
+    },
+    {
+      "name": "panjang",
+      "plaintext": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "sealed": {
+        "encryptedKey": "RwN8fHK171Dxrj6wZ35++wMC++uHcRay7+HkBI3p99v+bFrmQb9oFw+5KnYLCXHYDaIN6LWvurcXTyTI5kYhwLAzyMtLKSWvv+78o1E3N3UT/2Ydl9GTugjyf5wjPQWYNBVn0J8d5uCJsu8uWCjlTguGM3V5rPKXW4m5GMnavz33Dwpg03e+CPTt7UZlIdlf/zYyOjM8o5cOmr4/VhnEY+5qZ/oz1JJdZkoXMqqWUzLLVj1h9qeTfYfMlHv6WC1bPn5l1t4pVNp1zXYKeDrP7TI3Ooz8plgMio8o+dc81fGyFSDPuyrGWj7WDwZn2GfP1uKpvPFjFhq696mkHGnaixYUV+BD4HY6N1s+HyRAxABXm4ti1Rfx9Xapl+yXtzBH0VntGps5vyZBr6moNeUO9Mqi90D0oJPHCZn1ZsrTom5gb226MlfNASBMXihAe2ZkhA5rnBTcYf2IHhF6mdWuVuzHq/AXdE2MtI+v4l49Za0Nxslufd04WCGTiBnCWtA/NNf8U2chZYiIo4nX4IXX3EGHlNRIjmMedZSSrjPppHNHW+uWMoMkH/qAgR3qkarElhuLBlFnzb0GgxwDvNjmEWCoRTxmRbcpdu+xUwTeizWXsBSumQbRti7q7zyl9g0CisXVqSGgJD+RROBSQH6Xs/EMIUQdMlSpob/nVopyCGA=",
+        "keyIv": "XJ5440ZND6oQSK0N",
+        "keyTag": "EgDlSlDRKHvqx4IKMMg7tA=="
+      }
+    },
+    {
+      "name": "unicode",
+      "plaintext": "kunci-rahasia-ñ-日本語-🎬",
+      "sealed": {
+        "encryptedKey": "13cc8njBdIwMKLU1++jcXGgZY4yhd2nBxVcn1utX2g==",
+        "keyIv": "QXscPEKDpk03hLpj",
+        "keyTag": "VESz2aSD5y4vbQ4lpdK2NA=="
+      }
+    }
+  ]
+}
