@@ -7,6 +7,8 @@ import { expect, test, vi } from 'vitest'
 import { normalizeEditSpec } from '@cheapclipper/engine'
 import { CaptionControls } from '@/components/editor/CaptionControls'
 import { CropControls } from '@/components/editor/CropControls'
+import { TimelinePreview } from '@/components/editor/TimelinePreview'
+import { makeEditorSpec } from './editorFixtures'
 
 test('crop panel exposes manual and face focus controls', () => {
   render(
@@ -36,4 +38,37 @@ test('caption panel can disable karaoke captions', async () => {
       captions: expect.objectContaining({ enabled: false }),
     }),
   )
+})
+
+test('timeline preview exposes one vertical canvas and transport controls', async () => {
+  const onPlayingChange = vi.fn()
+  const pause = vi
+    .spyOn(HTMLMediaElement.prototype, 'pause')
+    .mockImplementation(() => undefined)
+  const load = vi
+    .spyOn(HTMLMediaElement.prototype, 'load')
+    .mockImplementation(() => undefined)
+  const { unmount } = render(
+    <TimelinePreview
+      spec={makeEditorSpec()}
+      words={[]}
+      mediaUrl="/api/clips/clip-1/segment"
+      playhead={0}
+      playing={false}
+      onPlayheadChange={vi.fn()}
+      onPlayingChange={onPlayingChange}
+      onStall={vi.fn()}
+    />,
+  )
+
+  expect(screen.getByLabelText('Preview video vertikal')).toHaveAttribute(
+    'width',
+    '1080',
+  )
+  await userEvent.click(screen.getByRole('button', { name: 'Putar preview' }))
+
+  expect(onPlayingChange).toHaveBeenCalledWith(true)
+  unmount()
+  pause.mockRestore()
+  load.mockRestore()
 })
