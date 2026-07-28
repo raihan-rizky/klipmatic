@@ -10,7 +10,11 @@ from app.errors import JobError
 from app.ffmpeg import extract_audio as _extract_audio
 from app.ffmpeg import sha256_file
 from app.queue import Job, enqueue, heartbeat
+from app.providers.transcription import TranscriptResult
+from app.providers.youtube_captions import caption_first_enabled
+from app.providers.youtube_captions import fetch_youtube_caption as _fetch_youtube_caption
 from app.storage import Storage, storage_from_env
+from app.transcripts import store_transcript
 from app.ytdlp import SourceMeta
 from app.ytdlp import download_audio as _download_audio
 from app.ytdlp import probe as _probe
@@ -103,9 +107,10 @@ def handle_ingest(
     probe: Callable[[str], SourceMeta] = _probe,
     download_audio: Callable[..., Path] = _download_audio,
     extract_audio: Callable[[Path, Path], Path] = _extract_audio,
+    caption_fn: Callable[[str, int, Path], TranscriptResult | None] = _fetch_youtube_caption,
     workdir: Path | None = None,
 ) -> None:
-    """Fase 1 dari download dua fase: hanya audio yang diambil.
+    """Fase 1: coba caption YouTube, baru ambil audio bila perlu.
 
     Dependensi disuntikkan lewat keyword agar tes tidak menyentuh jaringan.
     """
@@ -136,6 +141,39 @@ def handle_ingest(
         meta = probe(url)
 
         tmp_root = workdir or Path(tempfile.mkdtemp(prefix="cc-ingest-"))
+        caption = (
+            caption_fn(url, meta.duration_sec, tmp_root)
+            if kind == "youtube" and caption_first_enabled()
+            else None
+        )
+
+        if caption is not None:
+            heartbeat(conn, job.id, 70)
+            store_transcript(conn, storage, source_id, caption)
+            conn.execute(
+                """
+                update sources
+                   set title = %s, channel = %s, duration_sec = %s, thumbnail_url = %s,
+                       status = 'ready', error_code = null, updated_at = now()
+                 where id = %s
+                """,
+                (
+                    meta.title,
+                    meta.channel,
+                    meta.duration_sec,
+                    meta.thumbnail_url,
+                    source_id,
+                ),
+            )
+            conn.commit()
+            heartbeat(conn, job.id, 95)
+
+            final_source_id = _promote_or_keep_private(
+                conn, source_id, project_id, meta, kind, external_id
+            )
+            _enqueue_transcribe(conn, job, final_source_id, project_id)
+            return
+
         raw = tmp_root / f"{source_id}.raw"
         opus = tmp_root / f"{source_id}.opus"
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 import shutil
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -10,10 +12,16 @@ from typing import Any, Callable
 import psycopg
 
 from app.errors import JobError
+from app.ffmpeg import extract_audio as _extract_audio
 from app.ffmpeg import sha256_file
+from app.providers.transcription import TranscriptResult
+from app.providers.transcription import transcribe as _transcribe
 from app.queue import Job, heartbeat
 from app.storage import Storage, storage_from_env
+from app.transcripts import serialize_transcript
 from app.ytdlp import download_section as _download_section
+
+log = logging.getLogger(__name__)
 
 SEGMENT_TTL_DAYS = 7  # Spec §8.2
 _SKALA = Decimal("0.001")  # media_segments.start_sec/end_sec = numeric(10,3)
@@ -52,12 +60,64 @@ def _validate(ranges: list[dict[str, Any]], duration_sec: int) -> list[tuple[Dec
     return out
 
 
+def _maybe_refine_caption(
+    conn: psycopg.Connection,
+    job: Job,
+    storage: Storage,
+    segment: Path,
+    duration_sec: int,
+    *,
+    transcribe: Callable[..., TranscriptResult],
+    extract_audio: Callable[[Path, Path], Path],
+) -> None:
+    clip_id = job.payload.get("clip_id")
+    if not clip_id:
+        return
+    # Payload worker tidak dipercaya. Clip, project, dan user harus cocok
+    # sebelum satu panggilan provider berbayar dilakukan.
+    row = conn.execute(
+        """
+        select t.r2_key
+         from clips cl
+          join projects p on p.id = cl.project_id
+          join transcripts t on t.source_id = p.source_id
+         where cl.id = %s and cl.project_id = %s and p.user_id = %s
+           and p.source_id = %s
+         order by t.created_at desc limit 1
+        """,
+        (clip_id, job.project_id, job.user_id, job.payload["source_id"]),
+    ).fetchone()
+    if row is None:
+        return
+
+    transcript = json.loads(storage.get_bytes(row[0]).decode("utf-8"))
+    if transcript.get("timing_precision") != "estimated":
+        return
+    key = f"clip-transcripts/{clip_id}.json"
+    if storage.exists(key):
+        return
+
+    audio = segment.with_suffix(".caption.opus")
+    try:
+        extract_audio(segment, audio)
+        result = transcribe(audio, duration_sec)
+        storage.put_bytes(key, serialize_transcript(result), "application/json")
+    except JobError as error:
+        # Precision pass adalah enhancement. Ketiadaan key atau provider down
+        # tidak boleh menghilangkan segment dan caption estimasi yang sudah ada.
+        log.warning("precision caption clip %s dilewati: %s", clip_id, error.code)
+    finally:
+        audio.unlink(missing_ok=True)
+
+
 def handle_fetch_segments(
     conn: psycopg.Connection,
     job: Job,
     *,
     storage: Storage | None = None,
     download: Callable[..., Path] = _download_section,
+    transcribe: Callable[..., TranscriptResult] = _transcribe,
+    extract_audio: Callable[[Path, Path], Path] = _extract_audio,
     workdir: Path | None = None,
 ) -> None:
     """Fase 2 dari download dua fase: hanya rentang terpilih yang diunduh.
@@ -94,13 +154,28 @@ def handle_fetch_segments(
             # terlewat, kuncinya harus dianggap sudah mati dan diambil ulang.
             cached = conn.execute(
                 """
-                select 1 from media_segments
+                select r2_key from media_segments
                  where source_id = %s and start_sec = %s and end_sec = %s
                    and expires_at > now()
                 """,
                 (source_id, start, end),
             ).fetchone()
             if cached:
+                # Segment lama mungkin dibuat sebelum precision-pass ada.
+                # Ambil dari R2 hanya bila clip ini memang membutuhkannya.
+                if job.payload.get("clip_id"):
+                    cached_dest = tmp_root / f"{source_id}-{start}-{end}-cached.mp4"
+                    storage.download_to(cached[0], cached_dest)
+                    _maybe_refine_caption(
+                        conn,
+                        job,
+                        storage,
+                        cached_dest,
+                        max(1, int(round(float(end - start)))),
+                        transcribe=transcribe,
+                        extract_audio=extract_audio,
+                    )
+                    cached_dest.unlink(missing_ok=True)
                 heartbeat(conn, job.id, (i + 1) * 100 // total)
                 continue
 
@@ -131,6 +206,18 @@ def handle_fetch_segments(
             else:
                 storage.put_file(key, dest, "video/mp4")
                 expires_at = datetime.now(timezone.utc) + timedelta(days=SEGMENT_TTL_DAYS)
+
+            # Precision pass diselesaikan sebelum media_segments dipublikasikan,
+            # sehingga editor tidak keburu membaca caption estimasi karena race.
+            _maybe_refine_caption(
+                conn,
+                job,
+                storage,
+                dest,
+                max(1, int(round(float(end - start)))),
+                transcribe=transcribe,
+                extract_audio=extract_audio,
+            )
 
             # Baris lama yang kedaluwarsa ditimpa, bukan diabaikan: kalau tidak,
             # r2_key mati hasil unduhan sebelumnya menetap selamanya.

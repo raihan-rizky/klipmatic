@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -11,6 +12,7 @@ import pytest
 import app.ytdlp as ytdlp
 from app.errors import JobError
 from app.handlers.fetch_segments import SEGMENT_TTL_DAYS, handle_fetch_segments
+from app.providers.transcription import TranscriptResult, Word
 from app.queue import Job, enqueue
 
 
@@ -57,15 +59,55 @@ def _project(conn, sid: str) -> tuple[str, str]:
     return str(pid), str(uid)
 
 
-def _job(conn, sid: str, pid: str, uid: str, ranges: list[dict]) -> Job:
+def _job(
+    conn,
+    sid: str,
+    pid: str,
+    uid: str,
+    ranges: list[dict],
+    *,
+    clip_id: str | None = None,
+) -> Job:
     """Membuat baris job sungguhan.
 
     Handler memanggil heartbeat() yang menulis ke jobs.id bertipe uuid, jadi
     id rekaan seperti "j1" ditolak database.
     """
     payload = {"source_id": sid, "project_id": pid, "ranges": ranges}
+    if clip_id:
+        payload["clip_id"] = clip_id
     job_id = enqueue(conn, "fetch_segments", payload, user_id=uid, project_id=pid)
     return Job(job_id, "fetch_segments", payload, 1, 3, pid, uid)
+
+
+def _clip_dengan_caption_estimasi(conn, sid: str, pid: str) -> str:
+    candidate_id = conn.execute(
+        """
+        insert into clip_candidates
+               (project_id, start_sec, end_sec, score, title, hook_text, transcript_slice)
+        values (%s, 10, 80, 0.9, 'c', 'h', 'halo dunia')
+        returning id
+        """,
+        (pid,),
+    ).fetchone()[0]
+    clip_id = conn.execute(
+        """
+        insert into clips (project_id, candidate_id, duration_sec)
+        values (%s, %s, 70) returning id
+        """,
+        (pid, candidate_id),
+    ).fetchone()[0]
+    conn.execute(
+        """
+        insert into transcripts
+               (source_id, provider, model, language, r2_key, word_count, cost_usd)
+        values (%s, 'youtube_caption', 'caption-hybrid-v1', 'id',
+                'transcripts/estimated.json', 2, 0)
+        """,
+        (sid,),
+    )
+    conn.commit()
+    return str(clip_id)
 
 
 def _segments(conn, sid: str) -> list[tuple]:
@@ -86,6 +128,7 @@ def deps(tmp_path):
     storage = MagicMock()
     storage.exists.side_effect = lambda key: key in uploaded
     storage.put_file.side_effect = lambda key, path, content_type: uploaded.add(key)
+    storage.put_bytes.side_effect = lambda key, body, content_type: uploaded.add(key)
     calls = []
 
     def download(url, start, end, dest: Path):
@@ -419,6 +462,86 @@ def test_source_privat_milik_sendiri_tetap_diunduh(conn, deps):
 
     assert deps["_calls"] == [(0.0, 10.0)]
     assert len(_segments(conn, milik_sendiri)) == 1
+
+
+def test_caption_estimasi_dipresisikan_hanya_untuk_segmen_terpilih(conn, deps):
+    sid = _source(conn)
+    pid, uid = _project(conn, sid)
+    clip_id = _clip_dengan_caption_estimasi(conn, sid, pid)
+    deps["storage"].get_bytes.return_value = json.dumps(
+        {
+            "timing_precision": "estimated",
+            "words": [
+                {"text": "halo", "start": 10, "end": 11},
+                {"text": "dunia", "start": 11, "end": 12},
+            ],
+        }
+    ).encode()
+    result = TranscriptResult(
+        language="id",
+        text="halo dunia",
+        words=[Word("halo", 0.2, 0.6), Word("dunia", 0.6, 1.0)],
+        provider="deepinfra",
+        model="whisper-large-v3-turbo",
+        cost_usd=0.001,
+    )
+    transcribe = MagicMock(return_value=result)
+
+    def extract_audio(segment: Path, audio: Path) -> Path:
+        assert segment.read_bytes() == b"video palsu"
+        audio.write_bytes(b"audio")
+        return audio
+
+    handle_fetch_segments(
+        conn,
+        _job(
+            conn,
+            sid,
+            pid,
+            uid,
+            [{"start_sec": 10, "end_sec": 80}],
+            clip_id=clip_id,
+        ),
+        **_clean(deps),
+        transcribe=transcribe,
+        extract_audio=extract_audio,
+    )
+
+    assert transcribe.call_args.args[1] == 70
+    key, body, content_type = deps["storage"].put_bytes.call_args.args
+    assert key == f"clip-transcripts/{clip_id}.json"
+    assert content_type == "application/json"
+    saved = json.loads(body)
+    assert saved["timing_precision"] == "word"
+    assert saved["words"][0] == {"text": "halo", "start": 0.2, "end": 0.6}
+    assert len(_segments(conn, sid)) == 1
+
+
+def test_provider_precision_gagal_tetap_mempublikasikan_segmen_estimasi(conn, deps):
+    sid = _source(conn)
+    pid, uid = _project(conn, sid)
+    clip_id = _clip_dengan_caption_estimasi(conn, sid, pid)
+    deps["storage"].get_bytes.return_value = b'{"timing_precision":"estimated"}'
+
+    handle_fetch_segments(
+        conn,
+        _job(
+            conn,
+            sid,
+            pid,
+            uid,
+            [{"start_sec": 10, "end_sec": 80}],
+            clip_id=clip_id,
+        ),
+        **_clean(deps),
+        transcribe=MagicMock(
+            side_effect=JobError("TRANSCRIBE_FAILED", "provider down", terminal=False)
+        ),
+        extract_audio=lambda _segment, audio: audio.write_bytes(b"audio") or audio,
+    )
+
+    assert len(_segments(conn, sid)) == 1
+    deps["storage"].put_bytes.assert_not_called()
 
 
 def test_download_section_meminta_rentang_dan_codec_yang_didekode_browser(tmp_path, monkeypatch):

@@ -1,8 +1,11 @@
 import type { Sql } from 'postgres'
 import { sealApiKey } from '@cheapclipper/db'
+import {
+  PROVIDERS,
+  type Provider,
+} from './apiKeyConfig'
 
-export const PROVIDERS = ['gemini', 'openai_compat', 'anthropic_compat'] as const
-export type Provider = (typeof PROVIDERS)[number]
+export { PRESETS, PROVIDERS, type Provider, type ProviderPreset } from './apiKeyConfig'
 
 export interface ApiKeyInput {
   provider: Provider
@@ -21,61 +24,6 @@ export interface PublicApiKey {
   model: string
   lastUsedAt: string | null
 }
-
-/** Jalan pintas pengisian form; nilainya tetap bisa diubah pengguna. */
-export interface ProviderPreset {
-  id: string
-  name: string
-  provider: Provider
-  baseUrl: string
-  models: string[]
-  hint: string
-}
-
-/**
- * Sumopod ditaruh pertama karena ia penyedia VPS Indonesia yang dipakai
- * proyek ini: latensinya paling dekat untuk pengguna lokal dan pembayarannya
- * memakai rupiah, sehingga jadi titik mulai termurah bagi mayoritas pengguna.
- */
-export const PRESETS: ProviderPreset[] = [
-  {
-    id: 'sumopod',
-    name: 'Sumopod AI',
-    provider: 'openai_compat',
-    baseUrl: 'https://ai.sumopod.com/v1',
-    models: [
-      'MiniMax-M2.7-highspeed',
-      'gpt-5-nano',
-      'deepseek-v4-flash',
-      'gemini/gemini-3.1-flash-lite',
-    ],
-    hint: 'Gateway lokal, bayar rupiah. Cocok untuk mulai dengan biaya kecil.',
-  },
-  {
-    id: 'gemini',
-    name: 'Google Gemini',
-    provider: 'gemini',
-    baseUrl: '',
-    models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite'],
-    hint: 'Ambil key gratis di Google AI Studio.',
-  },
-  {
-    id: 'openrouter',
-    name: 'OpenRouter',
-    provider: 'openai_compat',
-    baseUrl: 'https://openrouter.ai/api/v1',
-    models: ['google/gemini-2.5-flash', 'deepseek/deepseek-chat'],
-    hint: 'Satu key untuk banyak model.',
-  },
-  {
-    id: 'groq',
-    name: 'Groq',
-    provider: 'openai_compat',
-    baseUrl: 'https://api.groq.com/openai/v1',
-    models: ['llama-3.3-70b-versatile'],
-    hint: 'Inferensi cepat, model terbatas.',
-  },
-]
 
 /**
  * Galat validasi yang pesannya aman ditampilkan ke pengguna.

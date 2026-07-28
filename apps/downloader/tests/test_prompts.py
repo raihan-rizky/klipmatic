@@ -212,13 +212,23 @@ def test_kandidat_dengan_start_negatif_dibuang():
     assert [x.title for x in parse_candidates(raw, duration_sec=120)] == ["ok"]
 
 
-def test_kandidat_terlalu_pendek_atau_panjang_dibuang():
+def test_kandidat_pendek_diperluas_dan_yang_panjang_dibuang():
     raw = _envelope(
         '{"start_sec":0,"end_sec":5,"score":0.9,"title":"pendek","hook_text":"h"}',
         '{"start_sec":0,"end_sec":119,"score":0.9,"title":"panjang","hook_text":"h"}',
         '{"start_sec":10,"end_sec":80,"score":0.9,"title":"ok","hook_text":"h"}',
     )
-    assert [x.title for x in parse_candidates(raw, 120)] == ["ok"]
+    candidates = parse_candidates(raw, 120)
+    assert [x.title for x in candidates] == ["pendek", "ok"]
+    assert (candidates[0].start_sec, candidates[0].end_sec) == (0, 30)
+
+
+def test_kandidat_pendek_dekat_ujung_video_digeser_ke_kiri():
+    raw = _envelope(
+        '{"start_sec":110,"end_sec":119,"score":0.9,"title":"ujung","hook_text":"h"}'
+    )
+    candidate = parse_candidates(raw, 120)[0]
+    assert (candidate.start_sec, candidate.end_sec) == (90, 120)
 
 
 def test_score_dijepit_ke_rentang_nol_satu():
@@ -374,7 +384,9 @@ def test_log_kandidat_dibuang_hanya_mencatat_jumlah(caplog):
     """Log worker tersimpan lebih lama dari job; isi kandidat LLM memuat materi user."""
     rahasia = "nomor rekening 1234567890"
     raw = _envelope(
-        '{"start_sec":0,"end_sec":5,"score":0.9,"title":"' + rahasia + '","hook_text":"h"}',
+        '{"start_sec":0,"end_sec":119,"score":0.9,"title":"'
+        + rahasia
+        + '","hook_text":"h"}',
         '{"start_sec":10,"end_sec":80,"score":0.9,"title":"ok","hook_text":"h"}',
     )
     with caplog.at_level(logging.WARNING, logger="app.prompts.highlights_v1"):

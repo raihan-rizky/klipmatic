@@ -128,6 +128,37 @@ def test_transkrip_yang_sudah_ada_tidak_dipanggil_ulang(conn, deps):
     )
 
 
+def test_caption_cache_tanpa_audio_tetap_merantai_ke_analyze(conn, deps):
+    u = _user(conn, "caption-cache@test.id")
+    sid = conn.execute(
+        """
+        insert into sources (kind, external_id, is_public, url_original, status, duration_sec)
+        values ('youtube', 'caption-cache', true, 'https://youtu.be/x', 'ready', 3600)
+        returning id
+        """
+    ).fetchone()[0]
+    p = _project(conn, u, str(sid))
+    conn.execute(
+        """
+        insert into transcripts (source_id, provider, model, language, r2_key, word_count, cost_usd)
+        values (%s, 'youtube_caption', 'whisper-large-v3-turbo', 'id', 'transcripts/c.json', 10, 0)
+        """,
+        (sid,),
+    )
+    conn.commit()
+    deps["transcribe_fn"] = lambda *args: pytest.fail("provider tidak boleh dipanggil")
+
+    handle_transcribe(conn, _job(conn, str(sid), p, u), **deps)
+
+    deps["storage"].download_to.assert_not_called()
+    assert (
+        conn.execute(
+            "select count(*) from jobs where type = 'analyze' and project_id = %s", (p,)
+        ).fetchone()[0]
+        == 1
+    )
+
+
 def test_cache_hit_tetap_merantai_ke_analyze(conn, deps):
     """User kedua pada video yang sama harus tetap maju ke tahap analisis,
     bukan berhenti diam-diam karena transkripnya sudah ada."""

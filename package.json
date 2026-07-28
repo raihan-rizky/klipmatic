@@ -7,7 +7,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "turbo build",
-    "dev": "turbo dev",
+    "dev": "bun --cwd=apps/web --env-file=../../.env run dev",
     "typecheck": "turbo typecheck",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down -v"

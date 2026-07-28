@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
 from typing import Callable
@@ -12,19 +11,7 @@ from app.providers.transcription import TranscriptResult, cache_model
 from app.providers.transcription import transcribe as _transcribe
 from app.queue import Job, enqueue, heartbeat
 from app.storage import Storage, storage_from_env
-
-
-def _serialize(result: TranscriptResult) -> bytes:
-    return json.dumps(
-        {
-            "language": result.language,
-            "text": result.text,
-            "provider": result.provider,
-            "model": result.model,
-            "words": [{"text": w.text, "start": w.start, "end": w.end} for w in result.words],
-        },
-        ensure_ascii=False,
-    ).encode("utf-8")
+from app.transcripts import store_transcript
 
 
 def _enqueue_analyze(conn: psycopg.Connection, job: Job) -> None:
@@ -55,7 +42,7 @@ def handle_transcribe(
     if row is None:
         raise JobError("INTERNAL", f"source {source_id} tidak ditemukan", terminal=True)
     status, audio_key, duration_sec = row
-    if status != "ready" or not audio_key:
+    if status != "ready":
         raise JobError("INTERNAL", f"source {source_id} belum siap ditranskrip", terminal=True)
 
     # Cache lapis transkrip (spec §8). Pemeriksaan ini yang membuat user kedua
@@ -69,6 +56,14 @@ def handle_transcribe(
         _enqueue_analyze(conn, job)
         heartbeat(conn, job.id, 100)
         return
+    if not audio_key:
+        # Sumber caption-first memang tidak punya audio, tetapi seharusnya
+        # selalu punya baris transcript sehingga sudah return di atas.
+        raise JobError(
+            "INTERNAL",
+            f"source {source_id} tidak punya caption maupun audio fallback",
+            terminal=True,
+        )
 
     heartbeat(conn, job.id, 10)
     tmp_root = workdir or Path(tempfile.mkdtemp(prefix="cc-transcribe-"))
@@ -79,26 +74,6 @@ def handle_transcribe(
     result = transcribe_fn(audio, duration_sec or 0)
 
     heartbeat(conn, job.id, 85)
-    key = f"transcripts/{source_id}/{model}.json"
-    storage.put_bytes(key, _serialize(result), "application/json")
-
-    conn.execute(
-        """
-        insert into transcripts (source_id, provider, model, language, r2_key,
-                                 word_count, cost_usd)
-        values (%s, %s, %s, %s, %s, %s, %s)
-        on conflict (source_id, model) do nothing
-        """,
-        (
-            source_id,
-            result.provider,
-            model,
-            result.language,
-            key,
-            len(result.words),
-            result.cost_usd,
-        ),
-    )
-    conn.commit()
+    store_transcript(conn, storage, source_id, result)
 
     _enqueue_analyze(conn, job)

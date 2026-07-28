@@ -1,5 +1,10 @@
+import Link from 'next/link'
+import { ArrowLeft, LogIn } from 'lucide-react'
 import { CandidateList } from '@/components/CandidateList'
 import { JobProgress } from '@/components/JobProgress'
+import { PageHeader } from '@/components/PageHeader'
+import { StatePanel } from '@/components/StatePanel'
+import { Button } from '@/components/ui/button'
 import { listCandidates, projectViewState } from '@/lib/candidates'
 import { sql } from '@/lib/db'
 import { supabaseServer } from '@/lib/supabase/server'
@@ -20,9 +25,20 @@ export default async function ProjectPage({
   } = await supabase.auth.getUser()
   if (!user) {
     return (
-      <main>
-        <p>Silakan masuk dulu.</p>
-      </main>
+      <section className="grid min-h-[calc(100vh-12rem)] place-items-center">
+        <StatePanel
+          title="Masuk untuk melihat project"
+          description="Silakan masuk dulu. Kandidat dan progress analisis hanya tersedia untuk pemilik project."
+          action={
+            <Button asChild>
+              <Link href="/login">
+                <LogIn className="size-4" aria-hidden="true" />
+                Buka halaman akun
+              </Link>
+            </Button>
+          }
+        />
+      </section>
     )
   }
 
@@ -33,11 +49,44 @@ export default async function ProjectPage({
   })
 
   return (
-    <main>
-      <h1>Kandidat klip</h1>
-      {view === 'progress' && job && <JobProgress jobId={job} />}
-      {view === 'no-job' && <p>Belum ada analisis yang berjalan untuk proyek ini.</p>}
-      <CandidateList candidates={candidates} />
-    </main>
+    <section className="space-y-8">
+      <PageHeader
+        eyebrow="Project"
+        title="Kandidat klip"
+        description="Pilih momen dengan hook paling kuat, lalu buka editor untuk mengatur crop dan caption."
+        actions={
+          <Button asChild variant="secondary">
+            <Link href="/">
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Video baru
+            </Link>
+          </Button>
+        }
+      />
+
+      {view === 'progress' && job && <JobProgress projectId={id} />}
+      {view === 'no-job' && (
+        <StatePanel
+          tone="warning"
+          title="Belum ada kandidat klip."
+          description="Belum ada analisis yang berjalan untuk proyek ini."
+          action={
+            <Button asChild variant="secondary">
+              <Link href="/">Masukkan link</Link>
+            </Button>
+          }
+        />
+      )}
+
+      {candidates.length > 0 && (
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-black tracking-[-0.025em]">Hasil teratas</h2>
+            <span className="text-sm text-muted">{candidates.length} kandidat</span>
+          </div>
+          <CandidateList candidates={candidates} />
+        </div>
+      )}
+    </section>
   )
 }

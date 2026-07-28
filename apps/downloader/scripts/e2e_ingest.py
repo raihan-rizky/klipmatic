@@ -10,17 +10,24 @@ from pathlib import Path
 
 import psycopg
 
-ROOT = Path(__file__).resolve()
-sys.path.insert(0, str(Path(r"C:\Projects\cheapclipper\apps\downloader")))
+DOWNLOADER_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = DOWNLOADER_ROOT.parents[1]
+sys.path.insert(0, str(DOWNLOADER_ROOT))
 
 from app.handlers.ingest import handle_ingest  # noqa: E402
 from app.queue import claim_job, enqueue  # noqa: E402
 from app.storage import storage_from_env  # noqa: E402
 from app.worker import run_once  # noqa: E402
 
-DB_PKG = Path(r"C:\Projects\cheapclipper\packages\db")
-ADMIN_URL = "postgresql://postgres:postgres@localhost:55432/postgres"
-E2E_URL = "postgresql://postgres:postgres@localhost:55432/cc_e2e"
+DB_PKG = REPO_ROOT / "packages" / "db"
+ADMIN_URL = os.environ.get(
+    "E2E_ADMIN_DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:55432/postgres",
+)
+E2E_URL = os.environ.get(
+    "E2E_DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:55432/cc_e2e",
+)
 
 URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 EXTERNAL_ID = "dQw4w9WgXcQ"

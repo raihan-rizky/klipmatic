@@ -6,7 +6,12 @@ import pytest
 
 from app.crypto import ApiKeyRecord
 from app.errors import JobError
-from app.providers.llm import call_llm
+from app.providers.llm import (
+    NEBIUS_BASE,
+    NEBIUS_DEFAULT_MODEL,
+    call_llm,
+    nebius_key_from_env,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -43,6 +48,33 @@ def test_call_llm_mengekstrak_teks_dari_tiap_bentuk_respons(provider, fixture):
 
     text = call_llm(_key(provider, "https://contoh.test/v1"), "prompt", http=_client(handler))
     assert "Cara berhenti menunda" in text
+
+
+def test_nebius_env_menjadi_openai_compatible_tanpa_membocorkan_key():
+    rec = nebius_key_from_env({"NEBIUS_API_KEY": "nebius-rahasia"})
+    assert rec is not None
+    assert rec.provider == "openai_compat"
+    assert rec.base_url == NEBIUS_BASE
+    assert rec.model == NEBIUS_DEFAULT_MODEL
+    assert "nebius-rahasia" not in repr(rec)
+
+
+def test_nebius_env_dapat_mengganti_model_dan_endpoint():
+    rec = nebius_key_from_env(
+        {
+            "NEBIUS_API_KEY": "k",
+            "NEBIUS_BASE_URL": "https://region.nebius.test/v1",
+            "NEBIUS_MODEL": "model-khusus",
+        }
+    )
+    assert rec is not None
+    assert rec.base_url == "https://region.nebius.test/v1"
+    assert rec.model == "model-khusus"
+
+
+def test_nebius_env_kosong_mengembalikan_none():
+    assert nebius_key_from_env({}) is None
+    assert nebius_key_from_env({"NEBIUS_API_KEY": "   "}) is None
 
 
 def test_openai_compat_memakai_base_url_milik_user():

@@ -6,6 +6,7 @@ import pytest
 
 from app.errors import JobError
 from app.handlers.ingest import handle_ingest
+from app.providers.transcription import TranscriptResult, Word
 from app.queue import Job, enqueue
 from app.ytdlp import SourceMeta
 
@@ -15,6 +16,22 @@ META = SourceMeta(
     duration_sec=3600,
     thumbnail_url="https://example.com/t.jpg",
     availability="public",
+)
+
+CAPTION = TranscriptResult(
+    language="id",
+    text="caption youtube yang sudah tersedia",
+    words=[
+        Word("caption", 0.0, 0.5),
+        Word("youtube", 0.5, 1.0),
+        Word("yang", 1.0, 1.3),
+        Word("sudah", 1.3, 1.7),
+        Word("tersedia", 1.7, 2.2),
+    ],
+    provider="youtube_caption",
+    model="whisper-large-v3-turbo",
+    cost_usd=0.0,
+    timing_precision="estimated",
 )
 
 
@@ -61,7 +78,8 @@ def _job(conn, source_id: str, project_id: str, user_id: str) -> Job:
 
 
 @pytest.fixture
-def deps(tmp_path: Path):
+def deps(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("YOUTUBE_CAPTION_FIRST", "true")
     storage = MagicMock()
     storage.exists.return_value = False
 
@@ -81,6 +99,7 @@ def deps(tmp_path: Path):
         "probe": lambda url: META,
         "download_audio": fake_download,
         "extract_audio": fake_extract,
+        "caption_fn": lambda url, duration, workdir: None,
         "workdir": tmp_path,
     }
 
@@ -106,6 +125,33 @@ def test_ingest_baru_mengunggah_audio_dan_menandai_ready(conn, deps):
     assert row[4] == "Podcast Contoh"
     assert row[5] is True  # dipromosikan karena availability == 'public'
     deps["storage"].put_file.assert_called_once()
+
+
+def test_caption_youtube_layak_melewati_download_audio_dan_provider(conn, deps):
+    u = _user(conn, "caption@test.id")
+    s = _source(conn, u, "caption-video")
+    p = _project(conn, u, s)
+    deps["caption_fn"] = lambda url, duration, workdir: CAPTION
+    deps["download_audio"] = lambda *args: pytest.fail("audio tidak boleh diunduh")
+    deps["extract_audio"] = lambda *args: pytest.fail("ffmpeg tidak boleh dipanggil")
+
+    handle_ingest(conn, _job(conn, s, p, u), **deps)
+
+    source = conn.execute(
+        "select status, audio_r2_key, audio_sha256 from sources where id = %s", (s,)
+    ).fetchone()
+    transcript = conn.execute(
+        "select provider, word_count, cost_usd from transcripts where source_id = %s", (s,)
+    ).fetchone()
+    assert source == ("ready", None, None)
+    assert transcript[0] == "youtube_caption"
+    assert transcript[1] == 5
+    assert float(transcript[2]) == 0.0
+    deps["storage"].put_file.assert_not_called()
+    deps["storage"].put_bytes.assert_called_once()
+
+    body = deps["storage"].put_bytes.call_args.args[1].decode("utf-8")
+    assert '"timing_precision": "estimated"' in body
 
 
 def test_sumber_unlisted_tetap_privat(conn, deps):

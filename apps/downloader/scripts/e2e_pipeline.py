@@ -34,9 +34,16 @@ from app.queue import enqueue
 from app.storage import storage_from_env
 from app.worker import run_once
 
-DB_PKG = Path(r"C:\Projects\cheapclipper\packages\db")
-ADMIN_URL = "postgresql://postgres:postgres@localhost:55432/postgres"
-E2E_URL = "postgresql://postgres:postgres@localhost:55432/cc_e2e_pipeline"
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DB_PKG = REPO_ROOT / "packages" / "db"
+ADMIN_URL = os.environ.get(
+    "E2E_ADMIN_DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:55432/postgres",
+)
+E2E_URL = os.environ.get(
+    "E2E_DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:55432/cc_e2e_pipeline",
+)
 
 URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 EXTERNAL_ID = "dQw4w9WgXcQ"

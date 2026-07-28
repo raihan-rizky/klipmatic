@@ -47,6 +47,7 @@ class TranscriptResult:
     provider: str
     model: str
     cost_usd: float
+    timing_precision: str = "word"
 
 
 def _env(source: Mapping[str, str] | None) -> Mapping[str, str]:

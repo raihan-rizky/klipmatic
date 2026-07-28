@@ -8,6 +8,10 @@ Pakai:
 
 from __future__ import annotations
 
+import os
+
+from botocore.exceptions import ClientError
+
 from app.storage import Storage, storage_from_env
 
 # R2 — seperti S3 — menghitung Expiration.Days sejak objek DIBUAT dan tidak
@@ -51,10 +55,42 @@ def apply_lifecycle(storage: Storage) -> None:
     )
 
 
+def apply_cors(storage: Storage, origins: list[str] | None = None) -> bool:
+    allowed = origins or [
+        origin.strip()
+        for origin in os.environ.get("R2_CORS_ORIGINS", "http://localhost:3000").split(",")
+        if origin.strip()
+    ]
+    try:
+        storage._s3.put_bucket_cors(  # noqa: SLF001
+            Bucket=storage.bucket,
+            CORSConfiguration={
+                "CORSRules": [
+                    {
+                        "AllowedOrigins": allowed,
+                        "AllowedMethods": ["GET", "HEAD"],
+                        "AllowedHeaders": ["*"],
+                        "ExposeHeaders": ["ETag", "Content-Length", "Content-Range"],
+                        "MaxAgeSeconds": 3600,
+                    }
+                ]
+            },
+        )
+        return True
+    except ClientError as error:
+        # MinIO community tidak mengimplementasikan PutBucketCors. Dev server
+        # menerima origin lewat MINIO_API_CORS_ALLOW_ORIGIN di docker-compose.
+        if error.response.get("Error", {}).get("Code") == "NotImplemented":
+            return False
+        raise
+
+
 def main() -> None:
     storage = storage_from_env()
     apply_lifecycle(storage)
-    print(f"aturan lifecycle diterapkan ke bucket {storage.bucket}")
+    cors_applied = apply_cors(storage)
+    suffix = "dan CORS" if cors_applied else "(CORS dikelola runtime MinIO)"
+    print(f"aturan lifecycle diterapkan ke bucket {storage.bucket} {suffix}")
 
 
 if __name__ == "__main__":

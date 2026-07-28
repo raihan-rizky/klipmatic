@@ -2,12 +2,24 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { PRESETS, PROVIDERS, type Provider } from '@/lib/apiKeys'
-import { applyPreset, applyProvider, requestDeleteKey } from '@/lib/apiKeyForm'
+import { KeyRound, LoaderCircle, LockKeyhole, ServerCog } from 'lucide-react'
+import { Alert } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { PRESETS, PROVIDERS, type Provider } from '@/lib/apiKeyConfig'
+import { applyPreset, applyProvider } from '@/lib/apiKeyForm'
 
 const PROVIDER_LABELS: Record<Provider, string> = {
-  gemini: 'Google Gemini',
-  openai_compat: 'OpenAI-compatible (Sumopod, OpenRouter, Groq, Ollama, ...)',
+  gemini: 'Google Gemini (legacy)',
+  openai_compat: 'OpenAI-compatible',
   anthropic_compat: 'Anthropic-compatible',
 }
 
@@ -26,37 +38,34 @@ export function ApiKeyForm() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const preset = PRESETS.find((p) => p.id === presetId)
+  const preset = PRESETS.find((item) => item.id === presetId)
 
-  // Preset hanya mengisi awal formulir. Setiap medan tetap bisa disunting,
-  // termasuk model, karena daftar model penyedia berubah lebih cepat daripada
-  // rilis aplikasi ini.
   function pilihPreset(id: string) {
     setPresetId(id)
-    const chosen = PRESETS.find((p) => p.id === id)
+    const chosen = PRESETS.find((item) => item.id === id)
     if (!chosen) return
     setProvider(chosen.provider)
-    setForm((f) => applyPreset(f, chosen))
+    setForm((current) => applyPreset(current, chosen))
   }
 
   function pilihProvider(next: Provider) {
     setProvider(next)
     setPresetId(CUSTOM)
-    setForm((f) => applyProvider(f, next))
+    setForm((current) => applyProvider(current, next))
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
     setBusy(true)
     setError(null)
-    const res = await fetch('/api/keys', {
+    const response = await fetch('/api/keys', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ provider, ...form }),
     })
-    const body = await res.json().catch(() => ({}))
+    const body = await response.json().catch(() => ({}))
     setBusy(false)
-    if (!res.ok) {
+    if (!response.ok) {
       setError(body.error?.message ?? 'Gagal menyimpan.')
       return
     }
@@ -65,115 +74,148 @@ export function ApiKeyForm() {
   }
 
   return (
-    <form onSubmit={submit}>
-      <label htmlFor="preset">Penyedia siap pakai</label>
-      <select id="preset" value={presetId} onChange={(e) => pilihPreset(e.target.value)}>
-        {PRESETS.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-        <option value={CUSTOM}>Lainnya (isi manual)</option>
-      </select>
-      {preset && <p>{preset.hint}</p>}
+    <form onSubmit={submit} className="space-y-4">
+      <Card>
+        <CardContent className="pt-5 sm:pt-6">
+          <div className="mb-5 flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <ServerCog className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h3 className="font-black tracking-[-0.02em]">Pilih penyedia</h3>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                Mulai dari preset atau isi endpoint kompatibel secara manual.
+              </p>
+            </div>
+          </div>
 
-      <label htmlFor="provider">Jenis API</label>
-      <select
-        id="provider"
-        value={provider}
-        onChange={(e) => pilihProvider(e.target.value as Provider)}
-      >
-        {PROVIDERS.map((p) => (
-          <option key={p} value={p}>
-            {PROVIDER_LABELS[p]}
-          </option>
-        ))}
-      </select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="preset" className="text-sm font-bold">Penyedia siap pakai</label>
+              <Select value={presetId} onValueChange={pilihPreset}>
+                <SelectTrigger id="preset"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PRESETS.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                  ))}
+                  <SelectItem value={CUSTOM}>Lainnya (isi manual)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="provider" className="text-sm font-bold">Jenis API</label>
+              <Select value={provider} onValueChange={(value) => pilihProvider(value as Provider)}>
+                <SelectTrigger id="provider"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PROVIDERS.map((item) => (
+                    <SelectItem key={item} value={item}>{PROVIDER_LABELS[item]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {preset && (
+            <Alert className="mt-4">
+              {preset.hint}
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
 
-      <label htmlFor="label">Nama pengenal</label>
-      <input
-        id="label"
-        value={form.label}
-        required
-        placeholder="Sumopod saya"
-        onChange={(e) => setForm({ ...form, label: e.target.value })}
-      />
+      <Card>
+        <CardContent className="pt-5 sm:pt-6">
+          <div className="mb-5 flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <LockKeyhole className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h3 className="font-black tracking-[-0.02em]">Detail kredensial</h3>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                Secret dienkripsi sebelum disimpan dan tidak pernah ditampilkan lagi.
+              </p>
+            </div>
+          </div>
 
-      {provider !== 'gemini' && (
-        <>
-          <label htmlFor="baseUrl">
-            Base URL {provider === 'openai_compat' ? '(wajib)' : '(opsional)'}
-          </label>
-          <input
-            id="baseUrl"
-            value={form.baseUrl}
-            required={provider === 'openai_compat'}
-            placeholder="https://ai.sumopod.com/v1"
-            onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
-          />
-        </>
-      )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="label" className="text-sm font-bold">Nama pengenal</label>
+              <Input
+                id="label"
+                value={form.label}
+                required
+                placeholder="Sumopod saya"
+                onChange={(event) => setForm({ ...form, label: event.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="model" className="text-sm font-bold">Nama model</label>
+              <Input
+                id="model"
+                value={form.model}
+                required
+                list="model-suggestions"
+                placeholder="gpt-5-nano"
+                onChange={(event) => setForm({ ...form, model: event.target.value })}
+              />
+              <datalist id="model-suggestions">
+                {(preset?.models ?? PRESETS.flatMap((item) => item.models)).map((model) => (
+                  <option key={model} value={model} />
+                ))}
+              </datalist>
+            </div>
 
-      <label htmlFor="model">Nama model</label>
-      <input
-        id="model"
-        value={form.model}
-        required
-        list="model-suggestions"
-        placeholder="gpt-5-nano"
-        onChange={(e) => setForm({ ...form, model: e.target.value })}
-      />
-      <datalist id="model-suggestions">
-        {(preset?.models ?? PRESETS.flatMap((p) => p.models)).map((m) => (
-          <option key={m} value={m} />
-        ))}
-      </datalist>
+            {provider !== 'gemini' && (
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="baseUrl" className="text-sm font-bold">
+                  Base URL {provider === 'openai_compat' ? '(wajib)' : '(opsional)'}
+                </label>
+                <Input
+                  id="baseUrl"
+                  type="url"
+                  value={form.baseUrl}
+                  required={provider === 'openai_compat'}
+                  placeholder="https://ai.sumopod.com/v1"
+                  onChange={(event) => setForm({ ...form, baseUrl: event.target.value })}
+                />
+              </div>
+            )}
 
-      <label htmlFor="secret">API key</label>
-      <input
-        id="secret"
-        type="password"
-        value={form.secret}
-        required
-        autoComplete="off"
-        onChange={(e) => setForm({ ...form, secret: e.target.value })}
-      />
-      <p>Key disimpan terenkripsi dan tidak pernah ditampilkan kembali.</p>
+            <div className="space-y-2 sm:col-span-2">
+              <label htmlFor="secret" className="text-sm font-bold">API key</label>
+              <Input
+                id="secret"
+                type="password"
+                value={form.secret}
+                required
+                autoComplete="off"
+                placeholder="Masukkan secret key"
+                onChange={(event) => setForm({ ...form, secret: event.target.value })}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <button type="submit" disabled={busy}>
-        {busy ? 'Menyimpan...' : 'Simpan'}
-      </button>
-      {error && <p role="alert">{error}</p>}
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+        {error && (
+          <Alert tone="danger" role="alert" className="sm:mr-auto">
+            {error}
+          </Alert>
+        )}
+        <Button type="submit" disabled={busy}>
+          {busy ? (
+            <>
+              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              Menyimpan…
+            </>
+          ) : (
+            <>
+              <KeyRound className="size-4" aria-hidden="true" />
+              Simpan API key
+            </>
+          )}
+        </Button>
+      </div>
     </form>
-  )
-}
-
-export function DeleteApiKeyButton({ id, label }: { id: string; label: string }) {
-  const router = useRouter()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function remove() {
-    // Key tidak pernah bisa dipulihkan: plaintext-nya tidak disimpan, jadi
-    // sekali terhapus pengguna harus membuat key baru di penyedia.
-    if (!window.confirm(`Hapus key "${label}"? Key tidak bisa dikembalikan.`)) return
-    setBusy(true)
-    setError(null)
-    const hasil = await requestDeleteKey(id)
-    setBusy(false)
-    if (!hasil.ok) {
-      setError(hasil.message)
-      return
-    }
-    router.refresh()
-  }
-
-  return (
-    <>
-      <button type="button" onClick={remove} disabled={busy} aria-label={`Hapus key ${label}`}>
-        {busy ? 'Menghapus...' : 'Hapus'}
-      </button>
-      {error && <span role="alert">{error}</span>}
-    </>
   )
 }

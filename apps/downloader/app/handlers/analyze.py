@@ -16,6 +16,7 @@ from app.prompts.highlights_v1 import (
     slice_transcript,
 )
 from app.providers.llm import call_llm as _call_llm
+from app.providers.llm import nebius_key_from_env
 from app.providers.transcription import Word
 from app.queue import Job, heartbeat
 from app.storage import Storage, storage_from_env
@@ -97,7 +98,9 @@ def handle_analyze(
     body = json.loads(storage.get_bytes(transcript_key).decode("utf-8"))
     words = [Word(w["text"], float(w["start"]), float(w["end"])) for w in body["words"]]
 
-    key: ApiKeyRecord = load_api_key(conn, job.user_id or "")
+    # Nebius env adalah default operator sementara. Menghapus
+    # NEBIUS_API_KEY langsung mengembalikan perilaku ke BYOK per user.
+    key: ApiKeyRecord = nebius_key_from_env() or load_api_key(conn, job.user_id or "")
     input_hash = compute_input_hash(transcript_id, PROMPT_VERSION, key.model)
 
     # Cache lapis LLM (spec §8). Cakupannya mengikuti sumber, sehingga hasil

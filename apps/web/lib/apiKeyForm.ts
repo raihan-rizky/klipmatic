@@ -1,4 +1,4 @@
-import { PRESETS, type Provider, type ProviderPreset } from './apiKeys'
+import { PRESETS, type Provider, type ProviderPreset } from './apiKeyConfig'
 
 /** Medan formulir tambah API key. Sengaja terpisah dari state React agar
  * transisinya bisa diuji tanpa merender komponen. */

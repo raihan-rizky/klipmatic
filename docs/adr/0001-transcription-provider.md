@@ -48,6 +48,10 @@ source.** Adapter membaca daftar provider beserta urutan fallback dari env,
 sehingga mengganti penyedia adalah perubahan konfigurasi, bukan perubahan
 kode.
 
+Setelah ADR 0002, rantai provider ini menjadi fallback untuk YouTube yang
+tidak mempunyai caption layak, sekaligus tetap menjadi jalur utama TikTok dan
+Google Drive. Keputusan provider di dokumen ini tidak berubah.
+
 Ini mengubah sifat pertanyaan yang tersisa: memilih penyedia tidak lagi
 memerlukan commit, jadi spike dapat dijalankan kapan saja tanpa memblokir
 P1. Rantai default di `.env.example` diset `deepinfra,groq` sesuai spec, dan

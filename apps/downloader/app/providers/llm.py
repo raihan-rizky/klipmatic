@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from typing import Any
+from typing import Mapping
 
 import httpx
 
@@ -9,8 +11,37 @@ from app.errors import JobError
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 ANTHROPIC_BASE = "https://api.anthropic.com/v1"
+NEBIUS_BASE = "https://api.tokenfactory.nebius.com/v1"
+NEBIUS_DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
 MAX_OUTPUT_TOKENS = 8192
 TEMPERATURE = 0.4
+
+
+def nebius_key_from_env(
+    env: Mapping[str, str] | None = None,
+) -> ApiKeyRecord | None:
+    """Membuat credential server-side Nebius untuk default sementara.
+
+    Selama NEBIUS_API_KEY diset, key operator ini didahulukan atas BYOK user.
+    Ini sengaja eksplisit dan mudah dicabut: hapus env tersebut untuk kembali
+    ke pemilihan key terenkripsi dari tabel api_keys.
+    """
+    source = env if env is not None else os.environ
+    secret = source.get("NEBIUS_API_KEY", "").strip()
+    if not secret:
+        return None
+    base_url = source.get("NEBIUS_BASE_URL", NEBIUS_BASE).strip() or NEBIUS_BASE
+    model = (
+        source.get("NEBIUS_MODEL", NEBIUS_DEFAULT_MODEL).strip()
+        or NEBIUS_DEFAULT_MODEL
+    )
+    return ApiKeyRecord(
+        id="env:nebius",
+        provider="openai_compat",
+        base_url=base_url,
+        model=model,
+        secret=secret,
+    )
 
 
 def _request(key: ApiKeyRecord, prompt: str) -> tuple[str, dict[str, str], dict[str, Any]]:

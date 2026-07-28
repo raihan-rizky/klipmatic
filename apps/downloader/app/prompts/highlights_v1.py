@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import re
+from collections import Counter
 from dataclasses import dataclass
 
 from app.errors import JobError
@@ -246,8 +247,11 @@ def parse_candidates(raw: str, duration_sec: int) -> list[Candidate]:
     items = _as_items(_extract_json(raw))
 
     out: list[Candidate] = []
+    rejected: Counter[str] = Counter()
+    expanded_short = 0
     for item in items:
         if not isinstance(item, dict):
+            rejected["bukan_objek"] += 1
             continue
         start = _as_float(item.get("start_sec"))
         end = _as_float(item.get("end_sec"))
@@ -255,17 +259,33 @@ def parse_candidates(raw: str, duration_sec: int) -> list[Candidate]:
         title = item.get("title")
         hook = item.get("hook_text")
         if start is None or end is None or score is None:
+            rejected["angka_invalid"] += 1
             continue
         if not isinstance(title, str) or not title.strip():
+            rejected["judul_kosong"] += 1
             continue
         if not isinstance(hook, str) or not hook.strip():
+            rejected["hook_kosong"] += 1
             continue
         if start < 0 or end > duration_sec:
+            rejected["di_luar_video"] += 1
             continue
-        # Rentang terbalik menghasilkan panjang negatif; nilai negatif selalu
-        # di bawah MIN_CLIP_SEC, jadi tidak perlu cabang terpisah untuk itu.
+        if end <= start:
+            rejected["rentang_terbalik"] += 1
+            continue
         length = end - start
-        if length < MIN_CLIP_SEC or length > MAX_CLIP_SEC:
+        if length < MIN_CLIP_SEC:
+            # Model short-form sering memilih punchline 10–20 detik walau
+            # prompt meminta minimal 30. Pertahankan momen pilihannya, lalu
+            # tambah konteks setelahnya. Dekat ujung video, geser awal ke kiri.
+            if duration_sec < MIN_CLIP_SEC:
+                rejected["video_terlalu_pendek"] += 1
+                continue
+            end = min(float(duration_sec), start + MIN_CLIP_SEC)
+            start = max(0.0, end - MIN_CLIP_SEC)
+            expanded_short += 1
+        if length > MAX_CLIP_SEC:
+            rejected["terlalu_panjang"] += 1
             continue
         reason = item.get("reason")
         out.append(
@@ -282,10 +302,13 @@ def parse_candidates(raw: str, duration_sec: int) -> list[Candidate]:
     if len(out) < len(items):
         # Hanya jumlah yang dicatat; isi keluaran LLM memuat materi user.
         log.warning(
-            "%d dari %d kandidat LLM dibuang karena tidak valid",
+            "%d dari %d kandidat LLM dibuang karena tidak valid: %s",
             len(items) - len(out),
             len(items),
+            dict(rejected),
         )
+    if expanded_short:
+        log.info("%d kandidat pendek diperluas ke %d detik", expanded_short, MIN_CLIP_SEC)
 
     if not out:
         raise JobError(

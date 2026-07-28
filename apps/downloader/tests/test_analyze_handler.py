@@ -109,6 +109,26 @@ def test_menulis_kandidat_dan_mencatat_llm_run(conn, deps):
     assert len(run[3]) == 64
 
 
+def test_nebius_env_didahulukan_atas_byok_user(conn, deps, monkeypatch):
+    uid, sid, pid = _setup(conn, external_id="analisis-nebius")
+    monkeypatch.setenv("NEBIUS_API_KEY", "nebius-rahasia")
+    monkeypatch.setenv("NEBIUS_MODEL", "meta-llama/Llama-3.3-70B-Instruct")
+    seen = []
+    deps["call"] = lambda key, prompt: seen.append(key) or LLM_OUTPUT
+
+    handle_analyze(conn, _job(conn, sid, pid, uid), **deps)
+
+    assert len(seen) == 1
+    assert seen[0].id == "env:nebius"
+    assert seen[0].provider == "openai_compat"
+    assert seen[0].model == "meta-llama/Llama-3.3-70B-Instruct"
+    assert "nebius-rahasia" not in repr(seen[0])
+    run = conn.execute(
+        "select provider, model from llm_runs where source_id = %s", (sid,)
+    ).fetchone()
+    assert run == ("openai_compat", "meta-llama/Llama-3.3-70B-Instruct")
+
+
 def test_kandidat_terhubung_ke_llm_run(conn, deps):
     uid, sid, pid = _setup(conn)
     handle_analyze(conn, _job(conn, sid, pid, uid), **deps)

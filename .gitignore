@@ -8,3 +8,5 @@ __pycache__/
 .turbo/
 *.pyc
 *.tsbuildinfo
+.playwright-cli/
+output/

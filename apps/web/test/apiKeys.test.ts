@@ -184,6 +184,17 @@ test('preset Sumopod memakai gateway OpenAI-compatible dengan model murah', () =
   expect(sumopod!.models.length).toBeGreaterThan(1)
 })
 
+test('preset Nebius menggantikan Gemini dan memakai endpoint resmi', () => {
+  const nebius = PRESETS.find((p) => p.id === 'nebius')
+  expect(nebius).toMatchObject({
+    name: 'Nebius AI',
+    provider: 'openai_compat',
+    baseUrl: 'https://api.tokenfactory.nebius.com/v1',
+  })
+  expect(nebius!.models).toContain('meta-llama/Llama-3.3-70B-Instruct')
+  expect(PRESETS.some((p) => p.id === 'gemini')).toBe(false)
+})
+
 test('setiap preset menunjuk provider yang dikenal dan bebas kredensial', () => {
   expect(PRESETS.length).toBeGreaterThan(1)
   for (const preset of PRESETS) {
@@ -273,16 +284,16 @@ test('memilih jenis API non-gemini mempertahankan base URL yang terlihat', () =>
 })
 
 test('berpindah preset mengganti label bawaan preset sebelumnya', () => {
-  const gemini = PRESETS.find((p) => p.id === 'gemini')!
-  const after = applyPreset(FORM_SUMOPOD, gemini)
-  expect(after.label).toBe('Google Gemini')
-  expect(after.baseUrl).toBe(gemini.baseUrl)
-  expect(after.model).toBe(gemini.models[0])
+  const nebius = PRESETS.find((p) => p.id === 'nebius')!
+  const after = applyPreset(FORM_SUMOPOD, nebius)
+  expect(after.label).toBe('Nebius AI')
+  expect(after.baseUrl).toBe(nebius.baseUrl)
+  expect(after.model).toBe(nebius.models[0])
 })
 
 test('berpindah preset tidak menimpa label yang diketik pengguna', () => {
-  const gemini = PRESETS.find((p) => p.id === 'gemini')!
-  const after = applyPreset({ ...FORM_SUMOPOD, label: 'Key kantor' }, gemini)
+  const nebius = PRESETS.find((p) => p.id === 'nebius')!
+  const after = applyPreset({ ...FORM_SUMOPOD, label: 'Key kantor' }, nebius)
   expect(after.label).toBe('Key kantor')
 })
 
