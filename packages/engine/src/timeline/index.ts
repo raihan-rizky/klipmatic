@@ -1,3 +1,5 @@
+export * from './commands'
 export * from './defaults'
+export * from './mapping'
 export * from './normalize'
 export * from './types'
