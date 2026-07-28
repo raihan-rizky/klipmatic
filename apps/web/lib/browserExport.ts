@@ -2,7 +2,7 @@
 
 import {
   drawCompositeFrame,
-  type EditSpecV1,
+  type EditSpecV2,
   type TranscriptWord,
 } from '@cheapclipper/engine'
 
@@ -25,7 +25,7 @@ export function browserExportSupport(): { supported: boolean; reason: string | n
 
 export async function exportClipMp4(args: {
   url: string
-  spec: EditSpecV1
+  spec: EditSpecV2
   words: TranscriptWord[]
   title: string
   onProgress?: (progress: number) => void

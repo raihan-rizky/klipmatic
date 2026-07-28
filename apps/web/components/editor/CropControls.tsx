@@ -1,19 +1,19 @@
 'use client'
 
 import { ScanFace } from 'lucide-react'
-import { normalizeEditSpec, type EditSpecV1 } from '@cheapclipper/engine'
+import type { EditSpecV2, TimelineCommand } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
 
 type CropControlsProps = {
-  spec: EditSpecV1
-  onChange: (spec: EditSpecV1) => void
+  spec: EditSpecV2
+  onCommand: (command: TimelineCommand) => void
   onAutoFocus: () => void
 }
 
 const RANGE_CLASS =
   'h-2 w-full cursor-pointer appearance-none rounded-full bg-surface-soft accent-primary outline-none focus-visible:ring-2 focus-visible:ring-primary'
 
-export function CropControls({ spec, onChange, onAutoFocus }: CropControlsProps) {
+export function CropControls({ spec, onCommand, onAutoFocus }: CropControlsProps) {
   return (
     <fieldset className="space-y-5">
       <legend className="text-lg font-black tracking-[-0.025em]">Crop 9:16</legend>
@@ -35,12 +35,10 @@ export function CropControls({ spec, onChange, onAutoFocus }: CropControlsProps)
           step="0.01"
           value={spec.crop.focusX}
           onChange={(event) =>
-            onChange(
-              normalizeEditSpec({
-                ...spec,
-                crop: { ...spec.crop, focusX: event.target.value },
-              }),
-            )
+            onCommand({
+              type: 'updateCrop',
+              crop: { focusX: Number(event.currentTarget.value) },
+            })
           }
         />
       </div>
@@ -59,12 +57,10 @@ export function CropControls({ spec, onChange, onAutoFocus }: CropControlsProps)
           step="0.05"
           value={spec.crop.zoom}
           onChange={(event) =>
-            onChange(
-              normalizeEditSpec({
-                ...spec,
-                crop: { ...spec.crop, zoom: event.target.value },
-              }),
-            )
+            onCommand({
+              type: 'updateCrop',
+              crop: { zoom: Number(event.currentTarget.value) },
+            })
           }
         />
       </div>

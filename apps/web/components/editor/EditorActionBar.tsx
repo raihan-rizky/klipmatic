@@ -45,7 +45,7 @@ export function EditorActionBar({
         )}
         {!exporting && exportSupported && (
           <p className="flex-1 px-2 text-sm text-muted">
-            Simpan draft kapan saja atau ekspor MP4 langsung di browser.
+            Autosave aktif. Kamu juga bisa simpan sekarang atau ekspor MP4.
           </p>
         )}
         <div className="flex gap-2">
@@ -55,7 +55,7 @@ export function EditorActionBar({
             ) : (
               <Save className="size-4" aria-hidden="true" />
             )}
-            {saving ? 'Menyimpan…' : 'Simpan'}
+            {saving ? 'Menyimpan…' : 'Simpan sekarang'}
           </Button>
           <Button type="button" onClick={onExport} disabled={exporting || !exportSupported}>
             {exporting ? (

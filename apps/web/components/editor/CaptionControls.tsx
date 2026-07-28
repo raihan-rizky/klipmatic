@@ -1,17 +1,17 @@
 'use client'
 
 import { Captions } from 'lucide-react'
-import { normalizeEditSpec, type EditSpecV1 } from '@cheapclipper/engine'
+import type { EditSpecV2, TimelineCommand } from '@cheapclipper/engine'
 
 type CaptionControlsProps = {
-  spec: EditSpecV1
-  onChange: (spec: EditSpecV1) => void
+  spec: EditSpecV2
+  onCommand: (command: TimelineCommand) => void
 }
 
 const RANGE_CLASS =
   'h-2 w-full cursor-pointer appearance-none rounded-full bg-surface-soft accent-primary outline-none focus-visible:ring-2 focus-visible:ring-primary'
 
-export function CaptionControls({ spec, onChange }: CaptionControlsProps) {
+export function CaptionControls({ spec, onCommand }: CaptionControlsProps) {
   return (
     <fieldset className="space-y-5">
       <legend className="flex items-center gap-2 text-lg font-black tracking-[-0.025em]">
@@ -26,12 +26,10 @@ export function CaptionControls({ spec, onChange }: CaptionControlsProps) {
           className="size-5 accent-primary outline-none focus-visible:ring-2 focus-visible:ring-primary"
           checked={spec.captions.enabled}
           onChange={(event) =>
-            onChange(
-              normalizeEditSpec({
-                ...spec,
-                captions: { ...spec.captions, enabled: event.target.checked },
-              }),
-            )
+            onCommand({
+              type: 'updateCaptions',
+              captions: { enabled: event.currentTarget.checked },
+            })
           }
         />
       </label>
@@ -49,12 +47,10 @@ export function CaptionControls({ spec, onChange }: CaptionControlsProps) {
           max="140"
           value={spec.captions.fontSize}
           onChange={(event) =>
-            onChange(
-              normalizeEditSpec({
-                ...spec,
-                captions: { ...spec.captions, fontSize: event.target.value },
-              }),
-            )
+            onCommand({
+              type: 'updateCaptions',
+              captions: { fontSize: Number(event.currentTarget.value) },
+            })
           }
         />
       </div>
@@ -75,12 +71,10 @@ export function CaptionControls({ spec, onChange }: CaptionControlsProps) {
           step="0.01"
           value={spec.captions.positionY}
           onChange={(event) =>
-            onChange(
-              normalizeEditSpec({
-                ...spec,
-                captions: { ...spec.captions, positionY: event.target.value },
-              }),
-            )
+            onCommand({
+              type: 'updateCaptions',
+              captions: { positionY: Number(event.currentTarget.value) },
+            })
           }
         />
       </div>
@@ -93,12 +87,10 @@ export function CaptionControls({ spec, onChange }: CaptionControlsProps) {
           className="size-8 cursor-pointer rounded-md border-0 bg-transparent"
           value={spec.captions.activeColor.slice(0, 7)}
           onChange={(event) =>
-            onChange(
-              normalizeEditSpec({
-                ...spec,
-                captions: { ...spec.captions, activeColor: event.target.value },
-              }),
-            )
+            onCommand({
+              type: 'updateCaptions',
+              captions: { activeColor: event.currentTarget.value },
+            })
           }
         />
       </div>

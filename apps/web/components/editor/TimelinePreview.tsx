@@ -24,6 +24,7 @@ type TimelinePreviewProps = {
   onPlayheadChange: (outputTime: number) => void
   onPlayingChange: (playing: boolean) => void
   onStall: (message: string) => void
+  onPrimaryVideoChange?: (video: HTMLVideoElement | null) => void
 }
 
 function formatTime(value: number): string {
@@ -42,6 +43,7 @@ export function TimelinePreview({
   onPlayheadChange,
   onPlayingChange,
   onStall,
+  onPrimaryVideoChange,
 }: TimelinePreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mediaPoolRef = useRef(new Map<string, HTMLMediaElement>())
@@ -51,8 +53,14 @@ export function TimelinePreview({
     onPlayheadChange,
     onPlayingChange,
     onStall,
+    onPrimaryVideoChange,
   })
-  callbacksRef.current = { onPlayheadChange, onPlayingChange, onStall }
+  callbacksRef.current = {
+    onPlayheadChange,
+    onPlayingChange,
+    onStall,
+    onPrimaryVideoChange,
+  }
 
   const mediaEntries = useMemo(
     () =>
@@ -62,6 +70,9 @@ export function TimelinePreview({
           : track.clips.map((clip) => ({
               clipId: clip.id,
               trackType: track.type,
+              primary:
+                track.type === 'video' &&
+                track.id === spec.timeline.primaryTrackId,
             })),
       ),
     [spec],
@@ -143,11 +154,20 @@ export function TimelinePreview({
     [],
   )
 
-  function registerMedia(clipId: string, media: HTMLMediaElement | null): void {
+  function registerMedia(
+    clipId: string,
+    media: HTMLMediaElement | null,
+    primary: boolean,
+  ): void {
     if (media) {
       mediaPoolRef.current.set(clipId, media)
     } else {
       mediaPoolRef.current.delete(clipId)
+    }
+    if (primary) {
+      callbacksRef.current.onPrimaryVideoChange?.(
+        media instanceof HTMLVideoElement ? media : null,
+      )
     }
   }
 
@@ -204,7 +224,7 @@ export function TimelinePreview({
           entry.trackType === 'video' ? (
             <video
               key={entry.clipId}
-              ref={(media) => registerMedia(entry.clipId, media)}
+              ref={(media) => registerMedia(entry.clipId, media, entry.primary)}
               src={mediaUrl}
               preload="auto"
               playsInline
@@ -215,7 +235,7 @@ export function TimelinePreview({
           ) : (
             <audio
               key={entry.clipId}
-              ref={(media) => registerMedia(entry.clipId, media)}
+              ref={(media) => registerMedia(entry.clipId, media, false)}
               src={mediaUrl}
               preload="auto"
               tabIndex={-1}

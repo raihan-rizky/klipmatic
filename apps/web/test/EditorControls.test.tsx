@@ -4,7 +4,6 @@ import '@testing-library/jest-dom/vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
-import { normalizeEditSpec } from '@cheapclipper/engine'
 import { CaptionControls } from '@/components/editor/CaptionControls'
 import { CropControls } from '@/components/editor/CropControls'
 import { TimelinePreview } from '@/components/editor/TimelinePreview'
@@ -13,8 +12,8 @@ import { makeEditorSpec } from './editorFixtures'
 test('crop panel exposes manual and face focus controls', () => {
   render(
     <CropControls
-      spec={normalizeEditSpec(null)}
-      onChange={vi.fn()}
+      spec={makeEditorSpec()}
+      onCommand={vi.fn()}
       onAutoFocus={vi.fn()}
     />,
   )
@@ -26,18 +25,17 @@ test('crop panel exposes manual and face focus controls', () => {
 
 test('caption panel can disable karaoke captions', async () => {
   const user = userEvent.setup()
-  const onChange = vi.fn()
-  render(<CaptionControls spec={normalizeEditSpec(null)} onChange={onChange} />)
+  const onCommand = vi.fn()
+  render(<CaptionControls spec={makeEditorSpec()} onCommand={onCommand} />)
 
   await user.click(
     screen.getByRole('checkbox', { name: 'Tampilkan caption karaoke' }),
   )
 
-  expect(onChange).toHaveBeenCalledWith(
-    expect.objectContaining({
-      captions: expect.objectContaining({ enabled: false }),
-    }),
-  )
+  expect(onCommand).toHaveBeenCalledWith({
+    type: 'updateCaptions',
+    captions: { enabled: false },
+  })
 })
 
 test('timeline preview exposes one vertical canvas and transport controls', async () => {

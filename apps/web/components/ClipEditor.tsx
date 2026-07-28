@@ -1,22 +1,37 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { SlidersHorizontal } from 'lucide-react'
 import {
-  drawCompositeFrame,
-  normalizeEditSpec,
-  type EditSpecV1,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
+import {
+  applyTimelineCommand,
+  type TimelineCommand,
+  type TimelineContext,
 } from '@cheapclipper/engine'
-import { PageHeader } from '@/components/PageHeader'
 import { StatePanel } from '@/components/StatePanel'
 import { Alert } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CaptionControls } from '@/components/editor/CaptionControls'
 import { CropControls } from '@/components/editor/CropControls'
 import { EditorActionBar } from '@/components/editor/EditorActionBar'
-import { EditorPreview } from '@/components/editor/EditorPreview'
+import { EditorHeader } from '@/components/editor/EditorHeader'
+import { EditorWorkspace } from '@/components/editor/EditorWorkspace'
+import {
+  createEditorHistory,
+  editorHistoryReducer,
+} from '@/components/editor/editorHistory'
 import { editorViewState } from '@/components/editor/editorViewState'
+import { LayerInspector } from '@/components/editor/LayerInspector'
+import {
+  TimelineEditor,
+  type TimelineSelection,
+} from '@/components/editor/TimelineEditor'
+import { TimelinePreview } from '@/components/editor/TimelinePreview'
+import { useEditorAutosave } from '@/components/editor/useEditorAutosave'
 import type { ClipEditorPayload } from '@/lib/clipTypes'
 import { browserExportSupport, exportClipMp4 } from '@/lib/browserExport'
 import { detectFaceFocusX } from '@/lib/faceFocus'
@@ -24,16 +39,8 @@ import { loadSegmentObjectUrl } from '@/lib/segmentCache'
 
 export function ClipEditor({ clipId }: { clipId: string }) {
   const [payload, setPayload] = useState<ClipEditorPayload | null>(null)
-  const [spec, setSpec] = useState<EditSpecV1 | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const [progress, setProgress] = useState(0)
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const initialized = useRef(false)
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/clips/${clipId}`, { cache: 'no-store' })
@@ -49,10 +56,6 @@ export function ClipEditor({ clipId }: { clipId: string }) {
       return
     }
     setPayload(body)
-    if (!initialized.current) {
-      setSpec(normalizeEditSpec(body.clip.editSpec))
-      initialized.current = true
-    }
     if (body.segment.status === 'pending') {
       window.setTimeout(() => void load(), 2000)
     }
@@ -73,7 +76,11 @@ export function ClipEditor({ clipId }: { clipId: string }) {
       })
       .catch((cause: unknown) => {
         if (active) {
-          setError(cause instanceof Error ? cause.message : 'Potongan video gagal dimuat.')
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : 'Potongan video gagal dimuat.',
+          )
         }
       })
     return () => {
@@ -82,90 +89,12 @@ export function ClipEditor({ clipId }: { clipId: string }) {
     }
   }, [clipId, payload?.segment.url])
 
-  useEffect(() => {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (!video || !canvas || !spec || !mediaUrl || !payload) return
-    const context = canvas.getContext('2d')
-    if (!context) return
-    let frame = 0
-    const draw = () => {
-      if (video.readyState >= 2) {
-        drawCompositeFrame(context, video, spec, payload.words, video.currentTime)
-      }
-      if (!video.paused && !video.ended) frame = requestAnimationFrame(draw)
-    }
-    const once = () => draw()
-    video.addEventListener('loadeddata', once)
-    video.addEventListener('seeked', once)
-    video.addEventListener('play', once)
-    draw()
-    return () => {
-      cancelAnimationFrame(frame)
-      video.removeEventListener('loadeddata', once)
-      video.removeEventListener('seeked', once)
-      video.removeEventListener('play', once)
-    }
-  }, [mediaUrl, payload, spec])
-
-  async function save(renderStatus: ClipEditorPayload['clip']['renderStatus'] = 'draft') {
-    if (!spec) return
-    setSaving(true)
-    const response = await fetch(`/api/clips/${clipId}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ editSpec: spec, renderStatus }),
-    })
-    setSaving(false)
-    if (!response.ok) {
-      setError('Perubahan gagal disimpan.')
-      return
-    }
-    setNotice('Perubahan tersimpan.')
-  }
-
-  async function autoFocus() {
-    const video = videoRef.current
-    if (!video || !spec) return
-    setNotice('Mendeteksi wajah di frame aktif…')
-    try {
-      const focusX = await detectFaceFocusX(video)
-      if (focusX === null) {
-        setNotice('Wajah tidak ditemukan. Geser fokus secara manual.')
-        return
-      }
-      setSpec(normalizeEditSpec({ ...spec, crop: { ...spec.crop, focusX } }))
-      setNotice('Fokus crop mengikuti wajah terbesar di frame ini.')
-    } catch {
-      setNotice('Auto-focus tidak tersedia. Slider manual tetap bisa dipakai.')
-    }
-  }
-
-  async function runExport() {
-    if (!mediaUrl || !payload || !spec) return
-    setExporting(true)
-    setProgress(0)
-    setError(null)
-    try {
-      await save('rendering')
-      await exportClipMp4({
-        url: mediaUrl,
-        spec,
-        words: payload.words,
-        title: payload.clip.title,
-        onProgress: setProgress,
-      })
-      await save('done')
-      setNotice('Ekspor selesai dan file sudah diunduh.')
-    } catch (cause) {
-      await save('failed')
-      setError(cause instanceof Error ? cause.message : 'Ekspor gagal.')
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  const view = editorViewState(payload, spec, mediaUrl, error)
+  const view = editorViewState(
+    payload,
+    payload?.clip.editSpec ?? null,
+    mediaUrl,
+    error,
+  )
   if (view === 'error') {
     return (
       <StatePanel
@@ -212,75 +141,232 @@ export function ClipEditor({ clipId }: { clipId: string }) {
     )
   }
 
-  const readyPayload = payload!
-  const readySpec = spec!
-  const readyMediaUrl = mediaUrl!
+  return (
+    <ReadyClipEditor clipId={clipId} payload={payload!} mediaUrl={mediaUrl!} />
+  )
+}
+
+function ReadyClipEditor({
+  clipId,
+  payload,
+  mediaUrl,
+}: {
+  clipId: string
+  payload: ClipEditorPayload
+  mediaUrl: string
+}) {
+  const [history, historyDispatch] = useReducer(
+    editorHistoryReducer,
+    payload.clip.editSpec,
+    createEditorHistory,
+  )
+  const initialTrack = history.present.timeline.tracks.find(
+    (track) => track.id === history.present.timeline.primaryTrackId,
+  )
+  const [selected, setSelected] = useState<TimelineSelection | null>(() =>
+    initialTrack
+      ? { trackId: initialTrack.id, clipId: initialTrack.clips[0]?.id }
+      : null,
+  )
+  const [playhead, setPlayhead] = useState(() =>
+    Math.min(10, payload.clip.durationSec / 2),
+  )
+  const [playing, setPlaying] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const primaryVideoRef = useRef<HTMLVideoElement | null>(null)
+  const timelineContext = useMemo<TimelineContext>(
+    () => ({
+      candidateDuration: payload.clip.durationSec,
+      sourceId: payload.clip.id,
+    }),
+    [payload.clip.durationSec, payload.clip.id],
+  )
+  const autosave = useEditorAutosave({
+    clipId,
+    spec: history.present,
+  })
+
+  const dispatchCommand = useCallback(
+    (command: TimelineCommand) => {
+      const next = applyTimelineCommand(
+        history.present,
+        command,
+        timelineContext,
+      )
+      if (next === history.present) return
+      historyDispatch({ type: 'push', spec: next })
+      if (
+        (command.type === 'deleteClip' || command.type === 'deleteTrack') &&
+        command.trackId === selected?.trackId
+      ) {
+        setSelected(null)
+      }
+    },
+    [history.present, selected?.trackId, timelineContext],
+  )
+
+  async function autoFocus(): Promise<void> {
+    const video = primaryVideoRef.current
+    if (!video) {
+      setNotice('Preview belum siap. Coba lagi setelah frame video muncul.')
+      return
+    }
+    setNotice('Mendeteksi wajah di frame aktif…')
+    try {
+      const focusX = await detectFaceFocusX(video)
+      if (focusX === null) {
+        setNotice('Wajah tidak ditemukan. Geser fokus secara manual.')
+        return
+      }
+      dispatchCommand({ type: 'updateCrop', crop: { focusX } })
+      setNotice('Fokus crop mengikuti wajah terbesar di frame ini.')
+    } catch {
+      setNotice('Auto-focus tidak tersedia. Slider manual tetap bisa dipakai.')
+    }
+  }
+
+  async function markRenderStatus(
+    renderStatus: ClipEditorPayload['clip']['renderStatus'],
+  ): Promise<void> {
+    const response = await fetch(`/api/clips/${clipId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ editSpec: history.present, renderStatus }),
+    })
+    if (!response.ok) throw new Error('Status ekspor gagal disimpan.')
+  }
+
+  async function saveNow(): Promise<void> {
+    setError(null)
+    try {
+      await autosave.flush()
+      setNotice('Perubahan tersimpan.')
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Perubahan gagal disimpan.',
+      )
+    }
+  }
+
+  async function runExport(): Promise<void> {
+    setExporting(true)
+    setProgress(0)
+    setError(null)
+    try {
+      await autosave.flush()
+      await markRenderStatus('rendering')
+      await exportClipMp4({
+        url: mediaUrl,
+        spec: history.present,
+        words: payload.words,
+        title: payload.clip.title,
+        onProgress: setProgress,
+      })
+      await markRenderStatus('done')
+      setNotice('Ekspor selesai dan file sudah diunduh.')
+    } catch (cause) {
+      await markRenderStatus('failed').catch(() => undefined)
+      setError(cause instanceof Error ? cause.message : 'Ekspor gagal.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const support = browserExportSupport()
+  const inspector = (
+    <div className="divide-y divide-border">
+      <LayerInspector
+        spec={history.present}
+        selected={selected}
+        onCommand={dispatchCommand}
+      />
+      <div className="p-5">
+        <CropControls
+          spec={history.present}
+          onCommand={dispatchCommand}
+          onAutoFocus={() => void autoFocus()}
+        />
+      </div>
+      <div className="p-5">
+        <CaptionControls spec={history.present} onCommand={dispatchCommand} />
+      </div>
+    </div>
+  )
 
   return (
-    <section>
-      <PageHeader
-        eyebrow="Editor"
-        title={readyPayload.clip.title}
-        description="Atur framing dan caption. Preview dan hasil ekspor memakai edit spec yang sama."
-        actions={
-          <>
-            <Badge variant="muted">{readyPayload.clip.durationSec.toFixed(1)} detik</Badge>
-            <Badge variant={readyPayload.clip.timingPrecision === 'estimated' ? 'warning' : 'default'}>
-              {readyPayload.clip.timingPrecision === 'estimated' ? 'Timing estimasi' : 'Timing presisi'}
-            </Badge>
-          </>
+    <>
+      <EditorWorkspace
+        header={
+          <EditorHeader
+            title={payload.clip.title}
+            duration={history.present.timeline.duration}
+            timingPrecision={payload.clip.timingPrecision}
+            saveStatus={autosave.status}
+            onRetry={() => void autosave.retry().catch(() => undefined)}
+          />
+        }
+        preview={
+          <TimelinePreview
+            spec={history.present}
+            words={payload.words}
+            mediaUrl={mediaUrl}
+            playhead={playhead}
+            playing={playing}
+            onPlayheadChange={setPlayhead}
+            onPlayingChange={setPlaying}
+            onStall={setError}
+            onPrimaryVideoChange={(video) => {
+              primaryVideoRef.current = video
+            }}
+          />
+        }
+        inspector={inspector}
+        timeline={
+          <TimelineEditor
+            spec={history.present}
+            candidateDuration={payload.clip.durationSec}
+            playhead={playhead}
+            selected={selected}
+            onPlayheadChange={setPlayhead}
+            onSelectionChange={setSelected}
+            onCommand={dispatchCommand}
+            canUndo={history.past.length > 0}
+            canRedo={history.future.length > 0}
+            onUndo={() => historyDispatch({ type: 'undo' })}
+            onRedo={() => historyDispatch({ type: 'redo' })}
+            playing={playing}
+            onTogglePlay={() => setPlaying((value) => !value)}
+          />
         }
       />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2 xl:grid-cols-[minmax(300px,380px)_minmax(320px,1fr)_360px]">
-        <EditorPreview
-          canvasRef={canvasRef}
-          videoRef={videoRef}
-          mediaUrl={readyMediaUrl}
-          spec={readySpec}
-          durationSec={readyPayload.clip.durationSec}
-          timingPrecision={readyPayload.clip.timingPrecision}
-        />
-
-        <Card className="self-start lg:col-span-2 xl:col-span-1">
-          <CardHeader className="flex-row items-center gap-3 border-b border-border/70">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <SlidersHorizontal className="size-5" aria-hidden="true" />
-            </span>
-            <CardTitle>Pengaturan klip</CardTitle>
-          </CardHeader>
-          <CardContent className="divide-y divide-border pt-5 sm:pt-6">
-            <div className="pb-6">
-              <CropControls
-                spec={readySpec}
-                onChange={setSpec}
-                onAutoFocus={() => void autoFocus()}
-              />
-            </div>
-            <div className="pt-6">
-              <CaptionControls spec={readySpec} onChange={setSpec} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {(notice || error) && (
+      {(notice || error || autosave.error) && (
         <div className="mt-4 space-y-2" aria-live="polite">
-          {notice && <Alert tone="success" role="status">{notice}</Alert>}
-          {error && <Alert tone="danger" role="alert">{error}</Alert>}
+          {notice && (
+            <Alert tone="success" role="status">
+              {notice}
+            </Alert>
+          )}
+          {(error || autosave.error) && (
+            <Alert tone="danger" role="alert">
+              {error ?? autosave.error}
+            </Alert>
+          )}
         </div>
       )}
 
       <EditorActionBar
-        saving={saving}
+        saving={autosave.status === 'saving'}
         exporting={exporting}
         exportProgress={progress}
         exportSupported={support.supported}
         exportReason={support.reason}
-        onSave={() => void save()}
+        onSave={() => void saveNow()}
         onExport={() => void runExport()}
       />
-    </section>
+    </>
   )
 }
