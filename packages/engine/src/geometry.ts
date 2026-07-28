@@ -1,5 +1,7 @@
 import type { EditSpecV1 } from './types'
 
+export type CropSpec = Pick<EditSpecV1, 'output' | 'crop'>
+
 export interface CropRectangle {
   sx: number
   sy: number
@@ -10,7 +12,7 @@ export interface CropRectangle {
 export function coverCrop(
   sourceWidth: number,
   sourceHeight: number,
-  spec: EditSpecV1,
+  spec: CropSpec,
 ): CropRectangle {
   if (sourceWidth <= 0 || sourceHeight <= 0) {
     return { sx: 0, sy: 0, sw: 1, sh: 1 }

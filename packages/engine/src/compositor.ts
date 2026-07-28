@@ -2,6 +2,13 @@ import { captionTokensAt } from './captions'
 import { coverCrop } from './geometry'
 import type { EditSpecV1, TranscriptWord } from './types'
 
+export type CompositeSpec = Pick<EditSpecV1, 'output' | 'crop' | 'captions'>
+
+export interface TimelineVisualLayer {
+  media: CanvasImageSource & DrawableMedia
+  order: number
+}
+
 export interface DrawableMedia {
   readonly videoWidth?: number
   readonly videoHeight?: number
@@ -21,18 +28,43 @@ function dimensions(media: DrawableMedia): { width: number; height: number } {
 export function drawCompositeFrame(
   context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   media: CanvasImageSource & DrawableMedia,
-  spec: EditSpecV1,
+  spec: CompositeSpec,
   words: TranscriptWord[],
   time: number,
 ): void {
-  const { width, height } = dimensions(media)
-  const crop = coverCrop(width, height, spec)
+  drawTimelineComposite(context, [{ media, order: 0 }], spec, words, time)
+}
+
+export function drawTimelineComposite(
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  layers: TimelineVisualLayer[],
+  spec: CompositeSpec,
+  words: TranscriptWord[],
+  time: number,
+): void {
   const outWidth = spec.output.width
   const outHeight = spec.output.height
 
   context.save()
   context.fillStyle = '#000000'
   context.fillRect(0, 0, outWidth, outHeight)
+  for (const layer of [...layers].sort((left, right) => left.order - right.order)) {
+    drawVisualLayer(context, layer.media, spec)
+  }
+  drawCaptions(context, spec, words, time)
+  context.restore()
+}
+
+function drawVisualLayer(
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  media: CanvasImageSource & DrawableMedia,
+  spec: CompositeSpec,
+): void {
+  const { width, height } = dimensions(media)
+  const crop = coverCrop(width, height, spec)
+  const outWidth = spec.output.width
+  const outHeight = spec.output.height
+
   context.drawImage(
     media,
     crop.sx,
@@ -44,7 +76,16 @@ export function drawCompositeFrame(
     outWidth,
     outHeight,
   )
+}
 
+function drawCaptions(
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  spec: CompositeSpec,
+  words: TranscriptWord[],
+  time: number,
+): void {
+  const outWidth = spec.output.width
+  const outHeight = spec.output.height
   if (spec.captions.enabled) {
     const tokens = captionTokensAt(words, time, spec.captions.maxWordsPerLine)
     if (tokens.length > 0) {
@@ -76,5 +117,4 @@ export function drawCompositeFrame(
       }
     }
   }
-  context.restore()
 }

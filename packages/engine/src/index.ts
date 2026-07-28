@@ -1,4 +1,5 @@
 export * from './captions'
 export * from './compositor'
 export * from './geometry'
+export * from './timeline'
 export * from './types'
