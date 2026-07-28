@@ -275,7 +275,7 @@ function ReadyClipEditor({
     }
   }
 
-  const support = browserExportSupport()
+  const support = browserExportSupport(history.present)
   const inspector = (
     <div className="divide-y divide-border">
       <LayerInspector
