@@ -1,8 +1,9 @@
 import type { Sql } from 'postgres'
 import {
   DEFAULT_EDIT_SPEC,
-  normalizeEditSpec,
-  type EditSpecV1,
+  normalizeEditSpecV2,
+  type EditSpecV2,
+  type TimelineContext,
   type TranscriptWord,
 } from '@cheapclipper/engine'
 import type { ClipEditorPayload } from './clipTypes'
@@ -17,6 +18,17 @@ function jsonValue(value: unknown): JsonValue {
 }
 
 export class ClipNotFoundError extends Error {}
+
+function timelineContext(
+  id: unknown,
+  startSec: unknown,
+  endSec: unknown,
+): TimelineContext {
+  return {
+    sourceId: String(id),
+    candidateDuration: Number(endSec) - Number(startSec),
+  }
+}
 
 export async function loadClipSegment(
   sql: Sql,
@@ -215,7 +227,10 @@ export async function loadClipEditor(
       renderStatus: RENDER_STATUSES.includes(row.render_status)
         ? row.render_status
         : 'draft',
-      editSpec: normalizeEditSpec(row.edit_spec),
+      editSpec: normalizeEditSpecV2(
+        row.edit_spec,
+        timelineContext(row.id, row.start_sec, row.end_sec),
+      ),
       timingPrecision,
     },
     words,
@@ -237,9 +252,20 @@ export async function updateClip(
   userId: string,
   clipId: string,
   input: { editSpec?: unknown; renderStatus?: unknown },
-): Promise<{ editSpec: EditSpecV1; renderStatus: string }> {
+): Promise<{ editSpec: EditSpecV2; renderStatus: string }> {
   if (!UUID_RE.test(clipId)) throw new ClipNotFoundError()
-  const editSpec = normalizeEditSpec(input.editSpec)
+  const [owned] = await sql`
+    select cl.id, c.start_sec, c.end_sec
+      from clips cl
+      join clip_candidates c on c.id = cl.candidate_id
+      join projects p on p.id = cl.project_id
+     where cl.id = ${clipId}
+       and p.user_id = ${userId}`
+  if (!owned) throw new ClipNotFoundError()
+  const editSpec = normalizeEditSpecV2(
+    input.editSpec,
+    timelineContext(owned.id, owned.start_sec, owned.end_sec),
+  )
   const renderStatus =
     typeof input.renderStatus === 'string' &&
     RENDER_STATUSES.includes(input.renderStatus as (typeof RENDER_STATUSES)[number])

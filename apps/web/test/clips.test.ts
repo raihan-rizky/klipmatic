@@ -168,6 +168,49 @@ test('precision transcript clip mengalahkan timestamp estimasi sumber', async ()
 })
 
 describe('update edit spec', () => {
+  test('editor migrates stored v1 into normalized v2', async () => {
+    await sql`
+      update clips
+         set edit_spec = ${sql.json(JSON.parse(JSON.stringify(DEFAULT_EDIT_SPEC)))}
+       where id = ${clipId}`
+
+    const payload = await loadClipEditor(sql, alice, clipId)
+    expect(payload.clip.editSpec.version).toBe(2)
+    expect(payload.clip.editSpec.timeline.duration).toBe(70)
+    expect(payload.clip.editSpec.timeline.tracks.map((track) => track.type)).toEqual([
+      'video',
+      'audio',
+      'caption',
+    ])
+  })
+
+  test('menjepit timeline ke dalam candidate sebelum disimpan', async () => {
+    const payload = await loadClipEditor(sql, alice, clipId)
+    const result = await updateClip(sql, alice, clipId, {
+      editSpec: {
+        ...payload.clip.editSpec,
+        timeline: {
+          ...payload.clip.editSpec.timeline,
+          duration: 999,
+          tracks: payload.clip.editSpec.timeline.tracks.map((track, index) =>
+            index === 0
+              ? {
+                  ...track,
+                  clips: track.clips.map((clip) => ({
+                    ...clip,
+                    sourceOut: 999,
+                  })),
+                }
+              : track,
+          ),
+        },
+      },
+    })
+
+    expect(result.editSpec.timeline.duration).toBe(70)
+    expect(result.editSpec.timeline.tracks[0]!.clips[0]!.sourceOut).toBe(70)
+  })
+
   test('menormalisasi nilai sebelum disimpan', async () => {
     const result = await updateClip(sql, alice, clipId, {
       editSpec: {

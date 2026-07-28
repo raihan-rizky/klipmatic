@@ -1,4 +1,4 @@
-import type { EditSpecV1, TranscriptWord } from '@cheapclipper/engine'
+import type { EditSpecV2, TranscriptWord } from '@cheapclipper/engine'
 
 export interface ClipEditorPayload {
   clip: {
@@ -8,7 +8,7 @@ export interface ClipEditorPayload {
     title: string
     durationSec: number
     renderStatus: 'draft' | 'rendering' | 'done' | 'failed'
-    editSpec: EditSpecV1
+    editSpec: EditSpecV2
     timingPrecision: 'word' | 'estimated'
   }
   words: TranscriptWord[]
