@@ -76,3 +76,23 @@ a {
 .studio-pulse {
   animation: studio-pulse 1.8s ease-in-out infinite;
 }
+
+.timeline-scroll {
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x pinch-zoom;
+}
+
+.timeline-trim-handle {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-workspace *,
+  .editor-workspace *::before,
+  .editor-workspace *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

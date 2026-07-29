@@ -85,3 +85,16 @@ test('keyboard shortcut toggles playback without requiring hover', async () => {
 
   expect(props.onTogglePlay).toHaveBeenCalledOnce()
 })
+
+test('all gesture actions have named button or range alternatives', () => {
+  render(<TimelineEditor {...propsFor(makeEditorSpec())} />)
+
+  expect(screen.getByRole('button', { name: 'Split' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Hapus' })).toBeVisible()
+  for (const slider of screen.getAllByRole('slider', { name: /Trim awal/ })) {
+    expect(slider).toBeVisible()
+  }
+  for (const slider of screen.getAllByRole('slider', { name: /Trim akhir/ })) {
+    expect(slider).toBeVisible()
+  }
+})

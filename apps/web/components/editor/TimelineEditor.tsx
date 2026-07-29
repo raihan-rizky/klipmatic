@@ -96,7 +96,7 @@ export function TimelineEditor(props: TimelineEditorProps) {
           <div
             aria-label={`Playhead ${props.playhead.toFixed(1)} detik`}
             className="pointer-events-none absolute bottom-0 top-0 z-30 w-px bg-primary"
-            style={{ left: 144 + props.playhead * pixelsPerSecond }}
+            style={{ left: 192 + props.playhead * pixelsPerSecond }}
           />
           {props.spec.timeline.tracks.map((track) => (
             <TimelineTrack

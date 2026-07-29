@@ -26,7 +26,7 @@ export function TimelineTrack({
   onCommand: (command: TimelineCommand) => void
 }) {
   return (
-    <div className="grid min-h-16 grid-cols-[9rem_minmax(0,1fr)] border-b border-border/70">
+    <div className="grid min-h-16 grid-cols-[12rem_minmax(0,1fr)] border-b border-border/70">
       <div className="sticky left-0 z-20 flex items-center gap-1 border-r border-border bg-surface px-2">
         <button
           type="button"

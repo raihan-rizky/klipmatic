@@ -11,10 +11,15 @@ Kalau layak, audio penuh tidak perlu diunduh dan biaya transkripsi menjadi
 nol. DeepInfra/Groq otomatis menjadi fallback; keduanya tetap menjadi jalur
 utama untuk TikTok dan Google Drive.
 
-P2 editor sudah mencakup pemilihan kandidat, ranged segment download, preview
-9:16, crop/focus wajah opsional, caption karaoke, penyimpanan edit spec, dan
-export MP4 H.264/AAC di browser. Export memerlukan WebCodecs; Chrome atau Edge
-terbaru adalah target utama. Device tanpa encoder yang kompatibel tetap dapat
+P2 editor sudah memakai timeline multi-track dengan trim, split, auto-ripple,
+layer video/audio/caption, undo/redo selama tab aktif, serta autosave. Preview
+9:16, crop/focus wajah opsional, caption karaoke, dan export MP4 H.264/AAC
+membaca edit spec timeline yang sama. Candidate segment tetap menjadi batas
+source fase ini; upload media, transitions, dan effects belum tersedia.
+
+Preview dapat dipakai pada browser modern. Export MP4 membutuhkan WebCodecs
+`VideoEncoder` dan, bila audio aktif, `AudioEncoder`; Chrome atau Edge terbaru
+tetap menjadi target utama. Device tanpa encoder yang kompatibel masih dapat
 preview dan menyimpan edit, tetapi cloud-render fallback baru masuk P5.
 
 Bila caption YouTube hanya mempunyai timestamp estimasi, worker

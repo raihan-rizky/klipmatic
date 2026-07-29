@@ -45,7 +45,7 @@ export function EditorHeader({
         {saveStatus === 'error' && (
           <Button type="button" size="sm" variant="secondary" onClick={onRetry}>
             <RefreshCw className="size-4" aria-hidden="true" />
-            Coba lagi
+            Coba simpan lagi
           </Button>
         )}
         <Badge variant="muted">{duration.toFixed(1)} detik</Badge>

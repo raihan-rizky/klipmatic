@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ClipEditor } from '@/components/ClipEditor'
+import { EditorHeader } from '@/components/editor/EditorHeader'
 import {
   EditorWorkspace,
   type EditorWorkspaceProps,
@@ -90,4 +91,21 @@ test('ready clip renders layered timeline and autosaves a split', async () => {
       ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
     ),
   ).toBe(true)
+})
+
+test('save errors are announced without relying on color', () => {
+  render(
+    <EditorHeader
+      title="Klip fixture"
+      duration={30}
+      timingPrecision="word"
+      saveStatus="error"
+      onRetry={vi.fn()}
+    />,
+  )
+
+  expect(screen.getByRole('status')).toHaveTextContent('Gagal menyimpan')
+  expect(
+    screen.getByRole('button', { name: 'Coba simpan lagi' }),
+  ).toBeVisible()
 })

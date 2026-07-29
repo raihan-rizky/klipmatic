@@ -25,7 +25,7 @@ export function EditorActionBar({
   onExport,
 }: EditorActionBarProps) {
   return (
-    <div className="sticky bottom-4 z-30 mt-6 rounded-2xl border border-border bg-background/90 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl">
+    <div className="mt-6 rounded-2xl border border-border bg-background/90 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         {exporting && (
           <div className="min-w-0 flex-1" role="status">

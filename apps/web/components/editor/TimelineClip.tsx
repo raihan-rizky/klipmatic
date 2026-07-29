@@ -73,7 +73,7 @@ export function TimelineClip({
             sourceTime: Number(event.currentTarget.value),
           })
         }
-        className="absolute inset-y-0 left-0 z-10 w-11 cursor-ew-resize opacity-0 focus:opacity-100"
+        className="timeline-trim-handle absolute inset-y-0 left-0 z-10 w-11 cursor-ew-resize opacity-0 focus:opacity-100"
       />
       <input
         type="range"
@@ -93,7 +93,7 @@ export function TimelineClip({
             sourceTime: Number(event.currentTarget.value),
           })
         }
-        className="absolute inset-y-0 right-0 z-10 w-11 cursor-ew-resize opacity-0 focus:opacity-100"
+        className="timeline-trim-handle absolute inset-y-0 right-0 z-10 w-11 cursor-ew-resize opacity-0 focus:opacity-100"
       />
     </div>
   )
