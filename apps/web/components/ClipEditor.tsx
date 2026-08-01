@@ -39,6 +39,7 @@ import {
 import { TimelinePreview } from '@/components/editor/TimelinePreview'
 import { useEditorAutosave } from '@/components/editor/useEditorAutosave'
 import type { ClipEditorPayload } from '@/lib/clipTypes'
+import { BUILTIN_MEDIA, getBuiltInAsset } from '@/lib/builtinMedia'
 import { browserExportSupport, exportClipMp4 } from '@/lib/browserExport'
 import { detectFaceFocusX } from '@/lib/faceFocus'
 import { loadSegmentObjectUrl } from '@/lib/segmentCache'
@@ -216,7 +217,7 @@ function ReadyClipEditor({
       candidateDuration: payload.clip.durationSec,
       sourceId: payload.clip.id,
       candidateAssetId,
-      assets: Object.fromEntries(assets.map((asset) => [asset.id, {
+      assets: Object.fromEntries([...BUILTIN_MEDIA, ...assets].map((asset) => [asset.id, {
         id: asset.id,
         mediaType: asset.mediaType,
         duration: asset.duration,
@@ -255,7 +256,8 @@ function ReadyClipEditor({
     assetId: string,
     placement: { timelineStart?: number; transform?: VisualTransform } = {},
   ) => {
-    const asset = assets.find((item) => item.id === assetId)
+    const builtIn = getBuiltInAsset(assetId)
+    const asset = assets.find((item) => item.id === assetId) ?? builtIn
     if (!asset || asset.status !== 'ready') {
       setNotice('Media belum siap dipakai. Tunggu proses pengecekan selesai.')
       return
@@ -264,6 +266,10 @@ function ReadyClipEditor({
     const visual = asset.mediaType !== 'audio'
     const trackId = visual ? 'media-visuals' : 'media-audio'
     const clipId = `clip:${id}`
+    if (builtIn && !assets.some((item) => item.id === builtIn.id)) {
+      setAssets((current) => [...current, builtIn])
+    }
+    const initialTransform = placement.transform ?? builtIn?.defaultTransform
     dispatchCommand({
       type: 'insertAsset',
       assetId,
@@ -271,8 +277,8 @@ function ReadyClipEditor({
       trackName: visual ? 'Media visual' : 'Media audio',
       clipId,
       timelineStart: placement.timelineStart ?? playhead,
-      ...(visual && placement.transform
-        ? { initialTransform: placement.transform }
+      ...(visual && initialTransform
+        ? { initialTransform }
         : {}),
       ...(asset.mediaType === 'video' && asset.hasAudio
         ? {
@@ -407,7 +413,9 @@ function ReadyClipEditor({
   }
 
   const support = browserExportSupport(history.present)
-  const uploadedAssets = assets.filter((asset) => asset.id !== candidateAssetId)
+  const uploadedAssets = assets.filter(
+    (asset) => asset.id !== candidateAssetId && !asset.id.startsWith('builtin:'),
+  )
   const previewAssets = assets.map((asset) =>
     asset.id === candidateAssetId ? { ...asset, url: mediaUrl } : asset,
   )
@@ -467,9 +475,12 @@ function ReadyClipEditor({
           <MediaLibrary
             projectId={payload.clip.projectId}
             assets={uploadedAssets}
+            builtIns={BUILTIN_MEDIA}
             playhead={playhead}
             onAssetsChange={(next) => setAssets((current) => [
-              ...current.filter((asset) => asset.id === candidateAssetId),
+              ...current.filter((asset) =>
+                asset.id === candidateAssetId || asset.id.startsWith('builtin:'),
+              ),
               ...next,
             ])}
             onInsert={(asset, placement) => insertAsset(asset.id, placement)}

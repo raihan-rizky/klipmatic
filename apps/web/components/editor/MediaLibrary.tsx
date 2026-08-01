@@ -1,12 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Film, ImageIcon, Music2, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Film, ImageIcon, Music2, RefreshCw, Search, Trash2, Upload } from 'lucide-react'
 import type { VisualTransform } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  BUILTIN_MEDIA,
+  type BuiltInCategory,
+  type BuiltInMediaAsset,
+} from '@/lib/builtinMedia'
 import type { ResolvedMediaAsset } from '@/lib/clipTypes'
 import { PROJECT_MEDIA_QUOTA_BYTES } from '@/lib/mediaAssetConfig'
 import { uploadMediaAsset } from './assetUpload'
+import { PresetCard } from './PresetCard'
 
 export type InsertMediaAsset = (
   asset: ResolvedMediaAsset,
@@ -20,6 +27,7 @@ export interface MediaLibraryProps {
   onAssetsChange: (assets: ResolvedMediaAsset[]) => void
   onInsert: InsertMediaAsset
   onReplace?: (fromAssetId: string, toAssetId: string) => void
+  builtIns?: readonly BuiltInMediaAsset[]
 }
 
 interface Usage {
@@ -33,6 +41,16 @@ const GROUPS = [
   ['failed', 'Gagal'],
   ['expired', 'Kedaluwarsa'],
 ] as const
+
+type MediaTab = 'uploads' | BuiltInCategory
+
+const TABS: ReadonlyArray<{ id: MediaTab; label: string }> = [
+  { id: 'uploads', label: 'Uploads' },
+  { id: 'sfx', label: 'Sound effects' },
+  { id: 'sticker', label: 'Stickers' },
+  { id: 'photo', label: 'Photos' },
+  { id: 'background', label: 'Backgrounds' },
+]
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`
@@ -61,6 +79,7 @@ export function MediaLibrary({
   onAssetsChange,
   onInsert,
   onReplace,
+  builtIns = BUILTIN_MEDIA,
 }: MediaLibraryProps) {
   const [items, setItems] = useState(assets)
   const [usage, setUsage] = useState(() => initialUsage(assets))
@@ -68,6 +87,27 @@ export function MediaLibrary({
   const [progress, setProgress] = useState<number | null>(null)
   const uploadInput = useRef<HTMLInputElement>(null)
   const pendingReplacements = useRef(new Map<string, string>())
+  const previewAudio = useRef<HTMLAudioElement | null>(null)
+  const [activeTab, setActiveTab] = useState<MediaTab>('uploads')
+  const [query, setQuery] = useState('')
+  const [previewingId, setPreviewingId] = useState<string | null>(null)
+
+  const stopPreview = useCallback(() => {
+    if (previewAudio.current) {
+      previewAudio.current.pause()
+      previewAudio.current.currentTime = 0
+      previewAudio.current.removeAttribute('src')
+      previewAudio.current = null
+    }
+    setPreviewingId(null)
+  }, [])
+
+  useEffect(() => () => {
+    if (!previewAudio.current) return
+    previewAudio.current.pause()
+    previewAudio.current.removeAttribute('src')
+    previewAudio.current = null
+  }, [])
 
   useEffect(() => {
     setItems(assets)
@@ -118,6 +158,37 @@ export function MediaLibrary({
     status,
     items.filter((asset) => asset.status === status),
   ])) as Record<ResolvedMediaAsset['status'], ResolvedMediaAsset[]>, [items])
+
+  const visiblePresets = useMemo(() => {
+    if (activeTab === 'uploads') return []
+    const needle = query.trim().toLowerCase()
+    return builtIns.filter((asset) =>
+      asset.category === activeTab &&
+      (!needle || `${asset.name} ${asset.category}`.toLowerCase().includes(needle)),
+    )
+  }, [activeTab, builtIns, query])
+
+  const togglePreview = (asset: BuiltInMediaAsset) => {
+    if (previewingId === asset.id) {
+      stopPreview()
+      return
+    }
+    stopPreview()
+    const audio = new Audio(asset.url)
+    audio.preload = 'none'
+    audio.onended = () => {
+      if (previewAudio.current === audio) {
+        previewAudio.current = null
+        setPreviewingId(null)
+      }
+    }
+    previewAudio.current = audio
+    setPreviewingId(asset.id)
+    void audio.play().catch(() => {
+      if (previewAudio.current === audio) stopPreview()
+      setMessage(`${asset.name} belum bisa dipreview.`)
+    })
+  }
 
   const publish = (next: ResolvedMediaAsset[]) => {
     setItems(next)
@@ -198,6 +269,56 @@ export function MediaLibrary({
           <span>{Math.round(progress * 100)}%</span>
         </div>
       ) : null}
+
+      <div
+        role="tablist"
+        aria-label="Kategori media"
+        className="flex gap-1 overflow-x-auto pb-1"
+      >
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls="media-tab-panel"
+            className={`min-h-11 shrink-0 rounded-lg px-3 text-xs font-black transition ${
+              activeTab === tab.id
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-surface-raised text-muted hover:text-foreground'
+            }`}
+            onClick={() => {
+              stopPreview()
+              setActiveTab(tab.id)
+              setQuery('')
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab !== 'uploads' ? (
+        <label className="relative block">
+          <span className="sr-only">Cari preset</span>
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+            aria-hidden="true"
+          />
+          <Input
+            type="search"
+            aria-label="Cari preset"
+            placeholder="Cari preset"
+            value={query}
+            className="pl-9"
+            onChange={(event) => setQuery(event.currentTarget.value)}
+          />
+        </label>
+      ) : null}
+
+      <div id="media-tab-panel" role="tabpanel">
+      {activeTab === 'uploads' ? (
+        <>
 
       {GROUPS.map(([status, label]) => {
         const group = grouped[status]
@@ -301,6 +422,31 @@ export function MediaLibrary({
           Belum ada media. Upload gambar, audio, atau video pertama kamu.
         </p>
       ) : null}
+        </>
+      ) : visiblePresets.length > 0 ? (
+        <ul className="grid grid-cols-2 gap-3">
+          {visiblePresets.map((asset) => (
+            <li key={asset.id}>
+              <PresetCard
+                asset={asset}
+                previewing={previewingId === asset.id}
+                onTogglePreview={() => togglePreview(asset)}
+                onInsert={() => onInsert(asset, {
+                  timelineStart: playhead,
+                  ...(asset.defaultTransform
+                    ? { transform: asset.defaultTransform }
+                    : {}),
+                })}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted">
+          Preset tidak ditemukan.
+        </p>
+      )}
+      </div>
       <p role="status" aria-live="polite" className="sr-only">
         {message}
       </p>

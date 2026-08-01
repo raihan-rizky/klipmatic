@@ -162,6 +162,45 @@ test('inserted image starts at playhead and autosaves V3', async () => {
   }, { timeout: 2500 })
 })
 
+test('built-in sticker inserts with its preset transform and autosaves V3', async () => {
+  const payload = makeReadyPayload()
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (url.endsWith('/segment')) {
+      return new Response(new Blob(['media'], { type: 'video/mp4' }))
+    }
+    if (url.endsWith('/api/clips/clip-1') && init?.method !== 'PATCH') {
+      return Response.json(payload)
+    }
+    return Response.json({ ok: true })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  Object.assign(URL, {
+    createObjectURL: vi.fn(() => 'blob:clip-1'),
+    revokeObjectURL: vi.fn(),
+  })
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+
+  render(<ClipEditor clipId="clip-1" />)
+  await screen.findByLabelText('Preview video vertikal')
+  await userEvent.click(screen.getByRole('tab', { name: 'Stickers' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Tambahkan Red arrow' }))
+
+  await waitFor(() => {
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    expect(patch).toBeDefined()
+    const body = JSON.parse(String(patch![1]!.body))
+    const clips = body.editSpec.timeline.tracks.flatMap(
+      (track: { clips: unknown[] }) => track.clips,
+    )
+    expect(clips).toContainEqual(expect.objectContaining({
+      assetId: 'builtin:sticker:red-arrow',
+      transform: { x: 0.65, y: 0.08, width: 0.28, height: 0.28 },
+    }))
+  }, { timeout: 2500 })
+})
+
 test('dropping an image on canvas inserts it at normalized position', () => {
   const onAssetDrop = vi.fn()
   vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)

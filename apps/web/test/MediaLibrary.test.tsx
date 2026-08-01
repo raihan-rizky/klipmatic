@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { MediaLibrary } from '@/components/editor/MediaLibrary'
+import { BUILTIN_MEDIA } from '@/lib/builtinMedia'
 import type { ResolvedMediaAsset } from '@/lib/clipTypes'
 
 const upload = vi.hoisted(() => vi.fn())
@@ -43,6 +44,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
@@ -151,4 +153,71 @@ test('shows grouped states, quota usage, and expiry warning', () => {
   expect(screen.getByText('Akan dihapus kurang dari 1 hari')).toBeVisible()
   expect(screen.getByText('Kedaluwarsa')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Ganti old.png' })).toBeVisible()
+})
+
+test('preset tabs filter sound effects, stickers, photos, and backgrounds', async () => {
+  render(<MediaLibrary {...props()} builtIns={BUILTIN_MEDIA} />)
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Sound effects' }))
+  expect(screen.getByRole('button', { name: 'Preview Pop' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Tambahkan Red arrow' })).toBeNull()
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Stickers' }))
+  expect(screen.getByRole('button', { name: 'Tambahkan Red arrow' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Preview Pop' })).toBeNull()
+})
+
+test('background insert uses its full-canvas transform at the playhead', async () => {
+  const onInsert = vi.fn()
+  render(<MediaLibrary {...props({ onInsert })} builtIns={BUILTIN_MEDIA} />)
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Backgrounds' }))
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Tambahkan Sunset gradient' }),
+  )
+
+  expect(onInsert).toHaveBeenCalledWith(
+    expect.objectContaining({
+      id: 'builtin:background:sunset-gradient',
+      defaultTransform: { x: 0, y: 0, width: 1, height: 1 },
+    }),
+    {
+      timelineStart: 4.5,
+      transform: { x: 0, y: 0, width: 1, height: 1 },
+    },
+  )
+})
+
+test('sound preview uses one player and stops when the library unmounts', async () => {
+  const play = vi
+    .spyOn(HTMLMediaElement.prototype, 'play')
+    .mockResolvedValue(undefined)
+  const pause = vi
+    .spyOn(HTMLMediaElement.prototype, 'pause')
+    .mockImplementation(() => undefined)
+  const { unmount } = render(
+    <MediaLibrary {...props()} builtIns={BUILTIN_MEDIA} />,
+  )
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Sound effects' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Preview Pop' }))
+  expect(play).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole('button', { name: 'Stop Pop' })).toBeVisible()
+
+  await userEvent.click(screen.getByRole('button', { name: 'Preview Bell' }))
+  expect(pause).toHaveBeenCalled()
+  expect(play).toHaveBeenCalledTimes(2)
+
+  unmount()
+  expect(pause).toHaveBeenCalled()
+})
+
+test('preset search filters the active category by name', async () => {
+  render(<MediaLibrary {...props()} builtIns={BUILTIN_MEDIA} />)
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Stickers' }))
+  await userEvent.type(screen.getByRole('searchbox', { name: 'Cari preset' }), 'subscribe')
+
+  expect(screen.getByRole('button', { name: 'Tambahkan Subscribe badge' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Tambahkan Red arrow' })).toBeNull()
 })
