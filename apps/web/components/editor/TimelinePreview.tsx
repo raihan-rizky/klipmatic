@@ -8,6 +8,7 @@ import {
   type ActiveTimelineItem,
   type EditSpecV3,
   type TranscriptWord,
+  type VisualTransform,
 } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,6 +33,10 @@ type TimelinePreviewProps = {
   onPrimaryVideoChange?: (video: HTMLVideoElement | null) => void
   canvasSelection?: CanvasSelection | null
   onCanvasCommit?: (commit: CanvasSelectionCommit) => void
+  onAssetDrop?: (
+    assetId: string,
+    placement: { timelineStart?: number; transform?: VisualTransform },
+  ) => void
 }
 
 function formatTime(value: number): string {
@@ -53,6 +58,7 @@ export function TimelinePreview({
   onPrimaryVideoChange,
   canvasSelection = null,
   onCanvasCommit,
+  onAssetDrop,
 }: TimelinePreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mediaPoolRef = useRef(new Map<string, HTMLMediaElement>())
@@ -196,7 +202,40 @@ export function TimelinePreview({
   return (
     <section className="flex min-h-0 flex-col bg-black" aria-label="Video preview">
       <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
-        <div className="relative inline-flex max-h-[56vh] max-w-full">
+        <div
+          className="relative inline-flex max-h-[56vh] max-w-full"
+          onDragOver={(event) => {
+            if (event.dataTransfer.types.includes('application/x-cheapclipper-asset')) {
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'copy'
+            }
+          }}
+          onDrop={(event) => {
+            const raw = event.dataTransfer.getData('application/x-cheapclipper-asset')
+            if (!raw) return
+            event.preventDefault()
+            try {
+              const assetId = (JSON.parse(raw) as { assetId?: unknown }).assetId
+              const canvas = canvasRef.current
+              if (typeof assetId !== 'string' || !canvas) return
+              const rect = canvas.getBoundingClientRect()
+              const normalizedX = (event.clientX - rect.left) / Math.max(rect.width, 1)
+              const normalizedY = (event.clientY - rect.top) / Math.max(rect.height, 1)
+              const round = (value: number) => Math.round(value * 1_000_000) / 1_000_000
+              onAssetDrop?.(assetId, {
+                timelineStart: playhead,
+                transform: {
+                  x: round(Math.min(Math.max(normalizedX - 0.3, 0), 0.4)),
+                  y: round(Math.min(Math.max(normalizedY - 0.3, 0), 0.4)),
+                  width: 0.6,
+                  height: 0.6,
+                },
+              })
+            } catch {
+              // Ignore drag payloads from outside Cheapclipper.
+            }
+          }}
+        >
           <canvas
             ref={canvasRef}
             width={spec.output.width}

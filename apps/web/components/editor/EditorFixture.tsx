@@ -148,6 +148,11 @@ export function EditorFixture() {
           />
         }
         inspector={inspector}
+        mediaLibrary={
+          <div className="p-4 text-sm text-muted">
+            Upload dan preset media tampil di project editor.
+          </div>
+        }
         timeline={
           <TimelineEditor
             spec={history.present}

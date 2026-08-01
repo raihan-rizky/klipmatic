@@ -4,6 +4,7 @@ import { Copy, Trash2 } from 'lucide-react'
 import type { EditSpecV3, TimelineCommand } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
 import type { TimelineSelection } from './TimelineEditor'
+import { AssetInspector } from './AssetInspector'
 
 export function LayerInspector({
   spec,
@@ -23,6 +24,12 @@ export function LayerInspector({
 
   return (
     <div className="space-y-5 p-5">
+      {selected?.clipId ? (() => {
+        const clip = track.clips.find((item) => item.id === selected.clipId)
+        return clip ? (
+          <AssetInspector trackId={track.id} clip={clip} onCommand={onCommand} />
+        ) : null
+      })() : null}
       <div>
         <label htmlFor="layer-name" className="text-sm font-bold">Nama layer</label>
         <input

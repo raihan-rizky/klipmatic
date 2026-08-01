@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import type {
   EditSpecV3,
   TimelineCommand,
+  VisualTransform,
 } from '@cheapclipper/engine'
 import { TimelineToolbar } from './TimelineToolbar'
 import { TimelineTrack } from './TimelineTrack'
@@ -27,6 +28,10 @@ export interface TimelineEditorProps {
   onRedo: () => void
   playing: boolean
   onTogglePlay: () => void
+  onAssetDrop?: (
+    assetId: string,
+    placement: { timelineStart?: number; transform?: VisualTransform },
+  ) => void
 }
 
 export function TimelineEditor(props: TimelineEditorProps) {
@@ -105,9 +110,11 @@ export function TimelineEditor(props: TimelineEditorProps) {
               candidateDuration={props.candidateDuration}
               timelineDuration={props.spec.timeline.duration}
               pixelsPerSecond={pixelsPerSecond}
+              playhead={props.playhead}
               selected={props.selected}
               onSelectionChange={props.onSelectionChange}
               onCommand={props.onCommand}
+              onAssetDrop={props.onAssetDrop}
             />
           ))}
         </div>

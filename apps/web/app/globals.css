@@ -87,6 +87,14 @@ a {
   min-height: 44px;
 }
 
+.timeline-scroll [aria-label$="timeline drop area"] {
+  transition: background-color 120ms ease;
+}
+
+.timeline-scroll [aria-label$="timeline drop area"]:has(:focus-visible) {
+  background: rgb(199 255 69 / 4%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .editor-workspace *,
   .editor-workspace *::before,
