@@ -1,25 +1,23 @@
 import { randomUUID } from 'node:crypto'
 import type { Sql } from 'postgres'
+import {
+  ALLOWED_MEDIA_MIME,
+  MEDIA_LIMITS,
+  PROJECT_MEDIA_QUOTA_BYTES,
+  type MediaType,
+} from './mediaAssetConfig'
 import { deleteR2Object, headR2Object, signedR2Put } from './r2'
 
-export type MediaType = 'image' | 'audio' | 'video'
+export {
+  ALLOWED_MEDIA_MIME,
+  MEDIA_LIMITS,
+  PROJECT_MEDIA_QUOTA_BYTES,
+} from './mediaAssetConfig'
+export type { MediaType } from './mediaAssetConfig'
 export type MediaAssetStatus = 'uploading' | 'ready' | 'failed' | 'expired'
 
-export const MEDIA_LIMITS: Record<MediaType, number> = {
-  image: 10 * 1024 * 1024,
-  audio: 25 * 1024 * 1024,
-  video: 100 * 1024 * 1024,
-}
-
-export const PROJECT_MEDIA_QUOTA_BYTES = 300 * 1024 * 1024
 export const UPLOAD_RETENTION_MS = 3 * 24 * 60 * 60 * 1000
 export const INCOMPLETE_UPLOAD_RETENTION_MS = 60 * 60 * 1000
-
-export const ALLOWED_MEDIA_MIME = {
-  image: ['image/png', 'image/jpeg', 'image/webp'],
-  audio: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/webm'],
-  video: ['video/mp4', 'video/webm', 'video/quicktime'],
-} as const
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   'image/png': 'png',
