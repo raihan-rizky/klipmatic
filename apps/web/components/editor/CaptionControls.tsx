@@ -57,6 +57,30 @@ export function CaptionControls({ spec, onCommand }: CaptionControlsProps) {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
+          <label htmlFor="caption-x" className="text-sm font-bold">Posisi horizontal</label>
+          <span className="font-mono text-xs text-muted">
+            {Math.round(spec.captions.positionX * 100)}%
+          </span>
+        </div>
+        <input
+          id="caption-x"
+          className={RANGE_CLASS}
+          type="range"
+          min="0.05"
+          max="0.95"
+          step="0.01"
+          value={spec.captions.positionX}
+          onChange={(event) =>
+            onCommand({
+              type: 'updateCaptions',
+              captions: { positionX: Number(event.currentTarget.value) },
+            })
+          }
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
           <label htmlFor="caption-y" className="text-sm font-bold">Posisi vertikal</label>
           <span className="font-mono text-xs text-muted">
             {Math.round(spec.captions.positionY * 100)}%

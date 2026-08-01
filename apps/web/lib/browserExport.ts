@@ -114,7 +114,16 @@ export function createTimelineExporter(runtime: TimelineExportRuntime) {
         )
         for (const item of activeVideo) {
           const media = await input.frameAt(item.sourceTime)
-          if (media) layers.push({ media, order: item.order })
+          if (media) layers.push({
+            clipId: item.clipId,
+            media,
+            order: item.order,
+            transform: item.transform,
+            opacity: 1,
+            primary:
+              item.trackType === 'video' &&
+              item.trackId === spec.timeline.primaryTrackId,
+          })
         }
         drawTimelineComposite(
           output.context,

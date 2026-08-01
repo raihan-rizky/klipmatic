@@ -14,6 +14,11 @@ import {
   createTimelinePlaybackController,
   type TimelinePlaybackController,
 } from './timelinePlayback'
+import {
+  CanvasSelectionOverlay,
+  type CanvasSelection,
+  type CanvasSelectionCommit,
+} from './CanvasSelectionOverlay'
 
 type TimelinePreviewProps = {
   spec: EditSpecV3
@@ -25,6 +30,8 @@ type TimelinePreviewProps = {
   onPlayingChange: (playing: boolean) => void
   onStall: (message: string) => void
   onPrimaryVideoChange?: (video: HTMLVideoElement | null) => void
+  canvasSelection?: CanvasSelection | null
+  onCanvasCommit?: (commit: CanvasSelectionCommit) => void
 }
 
 function formatTime(value: number): string {
@@ -44,6 +51,8 @@ export function TimelinePreview({
   onPlayingChange,
   onStall,
   onPrimaryVideoChange,
+  canvasSelection = null,
+  onCanvasCommit,
 }: TimelinePreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mediaPoolRef = useRef(new Map<string, HTMLMediaElement>())
@@ -95,7 +104,16 @@ export function TimelinePreview({
             media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
             media.videoWidth === 0
           ) return []
-          return [{ media, order: item.order }]
+          return [{
+            clipId: item.clipId,
+            media,
+            order: item.order,
+            transform: item.transform,
+            opacity: 1,
+            primary:
+              item.trackType === 'video' &&
+              item.trackId === spec.timeline.primaryTrackId,
+          }]
         })
       if (layers.length === 0) return
 
@@ -178,14 +196,20 @@ export function TimelinePreview({
   return (
     <section className="flex min-h-0 flex-col bg-black" aria-label="Video preview">
       <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
-        <canvas
-          ref={canvasRef}
-          width={spec.output.width}
-          height={spec.output.height}
-          aria-label="Preview video vertikal"
-          className="max-h-[56vh] w-auto max-w-full rounded-xl bg-black shadow-2xl"
-          style={{ aspectRatio: '9 / 16' }}
-        />
+        <div className="relative inline-flex max-h-[56vh] max-w-full">
+          <canvas
+            ref={canvasRef}
+            width={spec.output.width}
+            height={spec.output.height}
+            aria-label="Preview video vertikal"
+            className="max-h-[56vh] w-auto max-w-full rounded-xl bg-black shadow-2xl"
+            style={{ aspectRatio: '9 / 16' }}
+          />
+          <CanvasSelectionOverlay
+            selection={canvasSelection}
+            onCommit={(commit) => onCanvasCommit?.(commit)}
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-3 border-t border-white/10 bg-surface px-3 py-2">
