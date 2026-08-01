@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { EditSpecV2 } from '@cheapclipper/engine'
+import type { EditSpecV3 } from '@cheapclipper/engine'
 
 export type AutosaveStatus = 'saved' | 'unsaved' | 'saving' | 'error'
 
@@ -18,7 +18,7 @@ export function useEditorAutosave({
   delayMs = 1000,
 }: {
   clipId: string
-  spec: EditSpecV2
+  spec: EditSpecV3
   delayMs?: number
 }): AutosaveController {
   const [status, setStatus] = useState<AutosaveStatus>('saved')

@@ -18,6 +18,9 @@ const r2 = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/r2', () => ({
   signedR2Get: r2.signed,
+  signedR2Put: vi.fn(),
+  headR2Object: vi.fn(),
+  deleteR2Object: vi.fn(),
   readR2Json: r2.json,
   readR2JsonIfExists: r2.optionalJson,
 }))
@@ -113,7 +116,7 @@ test('editor pending tidak membuat signed URL', async () => {
   expect(r2.optionalJson).not.toHaveBeenCalled()
 })
 
-test('editor ready memakai proxy same-origin dan caption relatif terhadap clip', async () => {
+test('editor ready memakai proxy same-origin, V3 candidate asset, dan caption relatif', async () => {
   await sql`
     insert into media_segments (source_id, start_sec, end_sec, r2_key, bytes, expires_at)
     values (${sourceId}, 10, 80, 'segments/p2.mp4', 1234, now() + interval '7 days')`
@@ -122,6 +125,17 @@ test('editor ready memakai proxy same-origin dan caption relatif terhadap clip',
   expect(payload.segment).toMatchObject({
     status: 'ready',
     url: `/api/clips/${clipId}/segment`,
+  })
+  expect(payload.clip.editSpec.version).toBe(3)
+  expect(payload.assets).toEqual([
+    expect.objectContaining({
+      mediaType: 'video',
+      status: 'ready',
+      url: `/api/clips/${clipId}/segment`,
+    }),
+  ])
+  expect(payload.clip.editSpec.timeline.tracks[0]!.clips[0]).toMatchObject({
+    assetId: payload.assets[0]!.id,
   })
   expect(r2.signed).not.toHaveBeenCalled()
   expect(payload.clip.timingPrecision).toBe('estimated')
@@ -168,14 +182,14 @@ test('precision transcript clip mengalahkan timestamp estimasi sumber', async ()
 })
 
 describe('update edit spec', () => {
-  test('editor migrates stored v1 into normalized v2', async () => {
+  test('editor migrates stored v1 into normalized v3', async () => {
     await sql`
       update clips
          set edit_spec = ${sql.json(JSON.parse(JSON.stringify(DEFAULT_EDIT_SPEC)))}
        where id = ${clipId}`
 
     const payload = await loadClipEditor(sql, alice, clipId)
-    expect(payload.clip.editSpec.version).toBe(2)
+    expect(payload.clip.editSpec.version).toBe(3)
     expect(payload.clip.editSpec.timeline.duration).toBe(70)
     expect(payload.clip.editSpec.timeline.tracks.map((track) => track.type)).toEqual([
       'video',
@@ -230,5 +244,143 @@ describe('update edit spec', () => {
     await expect(
       updateClip(sql, bob, clipId, { editSpec: DEFAULT_EDIT_SPEC }),
     ).rejects.toBeInstanceOf(ClipNotFoundError)
+  })
+
+  test('loads and saves an authorized uploaded image asset', async () => {
+    const [upload] = await sql`
+      insert into media_assets
+        (user_id, project_id, source, media_type, status, name, storage_key,
+         mime_type, bytes, width, height, expires_at)
+      values
+        (${alice}, ${projectId}, 'upload', 'image', 'ready', 'logo.png',
+         'uploads/alice/logo.png', 'image/png', 1200, 800, 600,
+         now() + interval '3 days')
+      returning id`
+    const payload = await loadClipEditor(sql, alice, clipId)
+    const requested = {
+      ...payload.clip.editSpec,
+      timeline: {
+        ...payload.clip.editSpec.timeline,
+        tracks: [
+          ...payload.clip.editSpec.timeline.tracks,
+          {
+            id: 'overlay-images',
+            type: 'video' as const,
+            name: 'Images',
+            order: 3,
+            hidden: false,
+            locked: false,
+            clips: [{
+              id: 'logo-clip',
+              assetId: upload!.id as string,
+              timelineStart: 8,
+              sourceIn: 0,
+              sourceOut: 5,
+              muted: false,
+              transform: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
+            }],
+          },
+        ],
+      },
+    }
+
+    const saved = await updateClip(sql, alice, clipId, { editSpec: requested })
+    expect(saved.editSpec.timeline.tracks.flatMap((track) => track.clips))
+      .toContainEqual(expect.objectContaining({ assetId: upload!.id }))
+
+    const loaded = await loadClipEditor(sql, alice, clipId)
+    expect(loaded.assets).toContainEqual(expect.objectContaining({
+      id: upload!.id,
+      url: `/api/assets/${upload!.id}/content`,
+      status: 'ready',
+    }))
+  })
+
+  test('loads and saves an authorized built-in sticker without a DB row', async () => {
+    const payload = await loadClipEditor(sql, alice, clipId)
+    const requested = {
+      ...payload.clip.editSpec,
+      timeline: {
+        ...payload.clip.editSpec.timeline,
+        tracks: [
+          ...payload.clip.editSpec.timeline.tracks,
+          {
+            id: 'builtin-overlays',
+            type: 'video' as const,
+            name: 'Built-ins',
+            order: 4,
+            hidden: false,
+            locked: false,
+            clips: [{
+              id: 'red-arrow-clip',
+              assetId: 'builtin:sticker:red-arrow',
+              timelineStart: 3,
+              sourceIn: 0,
+              sourceOut: 5,
+              muted: false,
+              transform: { x: 0.65, y: 0.08, width: 0.28, height: 0.28 },
+            }],
+          },
+        ],
+      },
+    }
+
+    const saved = await updateClip(sql, alice, clipId, { editSpec: requested })
+    expect(saved.editSpec.timeline.tracks.flatMap((track) => track.clips))
+      .toContainEqual(expect.objectContaining({
+        assetId: 'builtin:sticker:red-arrow',
+      }))
+
+    const loaded = await loadClipEditor(sql, alice, clipId)
+    expect(loaded.assets).toContainEqual(expect.objectContaining({
+      id: 'builtin:sticker:red-arrow',
+      url: '/presets/stickers/red-arrow.svg',
+      expiresAt: null,
+    }))
+  })
+
+  test('updateClip drops a cross-project asset reference', async () => {
+    const [bobProject] = await sql`
+      insert into projects (user_id, source_id, title)
+      values (${bob}, ${sourceId}, 'Bob project') returning id`
+    const [bobAsset] = await sql`
+      insert into media_assets
+        (user_id, project_id, source, media_type, status, name, storage_key,
+         mime_type, bytes, expires_at)
+      values
+        (${bob}, ${bobProject!.id}, 'upload', 'image', 'ready', 'bob.png',
+         'uploads/bob/bob.png', 'image/png', 100,
+         now() + interval '3 days') returning id`
+    const payload = await loadClipEditor(sql, alice, clipId)
+    const result = await updateClip(sql, alice, clipId, {
+      editSpec: {
+        ...payload.clip.editSpec,
+        timeline: {
+          ...payload.clip.editSpec.timeline,
+          tracks: [
+            ...payload.clip.editSpec.timeline.tracks,
+            {
+              id: 'foreign-overlay',
+              type: 'video',
+              name: 'Foreign',
+              order: 99,
+              hidden: false,
+              locked: false,
+              clips: [{
+                id: 'foreign-clip',
+                assetId: bobAsset!.id,
+                timelineStart: 0,
+                sourceIn: 0,
+                sourceOut: 5,
+                muted: false,
+              }],
+            },
+          ],
+        },
+      },
+    })
+
+    expect(result.editSpec.timeline.tracks.flatMap((track) => track.clips))
+      .not.toContainEqual(expect.objectContaining({ assetId: bobAsset!.id }))
   })
 })

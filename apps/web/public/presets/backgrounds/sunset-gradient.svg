@@ -1,0 +1,15 @@
+<svg aria-hidden="true" viewBox="0 0 1080 1920" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sunset" x1="0" y1="0" x2=".82" y2="1">
+      <stop offset="0" stop-color="#FF765D"/>
+      <stop offset=".46" stop-color="#7135A8"/>
+      <stop offset="1" stop-color="#090E2C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="25%" cy="22%" r="65%">
+      <stop offset="0" stop-color="#FFD08A" stop-opacity=".52"/>
+      <stop offset="1" stop-color="#FFD08A" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1920" fill="url(#sunset)"/>
+  <rect width="1080" height="1920" fill="url(#glow)"/>
+</svg>

@@ -52,14 +52,15 @@ export async function freshDb() {
   // cluster-wide, jadi penjaga if-not-exists menangani pemanggilan berulang.
   await sql.unsafe(`
     do $$ begin
-      if not exists (select from pg_roles where rolname = 'authenticated') then
-        create role authenticated nologin;
-      end if;
+      create role authenticated nologin;
+    exception when duplicate_object then
+      null;
     end $$;
     grant usage on schema public to authenticated;
   `)
 
   await sql.unsafe(readFileSync(join(HERE, '../migrations/0000_init.sql'), 'utf8'))
+  await sql.unsafe(readFileSync(join(HERE, '../migrations/0001_media_assets.sql'), 'utf8'))
 
   await sql.unsafe(`
     grant select, insert, update, delete on all tables in schema public to authenticated;

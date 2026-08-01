@@ -10,7 +10,7 @@ import {
 import { Pause, Play } from 'lucide-react'
 import {
   applyTimelineCommand,
-  createDefaultEditSpecV2,
+  createDefaultEditSpecV3,
   type TimelineCommand,
 } from '@cheapclipper/engine'
 import { Alert } from '@/components/ui/alert'
@@ -26,13 +26,25 @@ import {
 } from './editorHistory'
 import { LayerInspector } from './LayerInspector'
 import { TimelineEditor, type TimelineSelection } from './TimelineEditor'
+import { TransitionLibrary } from './TransitionLibrary'
 import type { AutosaveStatus } from './useEditorAutosave'
 
 const FIXTURE_CONTEXT = {
   candidateDuration: 30,
   sourceId: 'editor-fixture',
+  candidateAssetId: 'fixture-candidate',
+  assets: {
+    'fixture-candidate': {
+      id: 'fixture-candidate',
+      mediaType: 'video' as const,
+      duration: 30,
+      width: 1920,
+      height: 1080,
+      hasAudio: true,
+    },
+  },
 }
-const FIXTURE_SPEC = createDefaultEditSpecV2(FIXTURE_CONTEXT)
+const FIXTURE_SPEC = createDefaultEditSpecV3(FIXTURE_CONTEXT)
 
 export function EditorFixture() {
   const [history, historyDispatch] = useReducer(
@@ -44,14 +56,16 @@ export function EditorFixture() {
     (track) => track.id === history.present.timeline.primaryTrackId,
   )!
   const [selected, setSelected] = useState<TimelineSelection | null>({
+    kind: 'clip',
     trackId: primaryTrack.id,
-    clipId: primaryTrack.clips[0]?.id,
+    clipId: primaryTrack.clips[0]!.id,
   })
   const [playhead, setPlayhead] = useState(10)
   const [playing, setPlaying] = useState(false)
   const [saveStatus, setSaveStatus] = useState<AutosaveStatus>('saved')
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
+  const [transitionDragActive, setTransitionDragActive] = useState(false)
   const [notice, setNotice] = useState(
     'Fixture lokal: semua kontrol real, tanpa fetch media.',
   )
@@ -100,7 +114,7 @@ export function EditorFixture() {
         selected={selected}
         onCommand={dispatchCommand}
       />
-      <div className="p-5">
+      {!selected || selected.kind === 'track' || selected.kind === 'clip' ? <div className="p-5">
         <CropControls
           spec={history.present}
           onCommand={dispatchCommand}
@@ -108,10 +122,10 @@ export function EditorFixture() {
             setNotice('Fixture autofocus: fokus dikunci ke subjek tengah.')
           }
         />
-      </div>
-      <div className="p-5">
+      </div> : null}
+      {!selected || selected.kind === 'track' || selected.kind === 'clip' ? <div className="p-5">
         <CaptionControls spec={history.present} onCommand={dispatchCommand} />
-      </div>
+      </div> : null}
     </div>
   )
 
@@ -137,6 +151,33 @@ export function EditorFixture() {
           />
         }
         inspector={inspector}
+        mediaLibrary={
+          <div className="p-4">
+            <h2 className="mb-3 text-base font-black">Transitions</h2>
+            <TransitionLibrary
+              selectedJoint={selected?.kind === 'joint' ? selected.joint : null}
+              onDragStateChange={setTransitionDragActive}
+              onAdd={(type, duration, joint) => {
+                const id = globalThis.crypto.randomUUID()
+                dispatchCommand({
+                  type: 'addTransition',
+                  transition: {
+                    id,
+                    type,
+                    duration: Math.min(duration, joint.maxDuration),
+                    target: {
+                      kind: 'between-clips',
+                      trackId: joint.trackId,
+                      fromClipId: joint.fromClipId,
+                      toClipId: joint.toClipId,
+                    },
+                  },
+                })
+                setSelected({ kind: 'transition', transitionId: id })
+              }}
+            />
+          </div>
+        }
         timeline={
           <TimelineEditor
             spec={history.present}
@@ -152,6 +193,7 @@ export function EditorFixture() {
             onRedo={() => historyDispatch({ type: 'redo' })}
             playing={playing}
             onTogglePlay={() => setPlaying((value) => !value)}
+            transitionDragActive={transitionDragActive}
           />
         }
       />

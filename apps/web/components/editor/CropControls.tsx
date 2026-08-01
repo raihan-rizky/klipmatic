@@ -1,11 +1,11 @@
 'use client'
 
 import { ScanFace } from 'lucide-react'
-import type { EditSpecV2, TimelineCommand } from '@cheapclipper/engine'
+import type { EditSpecV3, TimelineCommand } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
 
 type CropControlsProps = {
-  spec: EditSpecV2
+  spec: EditSpecV3
   onCommand: (command: TimelineCommand) => void
   onAutoFocus: () => void
 }

@@ -7,6 +7,7 @@ alter table projects         enable row level security;
 alter table clip_candidates  enable row level security;
 alter table media_segments   enable row level security;
 alter table clips            enable row level security;
+alter table media_assets     enable row level security;
 alter table jobs             enable row level security;
 
 -- Predikat tunggal untuk keterbacaan sumber. Semua tabel turunan memakainya,
@@ -55,6 +56,9 @@ create policy clips_self on clips
                  where p.id = project_id and p.user_id = auth.uid()))
   with check (exists (select 1 from projects p
                       where p.id = project_id and p.user_id = auth.uid()));
+
+create policy media_assets_self on media_assets
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create policy jobs_self on jobs for select
   using (user_id = auth.uid());

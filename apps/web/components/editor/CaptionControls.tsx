@@ -1,10 +1,10 @@
 'use client'
 
 import { Captions } from 'lucide-react'
-import type { EditSpecV2, TimelineCommand } from '@cheapclipper/engine'
+import type { EditSpecV3, TimelineCommand } from '@cheapclipper/engine'
 
 type CaptionControlsProps = {
-  spec: EditSpecV2
+  spec: EditSpecV3
   onCommand: (command: TimelineCommand) => void
 }
 
@@ -50,6 +50,30 @@ export function CaptionControls({ spec, onCommand }: CaptionControlsProps) {
             onCommand({
               type: 'updateCaptions',
               captions: { fontSize: Number(event.currentTarget.value) },
+            })
+          }
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="caption-x" className="text-sm font-bold">Posisi horizontal</label>
+          <span className="font-mono text-xs text-muted">
+            {Math.round(spec.captions.positionX * 100)}%
+          </span>
+        </div>
+        <input
+          id="caption-x"
+          className={RANGE_CLASS}
+          type="range"
+          min="0.05"
+          max="0.95"
+          step="0.01"
+          value={spec.captions.positionX}
+          onChange={(event) =>
+            onCommand({
+              type: 'updateCaptions',
+              captions: { positionX: Number(event.currentTarget.value) },
             })
           }
         />

@@ -12,6 +12,7 @@ import {
   applyTimelineCommand,
   type TimelineCommand,
   type TimelineContext,
+  type VisualTransform,
 } from '@cheapclipper/engine'
 import { StatePanel } from '@/components/StatePanel'
 import { Alert } from '@/components/ui/alert'
@@ -26,6 +27,11 @@ import {
 } from '@/components/editor/editorHistory'
 import { editorViewState } from '@/components/editor/editorViewState'
 import { LayerInspector } from '@/components/editor/LayerInspector'
+import { MediaLibrary } from '@/components/editor/MediaLibrary'
+import type {
+  CanvasSelection,
+  CanvasSelectionCommit,
+} from '@/components/editor/CanvasSelectionOverlay'
 import {
   TimelineEditor,
   type TimelineSelection,
@@ -33,6 +39,7 @@ import {
 import { TimelinePreview } from '@/components/editor/TimelinePreview'
 import { useEditorAutosave } from '@/components/editor/useEditorAutosave'
 import type { ClipEditorPayload } from '@/lib/clipTypes'
+import { BUILTIN_MEDIA, getBuiltInAsset } from '@/lib/builtinMedia'
 import { browserExportSupport, exportClipMp4 } from '@/lib/browserExport'
 import { detectFaceFocusX } from '@/lib/faceFocus'
 import { loadSegmentObjectUrl } from '@/lib/segmentCache'
@@ -184,12 +191,17 @@ function ReadyClipEditor({
     payload.clip.editSpec,
     createEditorHistory,
   )
+  const [assets, setAssets] = useState(payload.assets)
   const initialTrack = history.present.timeline.tracks.find(
     (track) => track.id === history.present.timeline.primaryTrackId,
   )
   const [selected, setSelected] = useState<TimelineSelection | null>(() =>
-    initialTrack
-      ? { trackId: initialTrack.id, clipId: initialTrack.clips[0]?.id }
+    initialTrack?.clips[0]
+      ? {
+          kind: 'clip',
+          trackId: initialTrack.id,
+          clipId: initialTrack.clips[0].id,
+        }
       : null,
   )
   const [playhead, setPlayhead] = useState(() =>
@@ -200,13 +212,26 @@ function ReadyClipEditor({
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [transitionDragActive, setTransitionDragActive] = useState(false)
   const primaryVideoRef = useRef<HTMLVideoElement | null>(null)
+  const candidateAssetId = payload.clip.editSpec.timeline.tracks
+    .find((track) => track.id === payload.clip.editSpec.timeline.primaryTrackId)
+    ?.clips[0]?.assetId ?? payload.assets[0]!.id
   const timelineContext = useMemo<TimelineContext>(
     () => ({
       candidateDuration: payload.clip.durationSec,
       sourceId: payload.clip.id,
+      candidateAssetId,
+      assets: Object.fromEntries([...BUILTIN_MEDIA, ...assets].map((asset) => [asset.id, {
+        id: asset.id,
+        mediaType: asset.mediaType,
+        duration: asset.duration,
+        width: asset.width,
+        height: asset.height,
+        hasAudio: asset.hasAudio,
+      }])),
     }),
-    [payload.clip.durationSec, payload.clip.id],
+    [assets, candidateAssetId, payload.clip.durationSec, payload.clip.id],
   )
   const autosave = useEditorAutosave({
     clipId,
@@ -224,13 +249,121 @@ function ReadyClipEditor({
       historyDispatch({ type: 'push', spec: next })
       if (
         (command.type === 'deleteClip' || command.type === 'deleteTrack') &&
-        command.trackId === selected?.trackId
+        (selected?.kind === 'track' || selected?.kind === 'clip') &&
+        command.trackId === selected.trackId
+      ) {
+        setSelected(null)
+      } else if (
+        selected?.kind === 'transition' &&
+        !next.timeline.transitions.some(
+          (transition) => transition.id === selected.transitionId,
+        )
       ) {
         setSelected(null)
       }
     },
-    [history.present, selected?.trackId, timelineContext],
+    [history.present, selected, timelineContext],
   )
+
+  const insertAsset = useCallback((
+    assetId: string,
+    placement: { timelineStart?: number; transform?: VisualTransform } = {},
+  ) => {
+    const builtIn = getBuiltInAsset(assetId)
+    const asset = assets.find((item) => item.id === assetId) ?? builtIn
+    if (!asset || asset.status !== 'ready') {
+      setNotice('Media belum siap dipakai. Tunggu proses pengecekan selesai.')
+      return
+    }
+    const id = globalThis.crypto.randomUUID()
+    const visual = asset.mediaType !== 'audio'
+    const trackId = visual ? 'media-visuals' : 'media-audio'
+    const clipId = `clip:${id}`
+    if (builtIn && !assets.some((item) => item.id === builtIn.id)) {
+      setAssets((current) => [...current, builtIn])
+    }
+    const initialTransform = placement.transform ?? builtIn?.defaultTransform
+    dispatchCommand({
+      type: 'insertAsset',
+      assetId,
+      trackId,
+      trackName: visual ? 'Media visual' : 'Media audio',
+      clipId,
+      timelineStart: placement.timelineStart ?? playhead,
+      ...(visual && initialTransform
+        ? { initialTransform }
+        : {}),
+      ...(asset.mediaType === 'video' && asset.hasAudio
+        ? {
+            linkGroupId: `link:${id}`,
+            linkedAudio: {
+              trackId: 'media-audio',
+              trackName: 'Media audio',
+              clipId: `clip:${globalThis.crypto.randomUUID()}:audio`,
+            },
+          }
+        : {}),
+    })
+    setSelected({ kind: 'clip', trackId, clipId })
+    setPlaying(false)
+  }, [assets, dispatchCommand, playhead])
+
+  const canvasSelection = useMemo<CanvasSelection | null>(() => {
+    if (selected?.kind !== 'clip') {
+      return history.present.captions.enabled
+        ? {
+            kind: 'caption',
+            positionX: history.present.captions.positionX,
+            positionY: history.present.captions.positionY,
+          }
+        : null
+    }
+    const track = history.present.timeline.tracks.find(
+      (item) => item.id === selected.trackId,
+    )
+    const clip = track?.clips.find((item) => item.id === selected.clipId)
+    if (
+      track?.type === 'video' &&
+      track.id !== history.present.timeline.primaryTrackId &&
+      clip?.transform
+    ) {
+      const asset = assets.find((item) => item.id === clip.assetId)
+      return {
+        kind: 'asset',
+        trackId: track.id,
+        clipId: clip.id,
+        transform: clip.transform,
+        aspectRatio:
+          asset?.width && asset.height ? asset.width / asset.height : 1,
+      }
+    }
+    return history.present.captions.enabled
+      ? {
+          kind: 'caption',
+          positionX: history.present.captions.positionX,
+          positionY: history.present.captions.positionY,
+        }
+      : null
+  }, [assets, history.present, selected])
+
+  const commitCanvasSelection = useCallback((commit: CanvasSelectionCommit) => {
+    if (commit.kind === 'caption') {
+      dispatchCommand({
+        type: 'updateCaptions',
+        captions: {
+          positionX: commit.positionX,
+          positionY: commit.positionY,
+        },
+      })
+      return
+    }
+    dispatchCommand({
+      type: 'updateVisualTransform',
+      trackId: commit.trackId,
+      clipId: commit.clipId,
+      transform: commit.transform,
+    })
+  }, [dispatchCommand])
 
   async function autoFocus(): Promise<void> {
     const video = primaryVideoRef.current
@@ -283,7 +416,9 @@ function ReadyClipEditor({
       await autosave.flush()
       await markRenderStatus('rendering')
       await exportClipMp4({
-        url: mediaUrl,
+        assets: assets.map((asset) =>
+          asset.id === candidateAssetId ? { ...asset, url: mediaUrl } : asset,
+        ),
         spec: history.present,
         words: payload.words,
         title: payload.clip.title,
@@ -300,6 +435,15 @@ function ReadyClipEditor({
   }
 
   const support = browserExportSupport(history.present)
+  const uploadedAssets = assets.filter(
+    (asset) => asset.id !== candidateAssetId && !asset.id.startsWith('builtin:'),
+  )
+  const previewAssets = assets.map((asset) =>
+    asset.id === candidateAssetId ? { ...asset, url: mediaUrl } : asset,
+  )
+  const expiringAssets = uploadedAssets.filter((asset) => asset.expiresSoon)
+  const expiredAssets = uploadedAssets.filter((asset) => asset.status === 'expired')
+  const showGeneralControls = !selected || selected.kind === 'track' || selected.kind === 'clip'
   const inspector = (
     <div className="divide-y divide-border">
       <LayerInspector
@@ -307,16 +451,16 @@ function ReadyClipEditor({
         selected={selected}
         onCommand={dispatchCommand}
       />
-      <div className="p-5">
+      {showGeneralControls ? <div className="p-5">
         <CropControls
           spec={history.present}
           onCommand={dispatchCommand}
           onAutoFocus={() => void autoFocus()}
         />
-      </div>
-      <div className="p-5">
+      </div> : null}
+      {showGeneralControls ? <div className="p-5">
         <CaptionControls spec={history.present} onCommand={dispatchCommand} />
-      </div>
+      </div> : null}
     </div>
   )
 
@@ -335,8 +479,8 @@ function ReadyClipEditor({
         preview={
           <TimelinePreview
             spec={history.present}
+            assets={previewAssets}
             words={payload.words}
-            mediaUrl={mediaUrl}
             playhead={playhead}
             playing={playing}
             onPlayheadChange={setPlayhead}
@@ -344,6 +488,49 @@ function ReadyClipEditor({
             onStall={setError}
             onPrimaryVideoChange={(video) => {
               primaryVideoRef.current = video
+            }}
+            canvasSelection={canvasSelection}
+            onCanvasCommit={commitCanvasSelection}
+            onAssetDrop={insertAsset}
+          />
+        }
+        mediaLibrary={
+          <MediaLibrary
+            projectId={payload.clip.projectId}
+            assets={uploadedAssets}
+            builtIns={BUILTIN_MEDIA}
+            playhead={playhead}
+            onAssetsChange={(next) => setAssets((current) => [
+              ...current.filter((asset) =>
+                asset.id === candidateAssetId || asset.id.startsWith('builtin:'),
+              ),
+              ...next,
+            ])}
+            onInsert={(asset, placement) => insertAsset(asset.id, placement)}
+            onReplace={(fromAssetId, toAssetId) => dispatchCommand({
+              type: 'replaceAsset',
+              fromAssetId,
+              toAssetId,
+            })}
+            selectedTransitionJoint={selected?.kind === 'joint' ? selected.joint : null}
+            onTransitionDragStateChange={setTransitionDragActive}
+            onAddTransition={(type, duration, joint) => {
+              const id = globalThis.crypto.randomUUID()
+              dispatchCommand({
+                type: 'addTransition',
+                transition: {
+                  id,
+                  type,
+                  duration: Math.min(duration, joint.maxDuration),
+                  target: {
+                    kind: 'between-clips',
+                    trackId: joint.trackId,
+                    fromClipId: joint.fromClipId,
+                    toClipId: joint.toClipId,
+                  },
+                },
+              })
+              setSelected({ kind: 'transition', transitionId: id })
             }}
           />
         }
@@ -363,6 +550,8 @@ function ReadyClipEditor({
             onRedo={() => historyDispatch({ type: 'redo' })}
             playing={playing}
             onTogglePlay={() => setPlaying((value) => !value)}
+            onAssetDrop={insertAsset}
+            transitionDragActive={transitionDragActive}
           />
         }
       />
@@ -377,6 +566,23 @@ function ReadyClipEditor({
           {(error || autosave.error) && (
             <Alert tone="danger" role="alert">
               {error ?? autosave.error}
+            </Alert>
+          )}
+        </div>
+      )}
+
+      {(expiringAssets.length > 0 || expiredAssets.length > 0) && (
+        <div className="mt-4 space-y-2" aria-live="polite">
+          {expiringAssets.length > 0 && (
+            <Alert tone="warning" role="status">
+              {expiringAssets.map((asset) => asset.name).join(', ')} akan dihapus
+              kurang dari 1 hari kalau project tidak dipakai.
+            </Alert>
+          )}
+          {expiredAssets.length > 0 && (
+            <Alert tone="danger" role="alert">
+              Media kedaluwarsa: {expiredAssets.map((asset) => asset.name).join(', ')}.
+              Gunakan Ganti di Media Library untuk memulihkan clip terkait.
             </Alert>
           )}
         </div>

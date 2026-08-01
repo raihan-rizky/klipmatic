@@ -7,6 +7,11 @@ import {
   mapWordsToTimeline,
 } from '../src'
 import { context, primaryClip, primaryTrack, spec } from './timelineFixtures'
+import {
+  left,
+  right,
+  specWithTransition,
+} from './timelineFixtures'
 
 describe('timeline mapping', () => {
   test('maps output time through a trimmed clip', () => {
@@ -22,7 +27,10 @@ describe('timeline mapping', () => {
       context,
     )
 
-    expect(mapOutputTime(trimmed, 7)[0]).toMatchObject({
+    expect(mapOutputTime(trimmed, 7, context)[0]).toMatchObject({
+      assetId: 'asset-candidate',
+      mediaType: 'video',
+      muted: false,
       sourceTime: 11,
       outputTime: 7,
       trackType: 'video',
@@ -107,5 +115,85 @@ describe('timeline mapping', () => {
         trimmed,
       ),
     ).toEqual([{ text: 'hello', start: 1, end: 2 }])
+  })
+
+  test('maps active image metadata and excludes muted audio from schedule', () => {
+    const withImage = applyTimelineCommand(spec, {
+      type: 'insertAsset',
+      assetId: 'asset-image',
+      trackId: 'overlay-images',
+      trackName: 'Images',
+      clipId: 'image-1',
+      timelineStart: 4,
+    }, context)
+    const withAudio = applyTimelineCommand(withImage, {
+      type: 'insertAsset',
+      assetId: 'asset-audio',
+      trackId: 'audio-effects',
+      trackName: 'Audio effects',
+      clipId: 'audio-1',
+      timelineStart: 4,
+    }, context)
+    const muted = applyTimelineCommand(withAudio, {
+      type: 'setClipMuted',
+      trackId: 'audio-effects',
+      clipId: 'audio-1',
+      muted: true,
+    }, context)
+
+    expect(mapOutputTime(muted, 5, context)).toContainEqual(
+      expect.objectContaining({
+        clipId: 'image-1',
+        mediaType: 'image',
+        transform: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
+      }),
+    )
+    expect(buildAudioSchedule(muted)).not.toContainEqual(
+      expect.objectContaining({ clipId: 'audio-1' }),
+    )
+  })
+
+  test('maps both transition participants and uses available source handles', () => {
+    const active = mapOutputTime(specWithTransition, 11.8, context)
+    const incoming = active.find((item) => item.clipId === right!.id)!
+
+    expect(active.map((item) => item.clipId)).toEqual(expect.arrayContaining([
+      left!.id,
+      right!.id,
+    ]))
+    expect(incoming.sourceTime).toBeCloseTo(11.8)
+    expect(incoming.transitionParticipant).toBe(true)
+  })
+
+  test('missing source handle holds the nearest boundary frame', () => {
+    const boundarySpec = {
+      ...specWithTransition,
+      timeline: {
+        ...specWithTransition.timeline,
+        tracks: specWithTransition.timeline.tracks.map((track) =>
+          track.id === specWithTransition.timeline.primaryTrackId
+            ? {
+                ...track,
+                clips: track.clips.map((clip) =>
+                  clip.id === right!.id
+                    ? { ...clip, sourceIn: 0, sourceOut: 18 }
+                    : clip,
+                ),
+              }
+            : track,
+        ),
+      },
+    }
+    const active = mapOutputTime(boundarySpec, 11.8, context)
+    const incoming = active.find((item) => item.clipId === right!.id)!
+
+    expect(incoming.sourceTime).toBe(0)
+    expect(incoming.transitionParticipant).toBe(true)
+  })
+
+  test('one frame outside a transition window keeps normal mapping', () => {
+    const active = mapOutputTime(specWithTransition, 11.7, context)
+    expect(active.filter((item) => item.trackType === 'video')).toHaveLength(1)
+    expect(active[0]!.clipId).toBe(left!.id)
   })
 })

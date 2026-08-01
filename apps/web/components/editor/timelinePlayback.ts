@@ -1,7 +1,8 @@
 import {
   mapOutputTime,
   type ActiveTimelineItem,
-  type EditSpecV2,
+  type EditSpecV3,
+  type TimelineContext,
 } from '@cheapclipper/engine'
 
 export interface PlaybackMedia {
@@ -20,7 +21,8 @@ export interface TimelinePlaybackController {
 }
 
 type PlaybackOptions = {
-  spec: EditSpecV2
+  spec: EditSpecV3
+  context?: TimelineContext
   mediaForClip: (item: ActiveTimelineItem) => PlaybackMedia | null
   onTime: (outputTime: number) => void
   onFrame: (active: ActiveTimelineItem[]) => void
@@ -49,6 +51,7 @@ function defaultCancelFrame(handle: number): void {
 
 export function createTimelinePlaybackController({
   spec,
+  context,
   mediaForClip,
   onTime,
   onFrame,
@@ -82,7 +85,7 @@ export function createTimelinePlaybackController({
   }
 
   async function sync(time: number, shouldPlay: boolean): Promise<void> {
-    const active = mapOutputTime(spec, time)
+    const active = mapOutputTime(spec, time, context)
     const activeMedia = new Map<PlaybackMedia, ActiveTimelineItem>()
 
     for (const item of active) {
@@ -101,7 +104,8 @@ export function createTimelinePlaybackController({
         continue
       }
 
-      media.muted = item.trackType !== 'audio'
+      media.muted = item.trackType !== 'audio' || item.muted
+      if (item.trackType === 'audio' && item.muted) media.pause()
       if (Math.abs(media.currentTime - item.sourceTime) > DRIFT_TOLERANCE_SECONDS) {
         media.currentTime = item.sourceTime
       }
@@ -109,8 +113,12 @@ export function createTimelinePlaybackController({
 
     if (shouldPlay) {
       await Promise.all(
-        [...activeMedia.keys()].map((media) =>
-          media.paused ? media.play() : Promise.resolve(),
+        [...activeMedia.entries()].map(([media, item]) =>
+          item.trackType === 'audio' && item.muted
+            ? Promise.resolve()
+            : media.paused
+              ? media.play()
+              : Promise.resolve(),
         ),
       )
     }

@@ -1,12 +1,17 @@
 import type { Sql } from 'postgres'
 import {
   DEFAULT_EDIT_SPEC,
-  normalizeEditSpecV2,
-  type EditSpecV2,
+  normalizeEditSpecV3,
+  type EditSpecV3,
   type TimelineContext,
   type TranscriptWord,
 } from '@cheapclipper/engine'
-import type { ClipEditorPayload } from './clipTypes'
+import type { ClipEditorPayload, ResolvedMediaAsset } from './clipTypes'
+import {
+  referencedAssetIds,
+  resolveProjectAssets,
+  touchProjectAssets,
+} from './mediaAssets'
 import { readR2Json, readR2JsonIfExists } from './r2'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -23,10 +28,73 @@ function timelineContext(
   id: unknown,
   startSec: unknown,
   endSec: unknown,
+  candidateAssetId: string,
+  assets: ResolvedMediaAsset[],
 ): TimelineContext {
   return {
     sourceId: String(id),
     candidateDuration: Number(endSec) - Number(startSec),
+    candidateAssetId,
+    assets: Object.fromEntries(assets.map((asset) => [asset.id, {
+      id: asset.id,
+      mediaType: asset.mediaType,
+      duration: asset.duration,
+      width: asset.width,
+      height: asset.height,
+      hasAudio: asset.hasAudio,
+    }])),
+  }
+}
+
+async function upsertCandidateAsset(
+  sql: Sql,
+  input: {
+    userId: string
+    projectId: string
+    clipId: string
+    name: string
+    duration: number
+    ready: boolean
+    failed: boolean
+    bytes: number
+    url: string | null
+  },
+): Promise<ResolvedMediaAsset> {
+  const status = input.ready ? 'ready' : input.failed ? 'failed' : 'uploading'
+  const [row] = await sql`
+    insert into media_assets
+      (user_id, project_id, candidate_clip_id, source, media_type, status,
+       name, mime_type, bytes, duration_sec, has_audio, last_used_at)
+    values
+      (${input.userId}, ${input.projectId}, ${input.clipId}, 'candidate',
+       'video', ${status}, ${input.name}, 'video/mp4', ${input.bytes},
+       ${input.duration}, true, now())
+    on conflict (candidate_clip_id) do update
+       set user_id = excluded.user_id,
+           project_id = excluded.project_id,
+           status = excluded.status,
+           name = excluded.name,
+           bytes = case
+             when excluded.bytes > 0 then excluded.bytes
+             else media_assets.bytes
+           end,
+           duration_sec = excluded.duration_sec,
+           last_used_at = now(),
+           updated_at = now()
+    returning id`
+  return {
+    id: String(row!.id),
+    name: input.name,
+    mediaType: 'video',
+    status,
+    url: input.url,
+    bytes: input.bytes,
+    width: null,
+    height: null,
+    duration: input.duration,
+    hasAudio: true,
+    expiresAt: null,
+    expiresSoon: false,
   }
 }
 
@@ -150,6 +218,14 @@ export async function loadClipEditor(
               limit 1
            ) as segment_key,
            (
+             select ms.bytes from media_segments ms
+              where ms.source_id = p.source_id
+                and ms.start_sec = c.start_sec
+                and ms.end_sec = c.end_sec
+                and ms.expires_at > now()
+              limit 1
+           ) as segment_bytes,
+           (
              select t.r2_key from transcripts t
               where t.source_id = p.source_id
               order by t.created_at desc limit 1
@@ -184,6 +260,29 @@ export async function loadClipEditor(
   const startSec = Number(row.start_sec)
   const endSec = Number(row.end_sec)
   const segmentKey = row.segment_key as string | null
+  const candidateDuration = endSec - startSec
+  const segmentUrl = segmentKey ? `/api/clips/${clipId}/segment` : null
+  const candidateAsset = await upsertCandidateAsset(sql, {
+    userId,
+    projectId: String(row.project_id),
+    clipId,
+    name: String(row.title),
+    duration: candidateDuration,
+    ready: Boolean(segmentKey),
+    failed: row.job_status === 'failed' || row.job_status === 'dead',
+    bytes: Number(row.segment_bytes ?? 0),
+    url: segmentUrl,
+  })
+  const uploadIds = [...referencedAssetIds(row.edit_spec)]
+    .filter((id) => id !== candidateAsset.id)
+  await touchProjectAssets(sql, userId, String(row.project_id), uploadIds)
+  const uploads = await resolveProjectAssets(
+    sql,
+    userId,
+    String(row.project_id),
+    uploadIds,
+  )
+  const assets = [candidateAsset, ...uploads]
   let words: TranscriptWord[] = []
   let timingPrecision: 'word' | 'estimated' = 'word'
   // Selama worker masih menyiapkan segment, route dipoll tiap dua detik.
@@ -227,9 +326,15 @@ export async function loadClipEditor(
       renderStatus: RENDER_STATUSES.includes(row.render_status)
         ? row.render_status
         : 'draft',
-      editSpec: normalizeEditSpecV2(
+      editSpec: normalizeEditSpecV3(
         row.edit_spec,
-        timelineContext(row.id, row.start_sec, row.end_sec),
+        timelineContext(
+          row.id,
+          row.start_sec,
+          row.end_sec,
+          candidateAsset.id,
+          assets,
+        ),
       ),
       timingPrecision,
     },
@@ -240,10 +345,11 @@ export async function loadClipEditor(
         : row.job_status === 'failed' || row.job_status === 'dead'
           ? 'failed'
           : 'pending',
-      url: segmentKey ? `/api/clips/${clipId}/segment` : null,
+      url: segmentUrl,
       jobId: (row.job_id as string | null) ?? null,
       errorCode: (row.job_error_code as string | null) ?? null,
     },
+    assets,
   }
 }
 
@@ -252,20 +358,54 @@ export async function updateClip(
   userId: string,
   clipId: string,
   input: { editSpec?: unknown; renderStatus?: unknown },
-): Promise<{ editSpec: EditSpecV2; renderStatus: string }> {
+): Promise<{ editSpec: EditSpecV3; renderStatus: string }> {
   if (!UUID_RE.test(clipId)) throw new ClipNotFoundError()
   const [owned] = await sql`
-    select cl.id, c.start_sec, c.end_sec
+    select cl.id, cl.project_id, c.title, c.start_sec, c.end_sec,
+           exists (
+             select 1 from media_segments ms
+              where ms.source_id = p.source_id
+                and ms.start_sec = c.start_sec
+                and ms.end_sec = c.end_sec
+                and ms.expires_at > now()
+           ) as segment_ready
       from clips cl
       join clip_candidates c on c.id = cl.candidate_id
       join projects p on p.id = cl.project_id
      where cl.id = ${clipId}
        and p.user_id = ${userId}`
   if (!owned) throw new ClipNotFoundError()
-  const editSpec = normalizeEditSpecV2(
-    input.editSpec,
-    timelineContext(owned.id, owned.start_sec, owned.end_sec),
+  const candidateDuration = Number(owned.end_sec) - Number(owned.start_sec)
+  const candidateAsset = await upsertCandidateAsset(sql, {
+    userId,
+    projectId: String(owned.project_id),
+    clipId,
+    name: String(owned.title),
+    duration: candidateDuration,
+    ready: Boolean(owned.segment_ready),
+    failed: false,
+    bytes: 0,
+    url: owned.segment_ready ? `/api/clips/${clipId}/segment` : null,
+  })
+  const uploadIds = [...referencedAssetIds(input.editSpec)]
+    .filter((id) => id !== candidateAsset.id)
+  const uploads = await resolveProjectAssets(
+    sql,
+    userId,
+    String(owned.project_id),
+    uploadIds,
   )
+  const editSpec = normalizeEditSpecV3(
+    input.editSpec,
+    timelineContext(
+      owned.id,
+      owned.start_sec,
+      owned.end_sec,
+      candidateAsset.id,
+      [candidateAsset, ...uploads],
+    ),
+  )
+  await touchProjectAssets(sql, userId, String(owned.project_id), uploadIds)
   const renderStatus =
     typeof input.renderStatus === 'string' &&
     RENDER_STATUSES.includes(input.renderStatus as (typeof RENDER_STATUSES)[number])

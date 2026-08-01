@@ -51,3 +51,15 @@ def test_presigned_get_dapat_diunduh(storage: Storage, tmp_path: Path, prefix: s
     storage.put_file(key, f, "text/plain")
     url = storage.presigned_get(key, expires_sec=60)
     assert httpx.get(url).text == "isi presigned"
+
+
+def test_delete_is_idempotent(storage: Storage, tmp_path: Path, prefix: str):
+    f = tmp_path / "delete.txt"
+    f.write_text("hapus")
+    key = f"{prefix}/delete.txt"
+    storage.put_file(key, f, "text/plain")
+
+    storage.delete(key)
+    storage.delete(key)
+
+    assert storage.exists(key) is False

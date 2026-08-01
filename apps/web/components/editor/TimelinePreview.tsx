@@ -4,27 +4,42 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Pause, Play } from 'lucide-react'
 import {
   drawTimelineComposite,
+  evaluateTransitions,
   mapWordsToTimeline,
   type ActiveTimelineItem,
-  type EditSpecV2,
+  type EditSpecV3,
+  type TimelineContext,
   type TranscriptWord,
+  type VisualTransform,
 } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
+import type { ResolvedMediaAsset } from '@/lib/clipTypes'
 import {
   createTimelinePlaybackController,
   type TimelinePlaybackController,
 } from './timelinePlayback'
+import {
+  CanvasSelectionOverlay,
+  type CanvasSelection,
+  type CanvasSelectionCommit,
+} from './CanvasSelectionOverlay'
 
 type TimelinePreviewProps = {
-  spec: EditSpecV2
+  spec: EditSpecV3
+  assets: ResolvedMediaAsset[]
   words: TranscriptWord[]
-  mediaUrl: string
   playhead: number
   playing: boolean
   onPlayheadChange: (outputTime: number) => void
   onPlayingChange: (playing: boolean) => void
   onStall: (message: string) => void
   onPrimaryVideoChange?: (video: HTMLVideoElement | null) => void
+  canvasSelection?: CanvasSelection | null
+  onCanvasCommit?: (commit: CanvasSelectionCommit) => void
+  onAssetDrop?: (
+    assetId: string,
+    placement: { timelineStart?: number; transform?: VisualTransform },
+  ) => void
 }
 
 function formatTime(value: number): string {
@@ -36,17 +51,22 @@ function formatTime(value: number): string {
 
 export function TimelinePreview({
   spec,
+  assets,
   words,
-  mediaUrl,
   playhead,
   playing,
   onPlayheadChange,
   onPlayingChange,
   onStall,
   onPrimaryVideoChange,
+  canvasSelection = null,
+  onCanvasCommit,
+  onAssetDrop,
 }: TimelinePreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const mediaPoolRef = useRef(new Map<string, HTMLMediaElement>())
+  const mediaPoolRef = useRef(
+    new Map<string, HTMLMediaElement | HTMLImageElement>(),
+  )
   const controllerRef = useRef<TimelinePlaybackController | null>(null)
   const reportedTimeRef = useRef(playhead)
   const callbacksRef = useRef({
@@ -62,25 +82,51 @@ export function TimelinePreview({
     onPrimaryVideoChange,
   }
 
-  const mediaEntries = useMemo(
-    () =>
-      spec.timeline.tracks.flatMap((track) =>
-        track.type === 'caption'
-          ? []
-          : track.clips.map((clip) => ({
+  const mediaEntries = useMemo(() => {
+    const byId = new Map(assets.map((asset) => [asset.id, asset]))
+    return spec.timeline.tracks.flatMap((track) =>
+      track.type === 'caption'
+        ? []
+        : track.clips.flatMap((clip) => {
+            const asset = byId.get(clip.assetId)
+            if (!asset || asset.status !== 'ready' || !asset.url) return []
+            return [{
               clipId: clip.id,
               trackType: track.type,
               primary:
                 track.type === 'video' &&
                 track.id === spec.timeline.primaryTrackId,
-            })),
-      ),
-    [spec],
-  )
+              asset,
+              muted: clip.muted,
+            }]
+          }),
+    )
+  }, [assets, spec])
   const timelineWords = useMemo(
     () => mapWordsToTimeline(words, spec),
     [spec, words],
   )
+  const timelineContext = useMemo<TimelineContext>(() => {
+    const primary = spec.timeline.tracks.find(
+      (track) => track.id === spec.timeline.primaryTrackId,
+    )
+    const candidateAssetId = primary?.clips[0]?.assetId ?? assets[0]?.id ?? 'candidate'
+    return {
+      sourceId: 'preview',
+      candidateAssetId,
+      candidateDuration:
+        assets.find((asset) => asset.id === candidateAssetId)?.duration ??
+        spec.timeline.duration,
+      assets: Object.fromEntries(assets.map((asset) => [asset.id, {
+        id: asset.id,
+        mediaType: asset.mediaType,
+        duration: asset.duration,
+        width: asset.width,
+        height: asset.height,
+        hasAudio: asset.hasAudio,
+      }])),
+    }
+  }, [assets, spec.timeline.duration, spec.timeline.primaryTrackId, spec.timeline.tracks])
 
   useEffect(() => {
     function drawFrame(active: ActiveTimelineItem[], outputTime: number): void {
@@ -90,23 +136,46 @@ export function TimelinePreview({
         .filter((item) => item.trackType === 'video')
         .flatMap((item) => {
           const media = mediaPoolRef.current.get(item.clipId)
-          if (
-            !(media instanceof HTMLVideoElement) ||
-            media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
-            media.videoWidth === 0
-          ) return []
-          return [{ media, order: item.order }]
+          if (media instanceof HTMLVideoElement) {
+            if (
+              media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+              media.videoWidth === 0
+            ) return []
+          } else if (media instanceof HTMLImageElement) {
+            if (!media.complete || media.naturalWidth === 0) return []
+          } else return []
+          return [{
+            clipId: item.clipId,
+            media,
+            order: item.order,
+            transform: item.transform,
+            opacity: 1,
+            primary:
+              item.trackType === 'video' &&
+              item.trackId === spec.timeline.primaryTrackId,
+          }]
         })
       if (layers.length === 0) return
-
       const context = canvas.getContext('2d')
       if (!context) return
-      drawTimelineComposite(context, layers, spec, timelineWords, outputTime)
+      const transitionState = evaluateTransitions(spec, outputTime)
+      drawTimelineComposite(
+        context,
+        layers,
+        spec,
+        timelineWords,
+        outputTime,
+        transitionState,
+      )
     }
 
     const controller = createTimelinePlaybackController({
       spec,
-      mediaForClip: (item) => mediaPoolRef.current.get(item.clipId) ?? null,
+      context: timelineContext,
+      mediaForClip: (item) => {
+        const media = mediaPoolRef.current.get(item.clipId)
+        return media instanceof HTMLMediaElement ? media : null
+      },
       onTime: (outputTime) => {
         reportedTimeRef.current = outputTime
         callbacksRef.current.onPlayheadChange(outputTime)
@@ -125,7 +194,7 @@ export function TimelinePreview({
       controller.dispose()
       controllerRef.current = null
     }
-  }, [spec, timelineWords])
+  }, [spec, timelineContext, timelineWords])
 
   useEffect(() => {
     const controller = controllerRef.current
@@ -145,9 +214,13 @@ export function TimelinePreview({
   useEffect(
     () => () => {
       for (const media of mediaPoolRef.current.values()) {
-        media.pause()
-        media.removeAttribute('src')
-        media.load()
+        if (media instanceof HTMLMediaElement) {
+          media.pause()
+          media.removeAttribute('src')
+          media.load()
+        } else {
+          media.removeAttribute('src')
+        }
       }
       mediaPoolRef.current.clear()
     },
@@ -156,7 +229,7 @@ export function TimelinePreview({
 
   function registerMedia(
     clipId: string,
-    media: HTMLMediaElement | null,
+    media: HTMLMediaElement | HTMLImageElement | null,
     primary: boolean,
   ): void {
     if (media) {
@@ -178,14 +251,53 @@ export function TimelinePreview({
   return (
     <section className="flex min-h-0 flex-col bg-black" aria-label="Video preview">
       <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
-        <canvas
-          ref={canvasRef}
-          width={spec.output.width}
-          height={spec.output.height}
-          aria-label="Preview video vertikal"
-          className="max-h-[56vh] w-auto max-w-full rounded-xl bg-black shadow-2xl"
-          style={{ aspectRatio: '9 / 16' }}
-        />
+        <div
+          className="relative inline-flex max-h-[56vh] max-w-full"
+          onDragOver={(event) => {
+            if (event.dataTransfer.types.includes('application/x-cheapclipper-asset')) {
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'copy'
+            }
+          }}
+          onDrop={(event) => {
+            const raw = event.dataTransfer.getData('application/x-cheapclipper-asset')
+            if (!raw) return
+            event.preventDefault()
+            try {
+              const assetId = (JSON.parse(raw) as { assetId?: unknown }).assetId
+              const canvas = canvasRef.current
+              if (typeof assetId !== 'string' || !canvas) return
+              const rect = canvas.getBoundingClientRect()
+              const normalizedX = (event.clientX - rect.left) / Math.max(rect.width, 1)
+              const normalizedY = (event.clientY - rect.top) / Math.max(rect.height, 1)
+              const round = (value: number) => Math.round(value * 1_000_000) / 1_000_000
+              onAssetDrop?.(assetId, {
+                timelineStart: playhead,
+                transform: {
+                  x: round(Math.min(Math.max(normalizedX - 0.3, 0), 0.4)),
+                  y: round(Math.min(Math.max(normalizedY - 0.3, 0), 0.4)),
+                  width: 0.6,
+                  height: 0.6,
+                },
+              })
+            } catch {
+              // Ignore drag payloads from outside Cheapclipper.
+            }
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            width={spec.output.width}
+            height={spec.output.height}
+            aria-label="Preview video vertikal"
+            className="max-h-[56vh] w-auto max-w-full rounded-xl bg-black shadow-2xl"
+            style={{ aspectRatio: '9 / 16' }}
+          />
+          <CanvasSelectionOverlay
+            selection={canvasSelection}
+            onCommit={(commit) => onCanvasCommit?.(commit)}
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-3 border-t border-white/10 bg-surface px-3 py-2">
@@ -220,29 +332,46 @@ export function TimelinePreview({
       </div>
 
       <div hidden aria-hidden="true">
-        {mediaEntries.map((entry) =>
-          entry.trackType === 'video' ? (
+        {mediaEntries.map((entry) => {
+          const testId = `asset-media-${entry.asset.id.replace(/^asset-/, '')}`
+          if (entry.asset.mediaType === 'image') {
+            return (
+              // eslint-disable-next-line @next/next/no-img-element -- hidden decode source for canvas composition.
+              <img
+                key={entry.clipId}
+                ref={(media) => registerMedia(entry.clipId, media, false)}
+                src={entry.asset.url!}
+                alt=""
+                data-testid={testId}
+                onLoad={redrawLoadedFrame}
+              />
+            )
+          }
+          return entry.trackType === 'video' ? (
             <video
               key={entry.clipId}
               ref={(media) => registerMedia(entry.clipId, media, entry.primary)}
-              src={mediaUrl}
+              src={entry.asset.url!}
               preload="auto"
               playsInline
               muted
               tabIndex={-1}
+              data-testid={testId}
               onLoadedData={redrawLoadedFrame}
             />
           ) : (
             <audio
               key={entry.clipId}
               ref={(media) => registerMedia(entry.clipId, media, false)}
-              src={mediaUrl}
+              src={entry.asset.url!}
               preload="auto"
+              muted={entry.muted}
               tabIndex={-1}
+              data-testid={testId}
               onLoadedData={redrawLoadedFrame}
             />
-          ),
-        )}
+          )
+        })}
       </div>
     </section>
   )

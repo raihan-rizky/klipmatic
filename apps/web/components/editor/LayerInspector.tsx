@@ -1,19 +1,37 @@
 'use client'
 
 import { Copy, Trash2 } from 'lucide-react'
-import type { EditSpecV2, TimelineCommand } from '@cheapclipper/engine'
+import type { EditSpecV3, TimelineCommand } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
 import type { TimelineSelection } from './TimelineEditor'
+import { AssetInspector } from './AssetInspector'
+import { TransitionInspector } from './TransitionInspector'
 
 export function LayerInspector({
   spec,
   selected,
   onCommand,
 }: {
-  spec: EditSpecV2
+  spec: EditSpecV3
   selected: TimelineSelection | null
   onCommand: (command: TimelineCommand) => void
 }) {
+  if (selected?.kind === 'transition') {
+    return (
+      <TransitionInspector
+        spec={spec}
+        transitionId={selected.transitionId}
+        onCommand={onCommand}
+      />
+    )
+  }
+  if (selected?.kind === 'joint') {
+    return (
+      <p className="p-5 text-sm text-muted">
+        Sambungan dipilih. Buka tab Transitions lalu pilih Add to selected cut.
+      </p>
+    )
+  }
   const track = spec.timeline.tracks.find((item) => item.id === selected?.trackId)
   if (!track) {
     return <p className="p-5 text-sm text-muted">Pilih layer atau clip untuk melihat pengaturan.</p>
@@ -23,6 +41,12 @@ export function LayerInspector({
 
   return (
     <div className="space-y-5 p-5">
+      {selected?.kind === 'clip' ? (() => {
+        const clip = track.clips.find((item) => item.id === selected.clipId)
+        return clip ? (
+          <AssetInspector trackId={track.id} clip={clip} onCommand={onCommand} />
+        ) : null
+      })() : null}
       <div>
         <label htmlFor="layer-name" className="text-sm font-bold">Nama layer</label>
         <input
