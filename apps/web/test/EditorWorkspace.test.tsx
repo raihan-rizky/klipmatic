@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ClipEditor } from '@/components/ClipEditor'
@@ -14,6 +14,7 @@ import { makeReadyPayload } from './editorFixtures'
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
@@ -91,6 +92,63 @@ test('ready clip renders layered timeline and autosaves a split', async () => {
       ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
     ),
   ).toBe(true)
+})
+
+test('processing clip recovers from a transient polling error', async () => {
+  vi.useFakeTimers()
+  const ready = makeReadyPayload()
+  const pending = {
+    ...ready,
+    segment: {
+      status: 'pending' as const,
+      url: null,
+      jobId: 'job-1',
+      errorCode: null,
+    },
+  }
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(Response.json(pending))
+    .mockResolvedValueOnce(
+      Response.json(
+        { error: { message: 'Jaringan sempat putus.' } },
+        { status: 500 },
+      ),
+    )
+    .mockResolvedValueOnce(Response.json(ready))
+    .mockResolvedValueOnce(
+      new Response(new Blob(['media'], { type: 'video/mp4' })),
+    )
+  vi.stubGlobal('fetch', fetchMock)
+  Object.assign(URL, {
+    createObjectURL: vi.fn(() => 'blob:clip-1'),
+    revokeObjectURL: vi.fn(),
+  })
+  vi
+    .spyOn(HTMLMediaElement.prototype, 'pause')
+    .mockImplementation(() => undefined)
+  vi
+    .spyOn(HTMLMediaElement.prototype, 'load')
+    .mockImplementation(() => undefined)
+
+  render(<ClipEditor clipId="clip-1" />)
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0)
+  })
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000)
+  })
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000)
+  })
+
+  expect(fetchMock).toHaveBeenCalledTimes(4)
+  expect(screen.getByLabelText('Preview video vertikal')).toBeVisible()
 })
 
 test('save errors are announced without relying on color', () => {

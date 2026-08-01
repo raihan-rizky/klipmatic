@@ -42,28 +42,48 @@ export function ClipEditor({ clipId }: { clipId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    const response = await fetch(`/api/clips/${clipId}`, { cache: 'no-store' })
-    const body = (await response.json().catch(() => ({}))) as
-      | ClipEditorPayload
-      | { error?: { message?: string } }
-    if (!response.ok || !('clip' in body)) {
-      setError(
-        'error' in body
-          ? body.error?.message ?? 'Editor gagal dimuat.'
-          : 'Editor gagal dimuat.',
-      )
-      return
+  useEffect(() => {
+    let active = true
+    let pollTimer: number | null = null
+
+    function pollAgain() {
+      pollTimer = window.setTimeout(() => void load(), 2000)
     }
-    setPayload(body)
-    if (body.segment.status === 'pending') {
-      window.setTimeout(() => void load(), 2000)
+
+    async function load() {
+      try {
+        const response = await fetch(`/api/clips/${clipId}`, {
+          cache: 'no-store',
+        })
+        const body = (await response.json().catch(() => ({}))) as
+          | ClipEditorPayload
+          | { error?: { message?: string } }
+        if (!active) return
+        if (!response.ok || !('clip' in body)) {
+          setError(
+            'error' in body
+              ? body.error?.message ?? 'Editor gagal dimuat.'
+              : 'Editor gagal dimuat.',
+          )
+          pollAgain()
+          return
+        }
+        setError(null)
+        setPayload(body)
+        if (body.segment.status === 'pending') pollAgain()
+      } catch {
+        if (!active) return
+        setError('Koneksi ke status video sempat terputus.')
+        pollAgain()
+      }
+    }
+
+    void load()
+    return () => {
+      active = false
+      if (pollTimer !== null) window.clearTimeout(pollTimer)
     }
   }, [clipId])
-
-  useEffect(() => {
-    void load()
-  }, [load])
 
   useEffect(() => {
     if (!payload?.segment.url) return
@@ -127,7 +147,11 @@ export function ClipEditor({ clipId }: { clipId: string }) {
       <StatePanel
         busy
         title={payload?.clip.title ?? 'Menyiapkan potongan video'}
-        description="Worker sedang mengambil rentang video yang kamu pilih."
+        description={
+          error
+            ? `${error} Mencoba lagi otomatis.`
+            : 'Worker sedang mengambil rentang video yang kamu pilih.'
+        }
       />
     )
   }
