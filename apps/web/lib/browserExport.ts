@@ -9,9 +9,10 @@ import {
   type EditSpecV3,
   type TranscriptWord,
 } from '@cheapclipper/engine'
+import type { ResolvedMediaAsset } from './clipTypes'
 
 type ExportArgs = {
-  url: string
+  assets: ResolvedMediaAsset[]
   spec: EditSpecV3
   words: TranscriptWord[]
   title: string
@@ -19,18 +20,20 @@ type ExportArgs = {
   allowEmptyVisual?: boolean
 }
 
-export interface TimelineExportRuntime {
-  open(url: string): Promise<{
-    frameAt(
-      sourceTime: number,
-    ): Promise<(CanvasImageSource & DrawableMedia) | null>
-    readAudio(start: number, end: number): AsyncIterable<{
-      buffer: AudioBuffer
-      timestamp: number
-      duration: number
-    }>
-    close?: () => void
+export interface ExportAssetSource {
+  frameAt(
+    sourceTime: number,
+  ): Promise<(CanvasImageSource & DrawableMedia) | null>
+  readAudio(start: number, end: number): AsyncIterable<{
+    buffer: AudioBuffer
+    timestamp: number
+    duration: number
   }>
+  close?: () => void
+}
+
+export interface TimelineExportRuntime {
+  open(asset: ResolvedMediaAsset): Promise<ExportAssetSource>
   createOutput(spec: EditSpecV3): Promise<{
     context: CanvasRenderingContext2D
     addVideoFrame(timestamp: number, duration: number): Promise<void>
@@ -63,7 +66,9 @@ export function browserExportSupport(spec?: EditSpecV3): {
     !spec ||
     spec.timeline.tracks.some(
       (track) =>
-        track.type === 'audio' && !track.hidden && track.clips.length > 0,
+        track.type === 'audio' &&
+        !track.hidden &&
+        track.clips.some((clip) => !clip.muted),
     )
   if (needsAudio && !('AudioEncoder' in window)) {
     return {
@@ -84,7 +89,7 @@ function safeFilename(title: string): string {
 
 export function createTimelineExporter(runtime: TimelineExportRuntime) {
   return async function exportTimeline({
-    url,
+    assets,
     spec,
     words,
     title,
@@ -101,7 +106,19 @@ export function createTimelineExporter(runtime: TimelineExportRuntime) {
       )
     }
 
-    const input = await runtime.open(url)
+    const assetById = new Map(assets.map((asset) => [asset.id, asset]))
+    const sources = new Map<string, ExportAssetSource>()
+    const sourceFor = async (assetId: string): Promise<ExportAssetSource> => {
+      const existing = sources.get(assetId)
+      if (existing) return existing
+      const asset = assetById.get(assetId)
+      if (!asset || asset.status !== 'ready' || !asset.url) {
+        throw new Error('Ada media timeline yang belum siap atau sudah kedaluwarsa.')
+      }
+      const source = await runtime.open(asset)
+      sources.set(assetId, source)
+      return source
+    }
     try {
       const output = await runtime.createOutput(spec)
       const schedule = buildFrameSchedule(spec)
@@ -113,7 +130,7 @@ export function createTimelineExporter(runtime: TimelineExportRuntime) {
           (item) => item.trackType === 'video',
         )
         for (const item of activeVideo) {
-          const media = await input.frameAt(item.sourceTime)
+          const media = await (await sourceFor(item.assetId)).frameAt(item.sourceTime)
           if (media) layers.push({
             clipId: item.clipId,
             media,
@@ -139,6 +156,7 @@ export function createTimelineExporter(runtime: TimelineExportRuntime) {
       const audioClips = spec.timeline.tracks
         .filter((track) => track.type === 'audio' && !track.hidden)
         .flatMap((track) => track.clips)
+        .filter((clip) => !clip.muted)
       if (audioClips.length > 0) {
         const sampleRate = 48_000
         const offline = runtime.createOfflineAudioContext(
@@ -148,7 +166,8 @@ export function createTimelineExporter(runtime: TimelineExportRuntime) {
         )
         for (let clipIndex = 0; clipIndex < audioClips.length; clipIndex += 1) {
           const clip = audioClips[clipIndex]!
-          for await (const wrapped of input.readAudio(
+          const source = await sourceFor(clip.assetId)
+          for await (const wrapped of source.readAudio(
             clip.sourceIn,
             clip.sourceOut,
           )) {
@@ -182,7 +201,7 @@ export function createTimelineExporter(runtime: TimelineExportRuntime) {
       onProgress?.(1)
       runtime.download(buffer, safeFilename(title))
     } finally {
-      input.close?.()
+      for (const source of sources.values()) source.close?.()
     }
   }
 }
@@ -191,14 +210,26 @@ function createBrowserRuntime(): TimelineExportRuntime {
   const library = import('mediabunny')
 
   return {
-    async open(url) {
-      const response = await fetch(url)
+    async open(asset) {
+      if (!asset.url) throw new Error(`${asset.name} belum siap diekspor.`)
+      const response = await fetch(asset.url)
       if (!response.ok) {
         throw new Error(
           'Segmen video tidak dapat diunduh. Refresh editor lalu coba lagi.',
         )
       }
       const blob = await response.blob()
+      if (asset.mediaType === 'image') {
+        if (typeof createImageBitmap !== 'function') {
+          throw new Error('Browser ini belum bisa decode gambar untuk ekspor.')
+        }
+        const bitmap = await createImageBitmap(blob)
+        return {
+          frameAt: async () => bitmap,
+          async *readAudio() {},
+          close: () => bitmap.close(),
+        }
+      }
       const {
         ALL_FORMATS,
         AudioBufferSink,
@@ -272,7 +303,9 @@ function createBrowserRuntime(): TimelineExportRuntime {
 
       const hasAudio = spec.timeline.tracks.some(
         (track) =>
-          track.type === 'audio' && !track.hidden && track.clips.length > 0,
+          track.type === 'audio' &&
+          !track.hidden &&
+          track.clips.some((clip) => !clip.muted),
       )
       const audioSource = hasAudio
         ? new AudioBufferSource({ codec: 'aac', bitrate: 160_000 })

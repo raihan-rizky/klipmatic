@@ -388,7 +388,9 @@ function ReadyClipEditor({
       await autosave.flush()
       await markRenderStatus('rendering')
       await exportClipMp4({
-        url: mediaUrl,
+        assets: assets.map((asset) =>
+          asset.id === candidateAssetId ? { ...asset, url: mediaUrl } : asset,
+        ),
         spec: history.present,
         words: payload.words,
         title: payload.clip.title,
