@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { applyTimelineCommand } from '../src'
+import { applyTimelineCommand, type EditSpecV3 } from '../src'
 import {
   context,
   primaryClip,
@@ -127,5 +127,128 @@ describe('applyTimelineCommand', () => {
         context,
       ),
     ).toEqual(spec)
+  })
+
+  const findClip = (input: EditSpecV3, clipId: string) =>
+    input.timeline.tracks.flatMap((track) => track.clips)
+      .find((clip) => clip.id === clipId)
+
+  test('inserts a five-second image at playhead with a centered transform', () => {
+    const next = applyTimelineCommand(spec, {
+      type: 'insertAsset',
+      assetId: 'asset-image',
+      trackId: 'overlay-images',
+      trackName: 'Images',
+      clipId: 'image-1',
+      timelineStart: 8,
+    }, context)
+
+    expect(findClip(next, 'image-1')).toMatchObject({
+      assetId: 'asset-image',
+      timelineStart: 8,
+      sourceIn: 0,
+      sourceOut: 5,
+      muted: false,
+      transform: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
+    })
+  })
+
+  test('uploaded video inserts linked muted audio', () => {
+    const next = applyTimelineCommand(spec, {
+      type: 'insertAsset',
+      assetId: 'asset-video',
+      trackId: 'overlay-videos',
+      trackName: 'Videos',
+      clipId: 'video-1',
+      timelineStart: 4,
+      linkGroupId: 'upload-video-1',
+      linkedAudio: {
+        trackId: 'uploaded-audio',
+        trackName: 'Uploaded audio',
+        clipId: 'video-audio',
+      },
+    }, context)
+    const linked = next.timeline.tracks.flatMap((track) => track.clips)
+      .filter((clip) => clip.linkGroupId === 'upload-video-1')
+
+    expect(linked).toHaveLength(2)
+    expect(findClip(next, 'video-audio')).toMatchObject({
+      assetId: 'asset-video',
+      muted: true,
+      timelineStart: 4,
+      sourceOut: 9,
+    })
+  })
+
+  test('updates visual transform and clip mute without mutating input', () => {
+    const inserted = applyTimelineCommand(spec, {
+      type: 'insertAsset',
+      assetId: 'asset-image',
+      trackId: 'overlay-images',
+      trackName: 'Images',
+      clipId: 'image-1',
+      timelineStart: 3,
+    }, context)
+    const transformed = applyTimelineCommand(inserted, {
+      type: 'updateVisualTransform',
+      trackId: 'overlay-images',
+      clipId: 'image-1',
+      transform: { x: 0.1, y: 0.3, width: 0.4, height: 0.4 },
+    }, context)
+    const muted = applyTimelineCommand(transformed, {
+      type: 'setClipMuted',
+      trackId: 'overlay-images',
+      clipId: 'image-1',
+      muted: true,
+    }, context)
+
+    expect(findClip(inserted, 'image-1')!.transform).toEqual({
+      x: 0.2, y: 0.2, width: 0.6, height: 0.6,
+    })
+    expect(findClip(muted, 'image-1')).toMatchObject({
+      muted: true,
+      transform: { x: 0.1, y: 0.3, width: 0.4, height: 0.4 },
+    })
+  })
+
+  test('replaces an image without losing timing or transform', () => {
+    const inserted = applyTimelineCommand(spec, {
+      type: 'insertAsset',
+      assetId: 'asset-image',
+      trackId: 'overlay-images',
+      trackName: 'Images',
+      clipId: 'image-1',
+      timelineStart: 8,
+    }, context)
+    const next = applyTimelineCommand(inserted, {
+      type: 'replaceAsset',
+      fromAssetId: 'asset-image',
+      toAssetId: 'asset-image-replacement',
+    }, context)
+
+    expect(findClip(next, 'image-1')).toMatchObject({
+      assetId: 'asset-image-replacement',
+      timelineStart: 8,
+      transform: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
+    })
+  })
+
+  test('moves non-primary clip and clamps it inside output duration', () => {
+    const inserted = applyTimelineCommand(spec, {
+      type: 'insertAsset',
+      assetId: 'asset-audio',
+      trackId: 'audio-effects',
+      trackName: 'Audio effects',
+      clipId: 'audio-1',
+      timelineStart: 2,
+    }, context)
+    const next = applyTimelineCommand(inserted, {
+      type: 'moveClip',
+      trackId: 'audio-effects',
+      clipId: 'audio-1',
+      timelineStart: 99,
+    }, context)
+
+    expect(findClip(next, 'audio-1')!.timelineStart).toBe(18)
   })
 })

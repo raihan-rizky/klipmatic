@@ -22,7 +22,10 @@ describe('timeline mapping', () => {
       context,
     )
 
-    expect(mapOutputTime(trimmed, 7)[0]).toMatchObject({
+    expect(mapOutputTime(trimmed, 7, context)[0]).toMatchObject({
+      assetId: 'asset-candidate',
+      mediaType: 'video',
+      muted: false,
       sourceTime: 11,
       outputTime: 7,
       trackType: 'video',
@@ -107,5 +110,41 @@ describe('timeline mapping', () => {
         trimmed,
       ),
     ).toEqual([{ text: 'hello', start: 1, end: 2 }])
+  })
+
+  test('maps active image metadata and excludes muted audio from schedule', () => {
+    const withImage = applyTimelineCommand(spec, {
+      type: 'insertAsset',
+      assetId: 'asset-image',
+      trackId: 'overlay-images',
+      trackName: 'Images',
+      clipId: 'image-1',
+      timelineStart: 4,
+    }, context)
+    const withAudio = applyTimelineCommand(withImage, {
+      type: 'insertAsset',
+      assetId: 'asset-audio',
+      trackId: 'audio-effects',
+      trackName: 'Audio effects',
+      clipId: 'audio-1',
+      timelineStart: 4,
+    }, context)
+    const muted = applyTimelineCommand(withAudio, {
+      type: 'setClipMuted',
+      trackId: 'audio-effects',
+      clipId: 'audio-1',
+      muted: true,
+    }, context)
+
+    expect(mapOutputTime(muted, 5, context)).toContainEqual(
+      expect.objectContaining({
+        clipId: 'image-1',
+        mediaType: 'image',
+        transform: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
+      }),
+    )
+    expect(buildAudioSchedule(muted)).not.toContainEqual(
+      expect.objectContaining({ clipId: 'audio-1' }),
+    )
   })
 })

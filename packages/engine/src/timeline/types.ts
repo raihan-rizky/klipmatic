@@ -99,6 +99,27 @@ export interface EditSpecV3 {
   }
 }
 
+export type AssetTimelineCommand =
+  | {
+      type: 'insertAsset'
+      assetId: string
+      trackId: string
+      trackName: string
+      clipId: string
+      timelineStart: number
+      initialTransform?: VisualTransform
+      linkGroupId?: string
+      linkedAudio?: { trackId: string; trackName: string; clipId: string }
+    }
+  | {
+      type: 'updateVisualTransform'
+      trackId: string
+      clipId: string
+      transform: VisualTransform
+    }
+  | { type: 'setClipMuted'; trackId: string; clipId: string; muted: boolean }
+  | { type: 'replaceAsset'; fromAssetId: string; toAssetId: string }
+
 export type TimelineCommand =
   | {
       type: 'trimClip'
@@ -133,11 +154,12 @@ export type TimelineCommand =
     }
   | { type: 'deleteTrack'; trackId: string }
   | { type: 'setPrimaryTrack'; trackId: string }
-  | { type: 'updateCrop'; crop: Partial<EditSpecV2['crop']> }
+  | { type: 'updateCrop'; crop: Partial<EditSpecV3['crop']> }
   | {
       type: 'updateCaptions'
-      captions: Partial<EditSpecV2['captions']>
+      captions: Partial<EditSpecV3['captions']>
     }
+  | AssetTimelineCommand
 
 export interface ActiveTimelineItem {
   trackId: string
@@ -171,8 +193,9 @@ export interface FrameScheduleItem {
 export interface AudioScheduleItem {
   trackId: string
   clipId: string
-  sourceId: string
+  assetId: string
   outputStart: number
   sourceIn: number
   sourceOut: number
+  muted: boolean
 }

@@ -1,34 +1,34 @@
-import { normalizeEditSpecV2 } from './normalize'
+import { normalizeEditSpecV3 } from './normalize'
 import type {
-  EditSpecV2,
-  TimelineClipV2,
+  AssetTimelineCommand,
+  EditSpecV3,
+  TimelineClip,
   TimelineCommand,
-  TimelineContextV2,
+  TimelineContext,
   TimelineTrack,
+  VisualTransform,
 } from './types'
 
-type LegacyTrack = TimelineTrack<TimelineClipV2>
-
-function findTrack(spec: EditSpecV2, trackId: string): LegacyTrack | undefined {
+function findTrack(spec: EditSpecV3, trackId: string): TimelineTrack | undefined {
   return spec.timeline.tracks.find((track) => track.id === trackId)
 }
 
-function findClip(track: LegacyTrack, clipId: string): TimelineClipV2 | undefined {
+function findClip(track: TimelineTrack, clipId: string): TimelineClip | undefined {
   return track.clips.find((clip) => clip.id === clipId)
 }
 
 function replaceTracks(
-  spec: EditSpecV2,
-  tracks: LegacyTrack[],
+  spec: EditSpecV3,
+  tracks: TimelineTrack[],
   primaryTrackId = spec.timeline.primaryTrackId,
-): EditSpecV2 {
+): EditSpecV3 {
   return {
     ...spec,
     timeline: { ...spec.timeline, primaryTrackId, tracks },
   }
 }
 
-function linkedClipIds(spec: EditSpecV2, linkGroupId?: string): Set<string> {
+function linkedClipIds(spec: EditSpecV3, linkGroupId?: string): Set<string> {
   if (!linkGroupId) return new Set()
   return new Set(
     spec.timeline.tracks.flatMap((track) =>
@@ -40,9 +40,9 @@ function linkedClipIds(spec: EditSpecV2, linkGroupId?: string): Set<string> {
 }
 
 function trim(
-  spec: EditSpecV2,
+  spec: EditSpecV3,
   command: Extract<TimelineCommand, { type: 'trimClip' }>,
-): EditSpecV2 {
+): EditSpecV3 {
   const track = findTrack(spec, command.trackId)
   const selected = track && findClip(track, command.clipId)
   if (!track || !selected || track.locked) return spec
@@ -87,9 +87,9 @@ function trim(
 }
 
 function split(
-  spec: EditSpecV2,
+  spec: EditSpecV3,
   command: Extract<TimelineCommand, { type: 'splitClip' }>,
-): EditSpecV2 {
+): EditSpecV3 {
   const track = findTrack(spec, command.trackId)
   const selected = track && findClip(track, command.clipId)
   if (!track || !selected || track.locked) return spec
@@ -136,9 +136,9 @@ function split(
 }
 
 function deleteClip(
-  spec: EditSpecV2,
+  spec: EditSpecV3,
   command: Extract<TimelineCommand, { type: 'deleteClip' }>,
-): EditSpecV2 {
+): EditSpecV3 {
   const track = findTrack(spec, command.trackId)
   const selected = track && findClip(track, command.clipId)
   if (!track || !selected || track.locked) return spec
@@ -164,8 +164,199 @@ function deleteClip(
   )
 }
 
+const DEFAULT_VISUAL_TRANSFORM: VisualTransform = {
+  x: 0.2,
+  y: 0.2,
+  width: 0.6,
+  height: 0.6,
+}
+
+function nativeDuration(assetId: string, context: TimelineContext): number | null {
+  const asset = context.assets[assetId]
+  if (!asset) return null
+  if (asset.mediaType === 'image') return 5
+  return asset.duration && asset.duration > 0 ? asset.duration : null
+}
+
+function clipIdExists(spec: EditSpecV3, clipId: string): boolean {
+  return spec.timeline.tracks.some((track) =>
+    track.clips.some((clip) => clip.id === clipId),
+  )
+}
+
+function assetCommand(
+  spec: EditSpecV3,
+  command: AssetTimelineCommand,
+  context: TimelineContext,
+): EditSpecV3 {
+  if (command.type === 'insertAsset') {
+    const asset = context.assets[command.assetId]
+    const duration = nativeDuration(command.assetId, context)
+    if (!asset || duration === null || clipIdExists(spec, command.clipId)) return spec
+    const trackType = asset.mediaType === 'audio' ? 'audio' : 'video'
+    const requestedStart = Number.isFinite(command.timelineStart)
+      ? command.timelineStart
+      : 0
+    const timelineStart = Math.min(
+      Math.max(requestedStart, 0),
+      spec.timeline.duration,
+    )
+    const sourceOut = Math.min(duration, spec.timeline.duration - timelineStart)
+    if (sourceOut < 1 / 30) return spec
+
+    let tracks = [...spec.timeline.tracks]
+    let target = tracks.find((track) => track.id === command.trackId)
+    if (target && (target.type !== trackType || target.locked)) return spec
+    if (!target) {
+      target = {
+        id: command.trackId,
+        type: trackType,
+        name: command.trackName,
+        order: tracks.length,
+        hidden: false,
+        locked: false,
+        clips: [],
+      }
+      tracks.push(target)
+    }
+    const linkGroupId = command.linkGroupId ??
+      (command.linkedAudio ? `${command.clipId}:linked` : undefined)
+    const visualClip: TimelineClip = {
+      id: command.clipId,
+      assetId: command.assetId,
+      ...(linkGroupId ? { linkGroupId } : {}),
+      timelineStart,
+      sourceIn: 0,
+      sourceOut,
+      muted: false,
+      ...(trackType === 'video'
+        ? {
+            transform: command.initialTransform ?? DEFAULT_VISUAL_TRANSFORM,
+          }
+        : {}),
+    }
+    tracks = tracks.map((track) =>
+      track.id === target!.id
+        ? { ...track, clips: [...track.clips, visualClip] }
+        : track,
+    )
+
+    if (command.linkedAudio && asset.mediaType === 'video' && asset.hasAudio) {
+      if (clipIdExists(spec, command.linkedAudio.clipId)) return spec
+      let audioTrack = tracks.find((track) => track.id === command.linkedAudio!.trackId)
+      if (audioTrack && (audioTrack.type !== 'audio' || audioTrack.locked)) return spec
+      if (!audioTrack) {
+        audioTrack = {
+          id: command.linkedAudio.trackId,
+          type: 'audio',
+          name: command.linkedAudio.trackName,
+          order: tracks.length,
+          hidden: false,
+          locked: false,
+          clips: [],
+        }
+        tracks.push(audioTrack)
+      }
+      const audioClip: TimelineClip = {
+        id: command.linkedAudio.clipId,
+        assetId: command.assetId,
+        linkGroupId: linkGroupId!,
+        timelineStart,
+        sourceIn: 0,
+        sourceOut,
+        muted: true,
+      }
+      tracks = tracks.map((track) =>
+        track.id === audioTrack!.id
+          ? { ...track, clips: [...track.clips, audioClip] }
+          : track,
+      )
+    }
+    return replaceTracks(spec, tracks)
+  }
+
+  if (command.type === 'updateVisualTransform') {
+    const track = findTrack(spec, command.trackId)
+    const clip = track && findClip(track, command.clipId)
+    const asset = clip && context.assets[clip.assetId]
+    if (
+      !track ||
+      !clip ||
+      !asset ||
+      track.locked ||
+      track.type !== 'video' ||
+      asset.mediaType === 'audio'
+    ) return spec
+    return replaceTracks(
+      spec,
+      spec.timeline.tracks.map((item) =>
+        item.id === track.id
+          ? {
+              ...item,
+              clips: item.clips.map((candidate) =>
+                candidate.id === clip.id
+                  ? { ...candidate, transform: command.transform }
+                  : candidate,
+              ),
+            }
+          : item,
+      ),
+    )
+  }
+
+  if (command.type === 'setClipMuted') {
+    const track = findTrack(spec, command.trackId)
+    const clip = track && findClip(track, command.clipId)
+    if (!track || !clip || track.locked) return spec
+    return replaceTracks(
+      spec,
+      spec.timeline.tracks.map((item) =>
+        item.id === track.id
+          ? {
+              ...item,
+              clips: item.clips.map((candidate) =>
+                candidate.id === clip.id
+                  ? { ...candidate, muted: command.muted }
+                  : candidate,
+              ),
+            }
+          : item,
+      ),
+    )
+  }
+
+  const from = context.assets[command.fromAssetId]
+  const to = context.assets[command.toAssetId]
+  if (!from || !to || from.mediaType !== to.mediaType) return spec
+  const replacementDuration = nativeDuration(command.toAssetId, context)
+  if (replacementDuration === null) return spec
+  let replaced = false
+  const tracks = spec.timeline.tracks.map((track) => ({
+    ...track,
+    clips: track.clips.flatMap((clip) => {
+      if (clip.assetId !== command.fromAssetId || track.locked) return [clip]
+      const sourceIn = Math.min(
+        clip.sourceIn,
+        Math.max(0, replacementDuration - 1 / 30),
+      )
+      const sourceOut = Math.min(
+        replacementDuration,
+        Math.max(sourceIn + 1 / 30, clip.sourceOut),
+      )
+      replaced = true
+      return [{
+        ...clip,
+        assetId: command.toAssetId,
+        sourceIn,
+        sourceOut,
+      }]
+    }),
+  }))
+  return replaced ? replaceTracks(spec, tracks) : spec
+}
+
 function simpleTrackCommand(
-  spec: EditSpecV2,
+  spec: EditSpecV3,
   command: Exclude<
     TimelineCommand,
     | { type: 'trimClip' }
@@ -173,8 +364,9 @@ function simpleTrackCommand(
     | { type: 'deleteClip' }
     | { type: 'updateCrop' }
     | { type: 'updateCaptions' }
+    | AssetTimelineCommand
   >,
-): EditSpecV2 {
+): EditSpecV3 {
   const track = 'trackId' in command
     ? findTrack(spec, command.trackId)
     : undefined
@@ -231,7 +423,19 @@ function simpleTrackCommand(
         ...item,
         clips: item.clips.map((clip) =>
           clip.id === command.clipId
-            ? { ...clip, timelineStart: command.timelineStart }
+            ? {
+                ...clip,
+                timelineStart:
+                  item.id === spec.timeline.primaryTrackId
+                    ? clip.timelineStart
+                    : Math.min(
+                        Math.max(command.timelineStart, 0),
+                        Math.max(
+                          0,
+                          spec.timeline.duration - (clip.sourceOut - clip.sourceIn),
+                        ),
+                      ),
+              }
             : clip,
         ),
       }
@@ -242,11 +446,11 @@ function simpleTrackCommand(
 }
 
 export function applyTimelineCommand(
-  spec: EditSpecV2,
+  spec: EditSpecV3,
   command: TimelineCommand,
-  context: TimelineContextV2,
-): EditSpecV2 {
-  let changed: EditSpecV2
+  context: TimelineContext,
+): EditSpecV3 {
+  let changed: EditSpecV3
   if (command.type === 'trimClip') changed = trim(spec, command)
   else if (command.type === 'splitClip') changed = split(spec, command)
   else if (command.type === 'deleteClip') changed = deleteClip(spec, command)
@@ -254,8 +458,15 @@ export function applyTimelineCommand(
     changed = { ...spec, crop: { ...spec.crop, ...command.crop } }
   } else if (command.type === 'updateCaptions') {
     changed = { ...spec, captions: { ...spec.captions, ...command.captions } }
+  } else if (
+    command.type === 'insertAsset' ||
+    command.type === 'updateVisualTransform' ||
+    command.type === 'setClipMuted' ||
+    command.type === 'replaceAsset'
+  ) {
+    changed = assetCommand(spec, command, context)
   } else {
     changed = simpleTrackCommand(spec, command)
   }
-  return changed === spec ? spec : normalizeEditSpecV2(changed, context)
+  return changed === spec ? spec : normalizeEditSpecV3(changed, context)
 }
