@@ -1,0 +1,6 @@
+<svg aria-hidden="true" viewBox="0 0 760 280">
+  <rect x="32" y="40" width="696" height="208" rx="88" fill="#000" opacity=".24"/>
+  <rect x="24" y="24" width="696" height="208" rx="88" fill="#FF2D55" stroke="#fff" stroke-width="12"/>
+  <path d="m112 88 78 40-78 40Z" fill="#fff"/>
+  <text x="226" y="158" fill="#fff" font-family="Arial, sans-serif" font-size="74" font-weight="800" letter-spacing="3">SUBSCRIBE</text>
+</svg>
