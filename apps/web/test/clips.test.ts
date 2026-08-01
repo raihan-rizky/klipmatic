@@ -296,6 +296,49 @@ describe('update edit spec', () => {
     }))
   })
 
+  test('loads and saves an authorized built-in sticker without a DB row', async () => {
+    const payload = await loadClipEditor(sql, alice, clipId)
+    const requested = {
+      ...payload.clip.editSpec,
+      timeline: {
+        ...payload.clip.editSpec.timeline,
+        tracks: [
+          ...payload.clip.editSpec.timeline.tracks,
+          {
+            id: 'builtin-overlays',
+            type: 'video' as const,
+            name: 'Built-ins',
+            order: 4,
+            hidden: false,
+            locked: false,
+            clips: [{
+              id: 'red-arrow-clip',
+              assetId: 'builtin:sticker:red-arrow',
+              timelineStart: 3,
+              sourceIn: 0,
+              sourceOut: 5,
+              muted: false,
+              transform: { x: 0.65, y: 0.08, width: 0.28, height: 0.28 },
+            }],
+          },
+        ],
+      },
+    }
+
+    const saved = await updateClip(sql, alice, clipId, { editSpec: requested })
+    expect(saved.editSpec.timeline.tracks.flatMap((track) => track.clips))
+      .toContainEqual(expect.objectContaining({
+        assetId: 'builtin:sticker:red-arrow',
+      }))
+
+    const loaded = await loadClipEditor(sql, alice, clipId)
+    expect(loaded.assets).toContainEqual(expect.objectContaining({
+      id: 'builtin:sticker:red-arrow',
+      url: '/presets/stickers/red-arrow.svg',
+      expiresAt: null,
+    }))
+  })
+
   test('updateClip drops a cross-project asset reference', async () => {
     const [bobProject] = await sql`
       insert into projects (user_id, source_id, title)

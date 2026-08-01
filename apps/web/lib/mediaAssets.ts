@@ -6,6 +6,10 @@ import {
   PROJECT_MEDIA_QUOTA_BYTES,
   type MediaType,
 } from './mediaAssetConfig'
+import {
+  getBuiltInAsset,
+  type BuiltInMediaAsset,
+} from './builtinMedia'
 import { deleteR2Object, headR2Object, signedR2Put } from './r2'
 
 export {
@@ -39,6 +43,7 @@ export type MediaAssetErrorCode =
   | 'ASSET_QUOTA_EXCEEDED'
   | 'ASSET_NOT_FOUND'
   | 'ASSET_NOT_READY'
+  | 'ASSET_READ_ONLY'
 
 export class MediaAssetError extends Error {
   constructor(
@@ -174,22 +179,55 @@ export async function resolveProjectAssets(
   projectId: string,
   assetIds: string[],
 ): Promise<MediaAssetDto[]> {
+  const builtIns = assetIds
+    .map((id) => getBuiltInAsset(id))
+    .filter((asset): asset is BuiltInMediaAsset => asset !== undefined)
+  if (builtIns.length > 0) {
+    const [project] = await sql`
+      select id from projects where id = ${projectId} and user_id = ${userId}`
+    if (!project) return []
+  }
   const safeAssetIds = assetIds.filter((id) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
   )
-  if (safeAssetIds.length === 0) return []
-  const rows = await sql`
-    select ma.id, ma.name, ma.media_type, ma.status, ma.bytes, ma.width,
-           ma.height, ma.duration_sec, ma.has_audio, ma.expires_at
-      from media_assets ma
-      join projects p on p.id = ma.project_id
-     where ma.user_id = ${userId}
-       and ma.project_id = ${projectId}
-       and p.user_id = ${userId}
-       and ma.source = 'upload'
-       and ma.id = any(${safeAssetIds}::uuid[])
-     order by ma.created_at`
-  return rows.map((row) => rowToDto(row as MediaAssetRow))
+  const rows = safeAssetIds.length > 0
+    ? await sql`
+        select ma.id, ma.name, ma.media_type, ma.status, ma.bytes, ma.width,
+               ma.height, ma.duration_sec, ma.has_audio, ma.expires_at
+          from media_assets ma
+          join projects p on p.id = ma.project_id
+         where ma.user_id = ${userId}
+           and ma.project_id = ${projectId}
+           and p.user_id = ${userId}
+           and ma.source = 'upload'
+           and ma.id = any(${safeAssetIds}::uuid[])
+         order by ma.created_at`
+    : []
+  const resolvedById = new Map<string, MediaAssetDto>([
+    ...builtIns.map((asset) => [asset.id, resolvedBuiltInAsset(asset)] as const),
+    ...rows.map((row) => {
+      const asset = rowToDto(row as MediaAssetRow)
+      return [asset.id, asset] as const
+    }),
+  ])
+  const seen = new Set<string>()
+  return assetIds.flatMap((id) => {
+    const asset = resolvedById.get(id)
+    if (!asset || seen.has(id)) return []
+    seen.add(id)
+    return [asset]
+  })
+}
+
+export function resolvedBuiltInAsset(
+  asset: BuiltInMediaAsset,
+): BuiltInMediaAsset {
+  return {
+    ...asset,
+    status: 'ready',
+    expiresAt: null,
+    expiresSoon: false,
+  }
 }
 
 export async function touchProjectAssets(
@@ -291,6 +329,9 @@ export async function finalizeMediaUpload(
   assetId: string,
   storage: MediaAssetStorage = defaultStorage,
 ): Promise<{ assetId: string; jobId: string }> {
+  if (assetId.startsWith('builtin:')) {
+    throw new MediaAssetError('ASSET_READ_ONLY', 'Media bawaan hanya dapat dibaca.')
+  }
   const [asset] = await sql`
     select ma.id, ma.storage_key, ma.mime_type, ma.bytes
       from media_assets ma
@@ -402,6 +443,9 @@ export async function deleteProjectUpload(
   assetId: string,
   storage: MediaAssetStorage = defaultStorage,
 ): Promise<void> {
+  if (assetId.startsWith('builtin:')) {
+    throw new MediaAssetError('ASSET_READ_ONLY', 'Media bawaan hanya dapat dibaca.')
+  }
   const [asset] = await sql`
     select ma.storage_key
       from media_assets ma
@@ -426,20 +470,14 @@ export async function resolveClipAssets(
   clipId: string,
 ): Promise<MediaAssetDto[]> {
   const [clip] = await sql`
-    select cl.edit_spec
+    select cl.edit_spec, cl.project_id
       from clips cl
       join projects p on p.id = cl.project_id
      where cl.id = ${clipId} and p.user_id = ${userId}`
   if (!clip) throw new MediaAssetError('ASSET_NOT_FOUND', 'Clip tidak ditemukan.')
   const assetIds = [...referencedAssetIds(clip.edit_spec)]
   if (assetIds.length === 0) return []
-  const rows = await sql`
-    select id, name, media_type, status, bytes, width, height, duration_sec,
-           has_audio, expires_at
-      from media_assets
-     where user_id = ${userId} and id = any(${assetIds}::uuid[])
-     order by created_at`
-  return rows.map((row) => rowToDto(row as MediaAssetRow))
+  return resolveProjectAssets(sql, userId, String(clip.project_id), assetIds)
 }
 
 export async function touchClipAssets(
@@ -448,20 +486,11 @@ export async function touchClipAssets(
   clipId: string,
 ): Promise<void> {
   const [clip] = await sql`
-    select cl.edit_spec
+    select cl.edit_spec, cl.project_id
       from clips cl
       join projects p on p.id = cl.project_id
      where cl.id = ${clipId} and p.user_id = ${userId}`
   if (!clip) throw new MediaAssetError('ASSET_NOT_FOUND', 'Clip tidak ditemukan.')
   const assetIds = [...referencedAssetIds(clip.edit_spec)]
-  if (assetIds.length === 0) return
-  await sql`
-    update media_assets
-       set last_used_at = now(),
-           expires_at = now() + interval '3 days',
-           updated_at = now()
-     where user_id = ${userId}
-       and id = any(${assetIds}::uuid[])
-       and source = 'upload'
-       and status = 'ready'`
+  await touchProjectAssets(sql, userId, String(clip.project_id), assetIds)
 }

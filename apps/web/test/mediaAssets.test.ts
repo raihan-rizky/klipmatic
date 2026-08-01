@@ -9,6 +9,7 @@ import {
   loadAssetObject,
   MediaAssetError,
   PROJECT_MEDIA_QUOTA_BYTES,
+  resolveProjectAssets,
   touchClipAssets,
   type MediaAssetStorage,
 } from '../lib/mediaAssets'
@@ -189,4 +190,44 @@ test('asset object lookup and deletion are owner scoped', async () => {
   expect(storage.delete).toHaveBeenCalledOnce()
   const [deleted] = await sql`select status from media_assets where id = ${created.asset.id}`
   expect(deleted!.status).toBe('expired')
+})
+
+test('built-in assets resolve without project rows, quota, or expiry', async () => {
+  const [before] = await sql`
+    select count(*)::int as count from media_assets where project_id = ${projectId}`
+
+  const resolved = await resolveProjectAssets(sql, alice, projectId, [
+    'builtin:sticker:red-arrow',
+    'builtin:sfx:pop',
+    'builtin:sticker:not-real',
+  ])
+
+  expect(resolved).toEqual([
+    expect.objectContaining({
+      id: 'builtin:sticker:red-arrow',
+      status: 'ready',
+      expiresAt: null,
+    }),
+    expect.objectContaining({
+      id: 'builtin:sfx:pop',
+      status: 'ready',
+      expiresAt: null,
+    }),
+  ])
+  const [after] = await sql`
+    select count(*)::int as count from media_assets where project_id = ${projectId}`
+  expect(after!.count).toBe(before!.count)
+})
+
+test('built-in mutation is rejected as read-only', async () => {
+  await expect(
+    deleteProjectUpload(
+      sql,
+      alice,
+      projectId,
+      'builtin:sfx:pop',
+      storage,
+    ),
+  ).rejects.toMatchObject({ code: 'ASSET_READ_ONLY' })
+  expect(storage.delete).not.toHaveBeenCalled()
 })

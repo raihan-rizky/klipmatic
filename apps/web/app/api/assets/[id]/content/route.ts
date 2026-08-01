@@ -11,6 +11,7 @@ const STATUS_BY_CODE = {
   ASSET_QUOTA_EXCEEDED: 413,
   ASSET_NOT_FOUND: 404,
   ASSET_NOT_READY: 409,
+  ASSET_READ_ONLY: 409,
 } as const
 
 export async function GET(
