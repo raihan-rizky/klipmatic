@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import type {
-  EditSpecV2,
+  EditSpecV3,
   TimelineCommand,
 } from '@cheapclipper/engine'
 import { TimelineToolbar } from './TimelineToolbar'
@@ -14,7 +14,7 @@ export interface TimelineSelection {
 }
 
 export interface TimelineEditorProps {
-  spec: EditSpecV2
+  spec: EditSpecV3
   candidateDuration: number
   playhead: number
   selected: TimelineSelection | null

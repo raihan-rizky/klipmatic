@@ -1,4 +1,7 @@
-import type { EditSpecV2, TranscriptWord } from '@cheapclipper/engine'
+import type { EditSpecV3, TranscriptWord } from '@cheapclipper/engine'
+import type { MediaAssetDto } from './mediaAssets'
+
+export type ResolvedMediaAsset = MediaAssetDto
 
 export interface ClipEditorPayload {
   clip: {
@@ -8,7 +11,7 @@ export interface ClipEditorPayload {
     title: string
     durationSec: number
     renderStatus: 'draft' | 'rendering' | 'done' | 'failed'
-    editSpec: EditSpecV2
+    editSpec: EditSpecV3
     timingPrecision: 'word' | 'estimated'
   }
   words: TranscriptWord[]
@@ -18,4 +21,5 @@ export interface ClipEditorPayload {
     jobId: string | null
     errorCode: string | null
   }
+  assets: ResolvedMediaAsset[]
 }

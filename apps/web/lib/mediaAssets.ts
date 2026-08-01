@@ -154,7 +154,10 @@ function validateCreateInput(input: CreateMediaUploadInput): void {
   }
 }
 
-function referencedAssetIds(value: unknown, output = new Set<string>()): Set<string> {
+export function referencedAssetIds(
+  value: unknown,
+  output = new Set<string>(),
+): Set<string> {
   if (!value || typeof value !== 'object') return output
   if (Array.isArray(value)) {
     for (const item of value) referencedAssetIds(item, output)
@@ -165,6 +168,55 @@ function referencedAssetIds(value: unknown, output = new Set<string>()): Set<str
     else referencedAssetIds(item, output)
   }
   return output
+}
+
+export async function resolveProjectAssets(
+  sql: Sql,
+  userId: string,
+  projectId: string,
+  assetIds: string[],
+): Promise<MediaAssetDto[]> {
+  const safeAssetIds = assetIds.filter((id) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+  )
+  if (safeAssetIds.length === 0) return []
+  const rows = await sql`
+    select ma.id, ma.name, ma.media_type, ma.status, ma.bytes, ma.width,
+           ma.height, ma.duration_sec, ma.has_audio, ma.expires_at
+      from media_assets ma
+      join projects p on p.id = ma.project_id
+     where ma.user_id = ${userId}
+       and ma.project_id = ${projectId}
+       and p.user_id = ${userId}
+       and ma.source = 'upload'
+       and ma.id = any(${safeAssetIds}::uuid[])
+     order by ma.created_at`
+  return rows.map((row) => rowToDto(row as MediaAssetRow))
+}
+
+export async function touchProjectAssets(
+  sql: Sql,
+  userId: string,
+  projectId: string,
+  assetIds: string[],
+): Promise<void> {
+  const safeAssetIds = assetIds.filter((id) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+  )
+  if (safeAssetIds.length === 0) return
+  await sql`
+    update media_assets ma
+       set last_used_at = now(),
+           expires_at = now() + interval '3 days',
+           updated_at = now()
+      from projects p
+     where ma.user_id = ${userId}
+       and ma.project_id = ${projectId}
+       and p.id = ma.project_id
+       and p.user_id = ${userId}
+       and ma.id = any(${safeAssetIds}::uuid[])
+       and ma.source = 'upload'
+       and ma.status = 'ready'`
 }
 
 export async function createMediaUpload(

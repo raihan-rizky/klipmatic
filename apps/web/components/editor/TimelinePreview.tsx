@@ -6,7 +6,7 @@ import {
   drawTimelineComposite,
   mapWordsToTimeline,
   type ActiveTimelineItem,
-  type EditSpecV2,
+  type EditSpecV3,
   type TranscriptWord,
 } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,7 @@ import {
 } from './timelinePlayback'
 
 type TimelinePreviewProps = {
-  spec: EditSpecV2
+  spec: EditSpecV3
   words: TranscriptWord[]
   mediaUrl: string
   playhead: number

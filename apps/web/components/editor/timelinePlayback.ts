@@ -1,7 +1,7 @@
 import {
   mapOutputTime,
   type ActiveTimelineItem,
-  type EditSpecV2,
+  type EditSpecV3,
 } from '@cheapclipper/engine'
 
 export interface PlaybackMedia {
@@ -20,7 +20,7 @@ export interface TimelinePlaybackController {
 }
 
 type PlaybackOptions = {
-  spec: EditSpecV2
+  spec: EditSpecV3
   mediaForClip: (item: ActiveTimelineItem) => PlaybackMedia | null
   onTime: (outputTime: number) => void
   onFrame: (active: ActiveTimelineItem[]) => void

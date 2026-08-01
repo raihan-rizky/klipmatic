@@ -6,13 +6,13 @@ import {
   mapOutputTime,
   mapWordsToTimeline,
   type DrawableMedia,
-  type EditSpecV2,
+  type EditSpecV3,
   type TranscriptWord,
 } from '@cheapclipper/engine'
 
 type ExportArgs = {
   url: string
-  spec: EditSpecV2
+  spec: EditSpecV3
   words: TranscriptWord[]
   title: string
   onProgress?: (progress: number) => void
@@ -31,7 +31,7 @@ export interface TimelineExportRuntime {
     }>
     close?: () => void
   }>
-  createOutput(spec: EditSpecV2): Promise<{
+  createOutput(spec: EditSpecV3): Promise<{
     context: CanvasRenderingContext2D
     addVideoFrame(timestamp: number, duration: number): Promise<void>
     addAudioBuffer(buffer: AudioBuffer): Promise<void>
@@ -45,7 +45,7 @@ export interface TimelineExportRuntime {
   download(buffer: ArrayBuffer, filename: string): void
 }
 
-export function browserExportSupport(spec?: EditSpecV2): {
+export function browserExportSupport(spec?: EditSpecV3): {
   supported: boolean
   reason: string | null
 } {

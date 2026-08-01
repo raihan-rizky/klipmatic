@@ -10,14 +10,13 @@ import type {
 export function mapOutputTime(
   spec: EditSpecV3,
   outputTime: number,
-  context: TimelineContext,
+  context?: TimelineContext,
 ): ActiveTimelineItem[] {
   return spec.timeline.tracks
     .filter((track) => !track.hidden)
     .flatMap((track) =>
       track.clips.flatMap((clip) => {
-        const asset = context.assets[clip.assetId]
-        if (!asset) return []
+        const asset = context?.assets[clip.assetId]
         const duration = clip.sourceOut - clip.sourceIn
         if (
           outputTime < clip.timelineStart ||
@@ -28,7 +27,7 @@ export function mapOutputTime(
           trackType: track.type,
           clipId: clip.id,
           assetId: clip.assetId,
-          mediaType: asset.mediaType,
+          mediaType: asset?.mediaType ?? (track.type === 'audio' ? 'audio' : 'video'),
           outputTime,
           sourceTime: clip.sourceIn + outputTime - clip.timelineStart,
           order: track.order,

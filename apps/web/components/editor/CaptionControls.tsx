@@ -1,10 +1,10 @@
 'use client'
 
 import { Captions } from 'lucide-react'
-import type { EditSpecV2, TimelineCommand } from '@cheapclipper/engine'
+import type { EditSpecV3, TimelineCommand } from '@cheapclipper/engine'
 
 type CaptionControlsProps = {
-  spec: EditSpecV2
+  spec: EditSpecV3
   onCommand: (command: TimelineCommand) => void
 }
 

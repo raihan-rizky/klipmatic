@@ -1,7 +1,7 @@
 'use client'
 
 import { Copy, Trash2 } from 'lucide-react'
-import type { EditSpecV2, TimelineCommand } from '@cheapclipper/engine'
+import type { EditSpecV3, TimelineCommand } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
 import type { TimelineSelection } from './TimelineEditor'
 
@@ -10,7 +10,7 @@ export function LayerInspector({
   selected,
   onCommand,
 }: {
-  spec: EditSpecV2
+  spec: EditSpecV3
   selected: TimelineSelection | null
   onCommand: (command: TimelineCommand) => void
 }) {

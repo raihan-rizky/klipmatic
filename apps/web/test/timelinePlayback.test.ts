@@ -1,12 +1,12 @@
 import { expect, test, vi } from 'vitest'
-import type { EditSpecV2 } from '@cheapclipper/engine'
+import type { EditSpecV3 } from '@cheapclipper/engine'
 import {
   createTimelinePlaybackController,
   type PlaybackMedia,
 } from '@/components/editor/timelinePlayback'
 import { makeEditorSpec } from './editorFixtures'
 
-function makeCutSpec(): EditSpecV2 {
+function makeCutSpec(): EditSpecV3 {
   const spec = makeEditorSpec()
   return {
     ...spec,

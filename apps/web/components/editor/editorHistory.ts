@@ -1,20 +1,20 @@
-import type { EditSpecV2 } from '@cheapclipper/engine'
+import type { EditSpecV3 } from '@cheapclipper/engine'
 
 const HISTORY_LIMIT = 100
 
 export interface EditorHistoryState {
-  past: EditSpecV2[]
-  present: EditSpecV2
-  future: EditSpecV2[]
+  past: EditSpecV3[]
+  present: EditSpecV3
+  future: EditSpecV3[]
 }
 
 export type EditorHistoryAction =
-  | { type: 'push'; spec: EditSpecV2 }
+  | { type: 'push'; spec: EditSpecV3 }
   | { type: 'undo' }
   | { type: 'redo' }
-  | { type: 'reset'; spec: EditSpecV2 }
+  | { type: 'reset'; spec: EditSpecV3 }
 
-export function createEditorHistory(spec: EditSpecV2): EditorHistoryState {
+export function createEditorHistory(spec: EditSpecV3): EditorHistoryState {
   return { past: [], present: spec, future: [] }
 }
 

@@ -4,13 +4,13 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { EditSpecV2 } from '@cheapclipper/engine'
+import type { EditSpecV3 } from '@cheapclipper/engine'
 import { TimelineEditor } from '@/components/editor/TimelineEditor'
 import { makeEditorSpec } from './editorFixtures'
 
 afterEach(cleanup)
 
-function propsFor(spec: EditSpecV2) {
+function propsFor(spec: EditSpecV3) {
   const primary = spec.timeline.tracks[0]!
   return {
     spec,

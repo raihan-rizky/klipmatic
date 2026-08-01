@@ -10,7 +10,7 @@ import {
 import { Pause, Play } from 'lucide-react'
 import {
   applyTimelineCommand,
-  createDefaultEditSpecV2,
+  createDefaultEditSpecV3,
   type TimelineCommand,
 } from '@cheapclipper/engine'
 import { Alert } from '@/components/ui/alert'
@@ -31,8 +31,19 @@ import type { AutosaveStatus } from './useEditorAutosave'
 const FIXTURE_CONTEXT = {
   candidateDuration: 30,
   sourceId: 'editor-fixture',
+  candidateAssetId: 'fixture-candidate',
+  assets: {
+    'fixture-candidate': {
+      id: 'fixture-candidate',
+      mediaType: 'video' as const,
+      duration: 30,
+      width: 1920,
+      height: 1080,
+      hasAudio: true,
+    },
+  },
 }
-const FIXTURE_SPEC = createDefaultEditSpecV2(FIXTURE_CONTEXT)
+const FIXTURE_SPEC = createDefaultEditSpecV3(FIXTURE_CONTEXT)
 
 export function EditorFixture() {
   const [history, historyDispatch] = useReducer(

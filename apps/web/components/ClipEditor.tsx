@@ -181,8 +181,17 @@ function ReadyClipEditor({
     () => ({
       candidateDuration: payload.clip.durationSec,
       sourceId: payload.clip.id,
+      candidateAssetId: payload.assets[0]!.id,
+      assets: Object.fromEntries(payload.assets.map((asset) => [asset.id, {
+        id: asset.id,
+        mediaType: asset.mediaType,
+        duration: asset.duration,
+        width: asset.width,
+        height: asset.height,
+        hasAudio: asset.hasAudio,
+      }])),
     }),
-    [payload.clip.durationSec, payload.clip.id],
+    [payload.assets, payload.clip.durationSec, payload.clip.id],
   )
   const autosave = useEditorAutosave({
     clipId,
