@@ -13,11 +13,19 @@ import {
 } from '@/components/editor/EditorWorkspace'
 import { makeReadyPayload } from './editorFixtures'
 
+const exportMock = vi.hoisted(() => vi.fn(async () => undefined))
+
+vi.mock('@/lib/browserExport', () => ({
+  browserExportSupport: () => ({ supported: true, reason: null }),
+  exportClipMp4: exportMock,
+}))
+
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  exportMock.mockClear()
 })
 
 const workspaceProps: EditorWorkspaceProps = {
@@ -199,6 +207,49 @@ test('built-in sticker inserts with its preset transform and autosaves V3', asyn
       transform: { x: 0.65, y: 0.08, width: 0.28, height: 0.28 },
     }))
   }, { timeout: 2500 })
+})
+
+test('built-in sticker reaches the same asset map used by export', async () => {
+  const payload = makeReadyPayload()
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (url.endsWith('/segment')) {
+      return new Response(new Blob(['media'], { type: 'video/mp4' }))
+    }
+    if (url.endsWith('/api/clips/clip-1') && init?.method !== 'PATCH') {
+      return Response.json(payload)
+    }
+    return Response.json({ ok: true })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  Object.assign(URL, {
+    createObjectURL: vi.fn(() => 'blob:clip-1'),
+    revokeObjectURL: vi.fn(),
+  })
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+
+  render(<ClipEditor clipId="clip-1" />)
+  await screen.findByLabelText('Preview video vertikal')
+  await userEvent.click(screen.getByRole('tab', { name: 'Stickers' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Tambahkan Red arrow' }))
+  await waitFor(() => {
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(true)
+  }, { timeout: 2500 })
+
+  await userEvent.click(screen.getByRole('button', { name: 'Ekspor MP4' }))
+
+  await waitFor(() => {
+    expect(exportMock).toHaveBeenCalledWith(expect.objectContaining({
+      assets: expect.arrayContaining([
+        expect.objectContaining({
+          id: 'builtin:sticker:red-arrow',
+          url: '/presets/stickers/red-arrow.svg',
+        }),
+      ]),
+      spec: expect.objectContaining({ version: 3 }),
+    }))
+  })
 })
 
 test('dropping an image on canvas inserts it at normalized position', () => {

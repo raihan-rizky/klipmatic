@@ -6,6 +6,7 @@ import {
 } from '@/lib/browserExport'
 import { editorContext, makeEditorSpec } from './editorFixtures'
 import type { ResolvedMediaAsset } from '@/lib/clipTypes'
+import { getBuiltInAsset } from '@/lib/builtinMedia'
 
 const words: TranscriptWord[] = []
 
@@ -236,6 +237,50 @@ test('opens each distinct asset and draws transformed image overlay', async () =
     648,
     1152,
   )
+})
+
+test('opens a same-origin built-in sticker through the export asset map', async () => {
+  const { runtime } = fakeRuntime()
+  const sticker = getBuiltInAsset('builtin:sticker:red-arrow')!
+  const source = makeEditorSpec(1)
+  const spec: EditSpecV3 = {
+    ...source,
+    timeline: {
+      ...source.timeline,
+      tracks: [
+        ...source.timeline.tracks,
+        {
+          id: 'builtin-overlays',
+          type: 'video',
+          name: 'Built-ins',
+          order: source.timeline.tracks.length,
+          hidden: false,
+          locked: false,
+          clips: [{
+            id: 'builtin-red-arrow',
+            assetId: sticker.id,
+            timelineStart: 0,
+            sourceIn: 0,
+            sourceOut: 1,
+            muted: false,
+            transform: sticker.defaultTransform,
+          }],
+        },
+      ],
+    },
+  }
+
+  await createTimelineExporter(runtime)({
+    assets: [candidateVideo, sticker],
+    spec,
+    words: [],
+    title: 'built-in',
+  })
+
+  expect(runtime.open).toHaveBeenCalledWith(expect.objectContaining({
+    id: 'builtin:sticker:red-arrow',
+    url: '/presets/stickers/red-arrow.svg',
+  }))
 })
 
 test('does not mix a muted linked audio clip', async () => {
