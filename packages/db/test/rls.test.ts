@@ -7,6 +7,7 @@ let alice: string
 let bob: string
 let privateSourceId: string
 let publicSourceId: string
+let aliceAssetId: string
 
 beforeAll(async () => {
   sql = await freshDb()
@@ -34,6 +35,20 @@ beforeAll(async () => {
       insert into llm_runs (source_id, provider, model, prompt_version, input_hash, output)
       values (${sid}, 'gemini', 'gemini-2.5-flash', 'v1', ${'hash-' + sid}, '{"c":[]}'::jsonb)`
   }
+
+  const [project] = await sql`
+    insert into projects (user_id, source_id, title)
+    values (${alice}, ${publicSourceId}, 'media alice')
+    returning id`
+  const [asset] = await sql`
+    insert into media_assets
+      (user_id, project_id, source, media_type, status, name, storage_key,
+       mime_type, bytes, expires_at)
+    values
+      (${alice}, ${project!.id}, 'upload', 'image', 'ready', 'logo.png',
+       'uploads/alice/logo.png', 'image/png', 20, now() + interval '3 days')
+    returning id`
+  aliceAssetId = asset!.id as string
 })
 
 afterAll(async () => {
@@ -119,4 +134,13 @@ test('bob tidak dapat menyisipkan proyek atas nama alice', async () => {
         values (${alice}, ${publicSourceId}, 'penyusupan')`,
     ),
   ).rejects.toThrow(/row-level security/)
+})
+
+test("bob cannot read alice's uploaded media asset", async () => {
+  const rows = await asUser(
+    sql,
+    bob,
+    (tx) => tx`select id from media_assets where id = ${aliceAssetId}`,
+  )
+  expect(rows).toHaveLength(0)
 })

@@ -208,6 +208,61 @@ export const clips = pgTable(
   ],
 )
 
+export const mediaAssets = pgTable(
+  'media_assets',
+  {
+    id: id(),
+    userId: uuid('user_id').references(() => profiles.userId, {
+      onDelete: 'cascade',
+    }),
+    projectId: uuid('project_id').references(() => projects.id, {
+      onDelete: 'set null',
+    }),
+    candidateClipId: uuid('candidate_clip_id').references(() => clips.id, {
+      onDelete: 'cascade',
+    }),
+    source: text('source').notNull(),
+    mediaType: text('media_type').notNull(),
+    status: text('status').notNull().default('uploading'),
+    name: text('name').notNull(),
+    storageKey: text('storage_key'),
+    mimeType: text('mime_type').notNull(),
+    bytes: bigint('bytes', { mode: 'number' }).notNull().default(0),
+    width: integer('width'),
+    height: integer('height'),
+    durationSec: numeric('duration_sec', { precision: 10, scale: 3 }),
+    hasAudio: boolean('has_audio').notNull().default(false),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check('media_assets_source_chk', sql`${t.source} in ('candidate','upload')`),
+    check('media_assets_type_chk', sql`${t.mediaType} in ('image','audio','video')`),
+    check(
+      'media_assets_status_chk',
+      sql`${t.status} in ('uploading','ready','failed','expired')`,
+    ),
+    check(
+      'media_assets_owner_chk',
+      sql`(${t.userId} is not null and ${t.projectId} is not null) or ${t.status} = 'expired'`,
+    ),
+    check(
+      'media_assets_upload_chk',
+      sql`${t.source} <> 'upload' or (${t.candidateClipId} is null and ${t.storageKey} is not null and ${t.expiresAt} is not null)`,
+    ),
+    check(
+      'media_assets_candidate_chk',
+      sql`${t.source} <> 'candidate' or ${t.candidateClipId} is not null`,
+    ),
+    uniqueIndex('media_assets_candidate_uniq').on(t.candidateClipId),
+    uniqueIndex('media_assets_storage_key_uniq').on(t.storageKey),
+    index('media_assets_project_idx').on(t.projectId, t.status),
+    index('media_assets_expiry_idx').on(t.status, t.expiresAt),
+  ],
+)
+
 export const jobs = pgTable(
   'jobs',
   {
@@ -230,7 +285,10 @@ export const jobs = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    check('jobs_type_chk', sql`${t.type} in ('ingest','transcribe','analyze','fetch_segments')`),
+    check(
+      'jobs_type_chk',
+      sql`${t.type} in ('ingest','transcribe','analyze','fetch_segments','probe_asset')`,
+    ),
     check('jobs_status_chk', sql`${t.status} in ('queued','running','done','failed','dead')`),
     index('jobs_pick_idx').on(t.status, t.runAfter, t.priority),
   ],

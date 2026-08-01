@@ -77,3 +77,30 @@ test('jobs menolak tipe yang tidak dikenal', async () => {
     insert into jobs (type, payload) values ('bikin-kopi', '{}'::jsonb)
   `).rejects.toThrow(/check constraint/)
 })
+
+test('uploaded media asset requires a storage key and expiry', async () => {
+  const userId = await makeUser(sql, 'asset-owner@test.id')
+  const [source] = await sql`
+    insert into sources (kind, external_id, is_public, url_original, status)
+    values ('youtube', 'assetsource1', true, 'https://youtu.be/assetsource1', 'ready')
+    returning id
+  `
+  const [project] = await sql`
+    insert into projects (user_id, source_id, title)
+    values (${userId}, ${source!.id}, 'Asset project')
+    returning id
+  `
+
+  await expect(sql`
+    insert into media_assets
+      (user_id, project_id, source, media_type, status, name, mime_type, bytes)
+    values
+      (${userId}, ${project!.id}, 'upload', 'image', 'uploading', 'logo.png', 'image/png', 20)
+  `).rejects.toThrow(/check constraint/)
+})
+
+test('probe_asset is an allowed job type', async () => {
+  await expect(sql`
+    insert into jobs (type, payload) values ('probe_asset', '{"asset_id":"asset-1"}'::jsonb)
+  `).resolves.toBeDefined()
+})
