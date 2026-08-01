@@ -68,6 +68,11 @@ class Storage:
         except ClientError:
             return False
 
+    def delete(self, key: str) -> None:
+        # S3 DeleteObject is idempotent, which lets the DB reaper safely retry
+        # after a worker crash between object deletion and row update.
+        self._s3.delete_object(Bucket=self.bucket, Key=key)
+
     def presigned_get(self, key: str, expires_sec: int = 3600) -> str:
         return self._s3.generate_presigned_url(
             "get_object",
