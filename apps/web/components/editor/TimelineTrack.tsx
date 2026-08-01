@@ -2,12 +2,18 @@
 
 import { Eye, EyeOff, Lock, Unlock } from 'lucide-react'
 import type {
+  TimelineTransition,
   TimelineCommand,
   TimelineTrack as TimelineTrackType,
+  TransitionJoint,
   VisualTransform,
 } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
 import { TimelineClip } from './TimelineClip'
+import type { TimelineSelection } from './TimelineEditor'
+import { TRANSITION_MIME } from './TransitionLibrary'
+import { TimelineTransitionIcon } from './TimelineTransitionIcon'
+import { TimelineTransitionTarget } from './TimelineTransitionTarget'
 
 export function TimelineTrack({
   track,
@@ -19,19 +25,35 @@ export function TimelineTrack({
   onSelectionChange,
   onCommand,
   onAssetDrop,
+  primary,
+  joints,
+  transitions,
+  transitionDragActive,
+  onAddTransition,
+  onInvalidTransitionDrop,
 }: {
   track: TimelineTrackType
   candidateDuration: number
   timelineDuration: number
   pixelsPerSecond: number
   playhead: number
-  selected: { trackId: string; clipId?: string } | null
-  onSelectionChange: (selection: { trackId: string; clipId?: string }) => void
+  selected: TimelineSelection | null
+  onSelectionChange: (selection: TimelineSelection) => void
   onCommand: (command: TimelineCommand) => void
   onAssetDrop?: (
     assetId: string,
     placement: { timelineStart?: number; transform?: VisualTransform },
   ) => void
+  primary: boolean
+  joints: TransitionJoint[]
+  transitions: TimelineTransition[]
+  transitionDragActive: boolean
+  onAddTransition: (
+    target: TimelineTransition['target'],
+    type: TimelineTransition['type'],
+    duration: number,
+  ) => void
+  onInvalidTransitionDrop: () => void
 }) {
   const snapTargets = track.clips.flatMap((clip) => [
     clip.timelineStart,
@@ -44,7 +66,7 @@ export function TimelineTrack({
         <button
           type="button"
           className="min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-left text-xs font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          onClick={() => onSelectionChange({ trackId: track.id })}
+          onClick={() => onSelectionChange({ kind: 'track', trackId: track.id })}
         >
           {track.name}
         </button>
@@ -77,9 +99,17 @@ export function TimelineTrack({
           if (event.dataTransfer.types.includes('application/x-cheapclipper-asset')) {
             event.preventDefault()
             event.dataTransfer.dropEffect = 'copy'
+          } else if (event.dataTransfer.types.includes(TRANSITION_MIME)) {
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'none'
           }
         }}
         onDrop={(event) => {
+          if (event.dataTransfer.types.includes(TRANSITION_MIME)) {
+            event.preventDefault()
+            onInvalidTransitionDrop()
+            return
+          }
           const raw = event.dataTransfer.getData('application/x-cheapclipper-asset')
           if (!raw) return
           event.preventDefault()
@@ -111,11 +141,75 @@ export function TimelineTrack({
               target !== clip.timelineStart &&
               target !== clip.timelineStart + clip.sourceOut - clip.sourceIn
             )}
-            selected={selected?.trackId === track.id && selected.clipId === clip.id}
-            onSelect={() => onSelectionChange({ trackId: track.id, clipId: clip.id })}
+            selected={selected?.kind === 'clip' && selected.trackId === track.id && selected.clipId === clip.id}
+            onSelect={() => onSelectionChange({ kind: 'clip', trackId: track.id, clipId: clip.id })}
             onCommand={onCommand}
           />
         ))}
+        {primary ? joints.map((joint) => (
+          <TimelineTransitionTarget
+            key={`${joint.fromClipId}:${joint.toClipId}`}
+            left={joint.outputTime * pixelsPerSecond}
+            ariaLabel={`Sambungan ${joint.fromClipId} ke ${joint.toClipId}`}
+            onSelect={() => onSelectionChange({ kind: 'joint', joint })}
+            onAdd={(type, duration) => onAddTransition({
+              kind: 'between-clips',
+              trackId: joint.trackId,
+              fromClipId: joint.fromClipId,
+              toClipId: joint.toClipId,
+            }, type, Math.min(duration, joint.maxDuration))}
+          />
+        )) : null}
+        {!primary && track.type === 'video' ? track.clips.flatMap((clip) => {
+          const clipSelected = selected?.kind === 'clip' &&
+            selected.trackId === track.id && selected.clipId === clip.id
+          const visible = transitionDragActive || clipSelected
+          const duration = clip.sourceOut - clip.sourceIn
+          return (['in', 'out'] as const).map((edge) => (
+            <TimelineTransitionTarget
+              key={`${clip.id}:${edge}`}
+              left={(clip.timelineStart + (edge === 'out' ? duration : 0)) * pixelsPerSecond}
+              ariaLabel={`${edge === 'in' ? 'Masuk' : 'Keluar'} transition ${track.name}`}
+              visible={visible}
+              onAdd={(type, requestedDuration) => onAddTransition({
+                kind: 'clip-edge',
+                clipId: clip.id,
+                edge,
+              }, type, Math.min(requestedDuration, duration, 2))}
+            />
+          ))
+        }) : null}
+        {transitions.flatMap((transition) => {
+          let left: number | null = null
+          if (transition.target.kind === 'between-clips' && transition.target.trackId === track.id) {
+            const target = transition.target
+            const joint = joints.find((candidate) =>
+              candidate.fromClipId === target.fromClipId &&
+              candidate.toClipId === target.toClipId
+            )
+            left = joint ? joint.outputTime * pixelsPerSecond : null
+          } else if (transition.target.kind === 'clip-edge') {
+            const target = transition.target
+            const clip = track.clips.find((candidate) => candidate.id === target.clipId)
+            if (clip) {
+              left = (clip.timelineStart + (target.edge === 'out'
+                ? clip.sourceOut - clip.sourceIn
+                : 0)) * pixelsPerSecond
+            }
+          }
+          return left === null ? [] : [(
+            <TimelineTransitionIcon
+              key={transition.id}
+              transition={transition}
+              left={left}
+              selected={selected?.kind === 'transition' && selected.transitionId === transition.id}
+              onSelect={() => onSelectionChange({
+                kind: 'transition',
+                transitionId: transition.id,
+              })}
+            />
+          )]
+        })}
       </div>
     </div>
   )

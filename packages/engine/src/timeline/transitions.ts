@@ -1,6 +1,8 @@
 import type {
   EditSpecV3,
   TimelineClip,
+  TransitionFrameState,
+  TransitionWindow,
   TimelineTransition,
   TimelineTrack,
 } from './types'
@@ -197,4 +199,129 @@ export function reconcileTransitions(spec: EditSpecV3): EditSpecV3 {
         ...spec,
         timeline: { ...spec.timeline, transitions },
       }
+}
+
+function transitionCenter(
+  transition: TimelineTransition,
+  spec: EditSpecV3,
+): { center: number; start: number; end: number } | null {
+  if (transition.target.kind === 'between-clips') {
+    const target = transition.target
+    const joint = findTransitionJoints(spec).find(
+      (candidate) =>
+        candidate.trackId === target.trackId &&
+        candidate.fromClipId === target.fromClipId &&
+        candidate.toClipId === target.toClipId,
+    )
+    if (!joint) return null
+    return {
+      center: joint.outputTime,
+      start: joint.outputTime - transition.duration / 2,
+      end: joint.outputTime + transition.duration / 2,
+    }
+  }
+
+  const found = edgeClip(spec, transition.target.clipId)
+  if (!found) return null
+  const clipStart = found.clip.timelineStart
+  const clipEndTime = clipEnd(found.clip)
+  if (transition.target.edge === 'in') {
+    return {
+      center: clipStart + transition.duration / 2,
+      start: clipStart,
+      end: clipStart + transition.duration,
+    }
+  }
+  return {
+    center: clipEndTime - transition.duration / 2,
+    start: clipEndTime - transition.duration,
+    end: clipEndTime,
+  }
+}
+
+export function transitionWindow(
+  transition: TimelineTransition,
+  spec: EditSpecV3,
+  outputTime?: number,
+): TransitionWindow | null {
+  const range = transitionCenter(transition, spec)
+  if (!range) return null
+  const time = outputTime ?? range.center
+  return {
+    ...range,
+    progress: Math.min(
+      1,
+      Math.max(0, (time - range.start) / Math.max(range.end - range.start, 1e-9)),
+    ),
+  }
+}
+
+function applyOpacity(
+  output: Record<string, number>,
+  clipId: string,
+  opacity: number,
+): void {
+  output[clipId] = (output[clipId] ?? 1) * opacity
+}
+
+export function evaluateTransitions(
+  spec: EditSpecV3,
+  outputTime: number,
+): TransitionFrameState {
+  const state: TransitionFrameState = {
+    opacityByClipId: {},
+    blackOpacity: 0,
+  }
+
+  for (const transition of spec.timeline.transitions) {
+    const window = transitionWindow(transition, spec, outputTime)
+    if (
+      !window ||
+      outputTime < window.start - 1e-9 ||
+      outputTime > window.end + 1e-9
+    ) {
+      continue
+    }
+    const progress = window.progress
+    if (transition.target.kind === 'clip-edge') {
+      applyOpacity(
+        state.opacityByClipId,
+        transition.target.clipId,
+        transition.target.edge === 'in' ? progress : 1 - progress,
+      )
+      continue
+    }
+
+    let fromOpacity: number
+    let toOpacity: number
+    let blackOpacity = 0
+    if (transition.type === 'cross-dissolve') {
+      fromOpacity = 1 - progress
+      toOpacity = progress
+    } else if (transition.type === 'fade') {
+      fromOpacity = 1 - Math.min(2 * progress, 1)
+      toOpacity = Math.max(2 * progress - 1, 0)
+    } else {
+      fromOpacity = progress < 0.4 ? 1 - progress / 0.4 : 0
+      toOpacity = progress > 0.6 ? (progress - 0.6) / 0.4 : 0
+      blackOpacity = progress < 0.4
+        ? progress / 0.4
+        : progress <= 0.6
+          ? 1
+          : (1 - progress) / 0.4
+    }
+    applyOpacity(
+      state.opacityByClipId,
+      transition.target.fromClipId,
+      fromOpacity,
+    )
+    applyOpacity(
+      state.opacityByClipId,
+      transition.target.toClipId,
+      toOpacity,
+    )
+    state.blackOpacity = Math.max(state.blackOpacity, blackOpacity)
+  }
+
+  return state
 }

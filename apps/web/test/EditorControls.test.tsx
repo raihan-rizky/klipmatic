@@ -8,7 +8,8 @@ import { AssetInspector } from '@/components/editor/AssetInspector'
 import { CaptionControls } from '@/components/editor/CaptionControls'
 import { CropControls } from '@/components/editor/CropControls'
 import { TimelinePreview } from '@/components/editor/TimelinePreview'
-import { makeEditorSpec } from './editorFixtures'
+import { TransitionInspector } from '@/components/editor/TransitionInspector'
+import { makeEditorSpec, makeSpecWithTransition } from './editorFixtures'
 import type { ResolvedMediaAsset } from '@/lib/clipTypes'
 
 afterEach(cleanup)
@@ -88,6 +89,41 @@ test('asset inspector edits transform and clip mute', async () => {
     trackId: 'overlay-track',
     clipId: 'overlay-clip',
     muted: true,
+  })
+})
+
+test('selected transition inspector edits duration, type, and deletes it', async () => {
+  const onCommand = vi.fn()
+  const spec = makeSpecWithTransition('cross-dissolve')
+  const transitionId = spec.timeline.transitions[0]!.id
+  render(
+    <TransitionInspector
+      spec={spec}
+      transitionId={transitionId}
+      onCommand={onCommand}
+    />,
+  )
+
+  fireEvent.change(screen.getByLabelText('Durasi transition'), {
+    target: { value: '1.2' },
+  })
+  expect(onCommand).toHaveBeenCalledWith({
+    type: 'updateTransition',
+    transitionId,
+    patch: { duration: 1.2 },
+  })
+
+  await userEvent.selectOptions(screen.getByLabelText('Tipe transition'), 'fade')
+  expect(onCommand).toHaveBeenCalledWith({
+    type: 'updateTransition',
+    transitionId,
+    patch: { type: 'fade' },
+  })
+
+  await userEvent.click(screen.getByRole('button', { name: 'Hapus transition' }))
+  expect(onCommand).toHaveBeenCalledWith({
+    type: 'deleteTransition',
+    transitionId,
   })
 })
 

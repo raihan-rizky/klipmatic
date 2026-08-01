@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'vitest'
 import {
   applyTimelineCommand,
+  evaluateTransitions,
   findTransitionJoints,
   normalizeEditSpecV3,
   normalizeTransitions,
+  transitionWindow,
 } from '../src'
 import {
   context,
@@ -138,5 +140,81 @@ describe('transition commands', () => {
 
     expect(moved.timeline.transitions).toEqual([])
     expect(moved.timeline.tracks[0]!.clips[1]!.timelineStart).toBe(13)
+  })
+})
+
+describe('transition frame evaluation', () => {
+  const joint = 12
+
+  test('cross dissolve blends both clips across a centered window', () => {
+    expect(evaluateTransitions(specWithTransition, joint - 0.25)).toMatchObject({
+      opacityByClipId: { [left!.id]: 1, [right!.id]: 0 },
+      blackOpacity: 0,
+    })
+    expect(evaluateTransitions(specWithTransition, joint)).toMatchObject({
+      opacityByClipId: { [left!.id]: 0.5, [right!.id]: 0.5 },
+      blackOpacity: 0,
+    })
+    expect(evaluateTransitions(specWithTransition, joint + 0.25)).toMatchObject({
+      opacityByClipId: { [left!.id]: 0, [right!.id]: 1 },
+      blackOpacity: 0,
+    })
+    expect(transitionWindow(
+      specWithTransition.timeline.transitions[0]!,
+      specWithTransition,
+      joint,
+    )).toMatchObject({ start: 11.75, center: 12, end: 12.25, progress: 0.5 })
+  })
+
+  test.each([
+    ['fade', 0.5, 0, 0, 0],
+    ['dip-to-black', 0.5, 0, 0, 1],
+  ] as const)('%s uses the approved midpoint envelope', (
+    type,
+    progress,
+    fromOpacity,
+    toOpacity,
+    blackOpacity,
+  ) => {
+    const transitionSpec = {
+      ...specWithTransition,
+      timeline: {
+        ...specWithTransition.timeline,
+        transitions: [{
+          ...specWithTransition.timeline.transitions[0]!,
+          type,
+        }],
+      },
+    }
+    const time = joint - 0.25 + progress * 0.5
+    expect(evaluateTransitions(transitionSpec, time)).toMatchObject({
+      opacityByClipId: {
+        [left!.id]: fromOpacity,
+        [right!.id]: toOpacity,
+      },
+      blackOpacity,
+    })
+  })
+
+  test('overlay edge transition changes only that clip opacity', () => {
+    const edgeSpec = {
+      ...specWithOverlay,
+      timeline: {
+        ...specWithOverlay.timeline,
+        transitions: [overlayFadeIn],
+      },
+    }
+    expect(evaluateTransitions(edgeSpec, 3)).toEqual({
+      opacityByClipId: { 'overlay-clip': 0 },
+      blackOpacity: 0,
+    })
+    expect(evaluateTransitions(edgeSpec, 3.25)).toEqual({
+      opacityByClipId: { 'overlay-clip': 0.5 },
+      blackOpacity: 0,
+    })
+    expect(evaluateTransitions(edgeSpec, 3.5)).toEqual({
+      opacityByClipId: { 'overlay-clip': 1 },
+      blackOpacity: 0,
+    })
   })
 })

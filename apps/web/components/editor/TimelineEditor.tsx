@@ -1,18 +1,22 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type {
+import {
+  findTransitionJoints,
+  type TransitionJoint,
   EditSpecV3,
   TimelineCommand,
+  TimelineTransition,
   VisualTransform,
 } from '@cheapclipper/engine'
 import { TimelineToolbar } from './TimelineToolbar'
 import { TimelineTrack } from './TimelineTrack'
 
-export interface TimelineSelection {
-  trackId: string
-  clipId?: string
-}
+export type TimelineSelection =
+  | { kind: 'track'; trackId: string }
+  | { kind: 'clip'; trackId: string; clipId: string }
+  | { kind: 'joint'; joint: TransitionJoint }
+  | { kind: 'transition'; transitionId: string }
 
 export interface TimelineEditorProps {
   spec: EditSpecV3
@@ -32,32 +36,52 @@ export interface TimelineEditorProps {
     assetId: string,
     placement: { timelineStart?: number; transform?: VisualTransform },
   ) => void
+  transitionDragActive?: boolean
 }
 
 export function TimelineEditor(props: TimelineEditorProps) {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(36)
+  const [status, setStatus] = useState('')
+  const selectedTrackId = props.selected?.kind === 'track' || props.selected?.kind === 'clip'
+    ? props.selected.trackId
+    : null
   const selectedTrack = useMemo(
-    () => props.spec.timeline.tracks.find((track) => track.id === props.selected?.trackId),
-    [props.selected?.trackId, props.spec.timeline.tracks],
+    () => props.spec.timeline.tracks.find((track) => track.id === selectedTrackId),
+    [selectedTrackId, props.spec.timeline.tracks],
   )
-  const canEdit = Boolean(props.selected?.clipId && selectedTrack && !selectedTrack.locked)
+  const selectedClipId = props.selected?.kind === 'clip' ? props.selected.clipId : null
+  const canEdit = Boolean(selectedClipId && selectedTrack && !selectedTrack.locked)
+  const joints = useMemo(() => findTransitionJoints(props.spec), [props.spec])
 
   const split = () => {
-    if (!props.selected?.clipId || !selectedTrack || selectedTrack.locked) return
+    if (!selectedClipId || !selectedTrack || selectedTrack.locked) return
     props.onCommand({
       type: 'splitClip',
       trackId: selectedTrack.id,
-      clipId: props.selected.clipId,
+      clipId: selectedClipId,
       outputTime: props.playhead,
     })
   }
   const remove = () => {
-    if (!props.selected?.clipId || !selectedTrack || selectedTrack.locked) return
+    if (!selectedClipId || !selectedTrack || selectedTrack.locked) return
     props.onCommand({
       type: 'deleteClip',
       trackId: selectedTrack.id,
-      clipId: props.selected.clipId,
+      clipId: selectedClipId,
     })
+  }
+  const addTransition = (
+    target: TimelineTransition['target'],
+    type: TimelineTransition['type'],
+    duration: number,
+  ) => {
+    const id = crypto.randomUUID()
+    props.onCommand({
+      type: 'addTransition',
+      transition: { id, type, duration, target },
+    })
+    props.onSelectionChange({ kind: 'transition', transitionId: id })
+    setStatus('Transition ditambahkan.')
   }
 
   return (
@@ -115,10 +139,19 @@ export function TimelineEditor(props: TimelineEditorProps) {
               onSelectionChange={props.onSelectionChange}
               onCommand={props.onCommand}
               onAssetDrop={props.onAssetDrop}
+              primary={track.id === props.spec.timeline.primaryTrackId}
+              joints={joints.filter((joint) => joint.trackId === track.id)}
+              transitions={props.spec.timeline.transitions}
+              transitionDragActive={Boolean(props.transitionDragActive)}
+              onAddTransition={addTransition}
+              onInvalidTransitionDrop={() => {
+                setStatus('Split clip terlebih dahulu untuk menambahkan transition.')
+              }}
             />
           ))}
         </div>
       </div>
+      <p role="status" aria-live="polite" className="sr-only">{status}</p>
     </section>
   )
 }

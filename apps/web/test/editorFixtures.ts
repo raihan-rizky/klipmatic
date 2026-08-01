@@ -1,7 +1,9 @@
 import {
+  applyTimelineCommand,
   createDefaultEditSpecV3,
   type EditSpecV3,
   type TimelineContext,
+  type TimelineTransition,
 } from '@cheapclipper/engine'
 import type { ClipEditorPayload } from '@/lib/clipTypes'
 
@@ -69,4 +71,37 @@ export function makeReadyPayload(): ClipEditorPayload {
       expiresSoon: false,
     }],
   }
+}
+
+export function makeSpecWithTransition(
+  type: TimelineTransition['type'],
+  duration = 0.5,
+): EditSpecV3 {
+  const source = makeEditorSpec()
+  const primary = source.timeline.tracks.find(
+    (track) => track.id === source.timeline.primaryTrackId,
+  )!
+  const split = applyTimelineCommand(source, {
+    type: 'splitClip',
+    trackId: primary.id,
+    clipId: primary.clips[0]!.id,
+    outputTime: 12,
+  }, editorContext)
+  const [from, to] = split.timeline.tracks.find(
+    (track) => track.id === split.timeline.primaryTrackId,
+  )!.clips
+  return applyTimelineCommand(split, {
+    type: 'addTransition',
+    transition: {
+      id: `transition:${type}`,
+      type,
+      duration,
+      target: {
+        kind: 'between-clips',
+        trackId: primary.id,
+        fromClipId: from!.id,
+        toClipId: to!.id,
+      },
+    },
+  }, editorContext)
 }

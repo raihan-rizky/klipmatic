@@ -114,6 +114,50 @@ test('ready clip renders layered timeline and autosaves a split', async () => {
   ).toBe(true)
 })
 
+test('split then add transition autosaves the joint reference', async () => {
+  const payload = makeReadyPayload()
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (url.endsWith('/segment')) {
+      return new Response(new Blob(['media'], { type: 'video/mp4' }))
+    }
+    if (url.endsWith('/api/clips/clip-1') && init?.method !== 'PATCH') {
+      return Response.json(payload)
+    }
+    return Response.json({ ok: true })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  Object.assign(URL, {
+    createObjectURL: vi.fn(() => 'blob:clip-1'),
+    revokeObjectURL: vi.fn(),
+  })
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+
+  render(<ClipEditor clipId="clip-1" />)
+  await screen.findByLabelText('Preview video vertikal')
+  await userEvent.click(screen.getByRole('button', { name: 'Split' }))
+  await userEvent.click(await screen.findByRole('button', { name: /Sambungan/ }))
+  await userEvent.click(screen.getByRole('tab', { name: 'Transitions' }))
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Add Cross Dissolve to selected cut' }),
+  )
+
+  await waitFor(() => {
+    const savedTransitions = fetchMock.mock.calls
+      .filter(([, init]) => init?.method === 'PATCH')
+      .map(([, init]) => JSON.parse(String(init!.body)))
+      .map((body) => body.editSpec.timeline.transitions)
+    expect(savedTransitions).toContainEqual([
+      expect.objectContaining({
+        type: 'cross-dissolve',
+        duration: 0.5,
+        target: expect.objectContaining({ kind: 'between-clips' }),
+      }),
+    ])
+  }, { timeout: 2500 })
+})
+
 test('inserted image starts at playhead and autosaves V3', async () => {
   const payload = makeReadyPayload()
   payload.assets.push({

@@ -86,6 +86,18 @@ export type TimelineTransition = {
       }
 }
 
+export interface TransitionWindow {
+  start: number
+  center: number
+  end: number
+  progress: number
+}
+
+export interface TransitionFrameState {
+  opacityByClipId: Record<string, number>
+  blackOpacity: number
+}
+
 export type TransitionCommand =
   | { type: 'addTransition'; transition: TimelineTransition }
   | {
@@ -182,6 +194,7 @@ export interface ActiveTimelineItem {
   order: number
   muted: boolean
   transform?: VisualTransform
+  transitionParticipant?: boolean
 }
 
 export interface ActiveTimelineItemV2 {

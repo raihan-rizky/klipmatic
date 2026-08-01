@@ -93,3 +93,28 @@ test('primary visual keeps full-canvas crop behavior', () => {
     1920,
   )
 })
+
+test('applies transition opacity and dip black below captions', () => {
+  const context = mockContext()
+  const alphaValues: number[] = []
+  Object.defineProperty(context, 'globalAlpha', {
+    configurable: true,
+    get: () => alphaValues.at(-1) ?? 1,
+    set: (value: number) => alphaValues.push(value),
+  })
+  const media = { width: 400, height: 200 } as CanvasImageSource & DrawableMedia
+
+  drawTimelineComposite(context, [
+    { clipId: 'a', media, order: 0, opacity: 1, primary: true },
+    { clipId: 'b', media, order: 0, opacity: 1, primary: true },
+  ], spec, [{ text: 'caption', start: 0, end: 1 }], 0.5, {
+    opacityByClipId: { a: 0.25, b: 0.5 },
+    blackOpacity: 0.8,
+  })
+
+  expect(alphaValues).toEqual(expect.arrayContaining([0.25, 0.5, 0.8]))
+  expect(context.drawImage).toHaveBeenCalledTimes(2)
+  expect(vi.mocked(context.fillText).mock.invocationCallOrder[0]).toBeGreaterThan(
+    vi.mocked(context.fillRect).mock.invocationCallOrder[1]!,
+  )
+})

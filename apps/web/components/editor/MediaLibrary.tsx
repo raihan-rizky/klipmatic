@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Film, ImageIcon, Music2, RefreshCw, Search, Trash2, Upload } from 'lucide-react'
-import type { VisualTransform } from '@cheapclipper/engine'
+import type {
+  TimelineTransition,
+  TransitionJoint,
+  VisualTransform,
+} from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -14,6 +18,7 @@ import type { ResolvedMediaAsset } from '@/lib/clipTypes'
 import { PROJECT_MEDIA_QUOTA_BYTES } from '@/lib/mediaAssetConfig'
 import { uploadMediaAsset } from './assetUpload'
 import { PresetCard } from './PresetCard'
+import { TransitionLibrary } from './TransitionLibrary'
 
 export type InsertMediaAsset = (
   asset: ResolvedMediaAsset,
@@ -28,6 +33,13 @@ export interface MediaLibraryProps {
   onInsert: InsertMediaAsset
   onReplace?: (fromAssetId: string, toAssetId: string) => void
   builtIns?: readonly BuiltInMediaAsset[]
+  selectedTransitionJoint?: TransitionJoint | null
+  onAddTransition?: (
+    type: TimelineTransition['type'],
+    duration: number,
+    joint: TransitionJoint,
+  ) => void
+  onTransitionDragStateChange?: (active: boolean) => void
 }
 
 interface Usage {
@@ -42,10 +54,11 @@ const GROUPS = [
   ['expired', 'Kedaluwarsa'],
 ] as const
 
-type MediaTab = 'uploads' | BuiltInCategory
+type MediaTab = 'uploads' | 'transitions' | BuiltInCategory
 
 const TABS: ReadonlyArray<{ id: MediaTab; label: string }> = [
   { id: 'uploads', label: 'Uploads' },
+  { id: 'transitions', label: 'Transitions' },
   { id: 'sfx', label: 'Sound effects' },
   { id: 'sticker', label: 'Stickers' },
   { id: 'photo', label: 'Photos' },
@@ -80,6 +93,9 @@ export function MediaLibrary({
   onInsert,
   onReplace,
   builtIns = BUILTIN_MEDIA,
+  selectedTransitionJoint = null,
+  onAddTransition = () => undefined,
+  onTransitionDragStateChange = () => undefined,
 }: MediaLibraryProps) {
   const [items, setItems] = useState(assets)
   const [usage, setUsage] = useState(() => initialUsage(assets))
@@ -160,7 +176,7 @@ export function MediaLibrary({
   ])) as Record<ResolvedMediaAsset['status'], ResolvedMediaAsset[]>, [items])
 
   const visiblePresets = useMemo(() => {
-    if (activeTab === 'uploads') return []
+    if (activeTab === 'uploads' || activeTab === 'transitions') return []
     const needle = query.trim().toLowerCase()
     return builtIns.filter((asset) =>
       asset.category === activeTab &&
@@ -298,7 +314,7 @@ export function MediaLibrary({
         ))}
       </div>
 
-      {activeTab !== 'uploads' ? (
+      {activeTab !== 'uploads' && activeTab !== 'transitions' ? (
         <label className="relative block">
           <span className="sr-only">Cari preset</span>
           <Search
@@ -423,6 +439,12 @@ export function MediaLibrary({
         </p>
       ) : null}
         </>
+      ) : activeTab === 'transitions' ? (
+        <TransitionLibrary
+          selectedJoint={selectedTransitionJoint}
+          onAdd={onAddTransition}
+          onDragStateChange={onTransitionDragStateChange}
+        />
       ) : visiblePresets.length > 0 ? (
         <ul className="grid grid-cols-2 gap-3">
           {visiblePresets.map((asset) => (

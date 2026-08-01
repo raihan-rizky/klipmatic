@@ -2,6 +2,7 @@ import {
   mapOutputTime,
   type ActiveTimelineItem,
   type EditSpecV3,
+  type TimelineContext,
 } from '@cheapclipper/engine'
 
 export interface PlaybackMedia {
@@ -21,6 +22,7 @@ export interface TimelinePlaybackController {
 
 type PlaybackOptions = {
   spec: EditSpecV3
+  context?: TimelineContext
   mediaForClip: (item: ActiveTimelineItem) => PlaybackMedia | null
   onTime: (outputTime: number) => void
   onFrame: (active: ActiveTimelineItem[]) => void
@@ -49,6 +51,7 @@ function defaultCancelFrame(handle: number): void {
 
 export function createTimelinePlaybackController({
   spec,
+  context,
   mediaForClip,
   onTime,
   onFrame,
@@ -82,7 +85,7 @@ export function createTimelinePlaybackController({
   }
 
   async function sync(time: number, shouldPlay: boolean): Promise<void> {
-    const active = mapOutputTime(spec, time)
+    const active = mapOutputTime(spec, time, context)
     const activeMedia = new Map<PlaybackMedia, ActiveTimelineItem>()
 
     for (const item of active) {

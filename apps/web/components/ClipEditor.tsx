@@ -196,8 +196,12 @@ function ReadyClipEditor({
     (track) => track.id === history.present.timeline.primaryTrackId,
   )
   const [selected, setSelected] = useState<TimelineSelection | null>(() =>
-    initialTrack
-      ? { trackId: initialTrack.id, clipId: initialTrack.clips[0]?.id }
+    initialTrack?.clips[0]
+      ? {
+          kind: 'clip',
+          trackId: initialTrack.id,
+          clipId: initialTrack.clips[0].id,
+        }
       : null,
   )
   const [playhead, setPlayhead] = useState(() =>
@@ -208,6 +212,7 @@ function ReadyClipEditor({
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [transitionDragActive, setTransitionDragActive] = useState(false)
   const primaryVideoRef = useRef<HTMLVideoElement | null>(null)
   const candidateAssetId = payload.clip.editSpec.timeline.tracks
     .find((track) => track.id === payload.clip.editSpec.timeline.primaryTrackId)
@@ -244,12 +249,20 @@ function ReadyClipEditor({
       historyDispatch({ type: 'push', spec: next })
       if (
         (command.type === 'deleteClip' || command.type === 'deleteTrack') &&
-        command.trackId === selected?.trackId
+        (selected?.kind === 'track' || selected?.kind === 'clip') &&
+        command.trackId === selected.trackId
+      ) {
+        setSelected(null)
+      } else if (
+        selected?.kind === 'transition' &&
+        !next.timeline.transitions.some(
+          (transition) => transition.id === selected.transitionId,
+        )
       ) {
         setSelected(null)
       }
     },
-    [history.present, selected?.trackId, timelineContext],
+    [history.present, selected, timelineContext],
   )
 
   const insertAsset = useCallback((
@@ -291,15 +304,24 @@ function ReadyClipEditor({
           }
         : {}),
     })
-    setSelected({ trackId, clipId })
+    setSelected({ kind: 'clip', trackId, clipId })
     setPlaying(false)
   }, [assets, dispatchCommand, playhead])
 
   const canvasSelection = useMemo<CanvasSelection | null>(() => {
+    if (selected?.kind !== 'clip') {
+      return history.present.captions.enabled
+        ? {
+            kind: 'caption',
+            positionX: history.present.captions.positionX,
+            positionY: history.present.captions.positionY,
+          }
+        : null
+    }
     const track = history.present.timeline.tracks.find(
-      (item) => item.id === selected?.trackId,
+      (item) => item.id === selected.trackId,
     )
-    const clip = track?.clips.find((item) => item.id === selected?.clipId)
+    const clip = track?.clips.find((item) => item.id === selected.clipId)
     if (
       track?.type === 'video' &&
       track.id !== history.present.timeline.primaryTrackId &&
@@ -421,6 +443,7 @@ function ReadyClipEditor({
   )
   const expiringAssets = uploadedAssets.filter((asset) => asset.expiresSoon)
   const expiredAssets = uploadedAssets.filter((asset) => asset.status === 'expired')
+  const showGeneralControls = !selected || selected.kind === 'track' || selected.kind === 'clip'
   const inspector = (
     <div className="divide-y divide-border">
       <LayerInspector
@@ -428,16 +451,16 @@ function ReadyClipEditor({
         selected={selected}
         onCommand={dispatchCommand}
       />
-      <div className="p-5">
+      {showGeneralControls ? <div className="p-5">
         <CropControls
           spec={history.present}
           onCommand={dispatchCommand}
           onAutoFocus={() => void autoFocus()}
         />
-      </div>
-      <div className="p-5">
+      </div> : null}
+      {showGeneralControls ? <div className="p-5">
         <CaptionControls spec={history.present} onCommand={dispatchCommand} />
-      </div>
+      </div> : null}
     </div>
   )
 
@@ -489,6 +512,26 @@ function ReadyClipEditor({
               fromAssetId,
               toAssetId,
             })}
+            selectedTransitionJoint={selected?.kind === 'joint' ? selected.joint : null}
+            onTransitionDragStateChange={setTransitionDragActive}
+            onAddTransition={(type, duration, joint) => {
+              const id = globalThis.crypto.randomUUID()
+              dispatchCommand({
+                type: 'addTransition',
+                transition: {
+                  id,
+                  type,
+                  duration: Math.min(duration, joint.maxDuration),
+                  target: {
+                    kind: 'between-clips',
+                    trackId: joint.trackId,
+                    fromClipId: joint.fromClipId,
+                    toClipId: joint.toClipId,
+                  },
+                },
+              })
+              setSelected({ kind: 'transition', transitionId: id })
+            }}
           />
         }
         inspector={inspector}
@@ -508,6 +551,7 @@ function ReadyClipEditor({
             playing={playing}
             onTogglePlay={() => setPlaying((value) => !value)}
             onAssetDrop={insertAsset}
+            transitionDragActive={transitionDragActive}
           />
         }
       />

@@ -6,13 +6,14 @@ import type {
   FrameScheduleItem,
   TimelineContext,
 } from './types'
+import { transitionWindow } from './transitions'
 
 export function mapOutputTime(
   spec: EditSpecV3,
   outputTime: number,
   context?: TimelineContext,
 ): ActiveTimelineItem[] {
-  return spec.timeline.tracks
+  const active: ActiveTimelineItem[] = spec.timeline.tracks
     .filter((track) => !track.hidden)
     .flatMap((track) =>
       track.clips.flatMap((clip) => {
@@ -36,7 +37,50 @@ export function mapOutputTime(
         }]
       }),
     )
-    .sort((left, right) => left.order - right.order)
+  for (const transition of spec.timeline.transitions) {
+    if (transition.target.kind !== 'between-clips') continue
+    const target = transition.target
+    const window = transitionWindow(transition, spec, outputTime)
+    if (
+      !window ||
+      outputTime < window.start - 1e-9 ||
+      outputTime > window.end + 1e-9
+    ) {
+      continue
+    }
+    const track = spec.timeline.tracks.find(
+      (candidate) =>
+        candidate.id === target.trackId && !candidate.hidden,
+    )
+    if (!track) continue
+    for (const clipId of [
+      target.fromClipId,
+      target.toClipId,
+    ]) {
+      if (active.some((item) => item.clipId === clipId)) continue
+      const clip = track.clips.find((candidate) => candidate.id === clipId)
+      if (!clip) continue
+      const asset = context?.assets[clip.assetId]
+      const assetDuration =
+        asset?.duration && asset.duration > 0 ? asset.duration : clip.sourceOut
+      const linearSourceTime = clip.sourceIn + outputTime - clip.timelineStart
+      active.push({
+        trackId: track.id,
+        trackType: track.type,
+        clipId: clip.id,
+        assetId: clip.assetId,
+        mediaType: asset?.mediaType ?? 'video',
+        outputTime,
+        sourceTime: Math.min(Math.max(linearSourceTime, 0), assetDuration),
+        order: track.order,
+        muted: clip.muted,
+        transitionParticipant: true,
+        ...(clip.transform ? { transform: clip.transform } : {}),
+      })
+    }
+  }
+
+  return active.sort((left, right) => left.order - right.order)
 }
 
 export function buildFrameSchedule(spec: EditSpecV3): FrameScheduleItem[] {

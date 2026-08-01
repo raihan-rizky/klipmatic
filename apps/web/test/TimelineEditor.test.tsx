@@ -4,9 +4,9 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
-import type { EditSpecV3 } from '@cheapclipper/engine'
+import { applyTimelineCommand, type EditSpecV3 } from '@cheapclipper/engine'
 import { TimelineEditor } from '@/components/editor/TimelineEditor'
-import { makeEditorSpec } from './editorFixtures'
+import { editorContext, makeEditorSpec } from './editorFixtures'
 
 afterEach(cleanup)
 
@@ -16,7 +16,11 @@ function propsFor(spec: EditSpecV3) {
     spec,
     candidateDuration: 30,
     playhead: 10,
-    selected: { trackId: primary.id, clipId: primary.clips[0]!.id },
+    selected: {
+      kind: 'clip' as const,
+      trackId: primary.id,
+      clipId: primary.clips[0]!.id,
+    },
     onPlayheadChange: vi.fn(),
     onSelectionChange: vi.fn(),
     onCommand: vi.fn(),
@@ -41,6 +45,22 @@ function assetTransfer(assetId: string): DataTransfer {
     clearData: () => undefined,
     getData: (format: string) =>
       format === 'application/x-cheapclipper-asset' ? payload : '',
+    setData: () => undefined,
+    setDragImage: () => undefined,
+  }
+}
+
+function transitionTransfer(type: 'fade' | 'cross-dissolve' | 'dip-to-black'): DataTransfer {
+  const payload = JSON.stringify({ type, duration: 0.5 })
+  return {
+    effectAllowed: 'copy',
+    dropEffect: 'copy',
+    files: [] as unknown as FileList,
+    items: [] as unknown as DataTransferItemList,
+    types: ['application/x-cheapclipper-transition'],
+    clearData: () => undefined,
+    getData: (format: string) =>
+      format === 'application/x-cheapclipper-transition' ? payload : '',
     setData: () => undefined,
     setDragImage: () => undefined,
   }
@@ -144,7 +164,11 @@ test('timeline pointer drag commits one move command', () => {
   }
   const props = {
     ...propsFor(spec),
-    selected: { trackId: 'overlay-track', clipId: 'overlay-clip' },
+    selected: {
+      kind: 'clip' as const,
+      trackId: 'overlay-track',
+      clipId: 'overlay-clip',
+    },
     playhead: 20,
   }
   render(<TimelineEditor {...props} />)
@@ -199,4 +223,59 @@ test('dropping audio on a timeline track uses pointer time', () => {
   expect(props.onAssetDrop).toHaveBeenCalledWith('asset-audio', {
     timelineStart: 5,
   })
+})
+
+test('unsplit primary video explains that split is required', () => {
+  const props = propsFor(makeEditorSpec())
+  render(<TimelineEditor {...props} />)
+  const dropArea = screen.getByLabelText('Video timeline drop area')
+
+  fireEvent.drop(dropArea, {
+    dataTransfer: transitionTransfer('cross-dissolve'),
+  })
+
+  expect(screen.getByRole('status')).toHaveTextContent('Split clip terlebih dahulu')
+  expect(props.onCommand).not.toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'addTransition' }),
+  )
+})
+
+test('dropping on a split joint adds transition and persisted icon is centered', () => {
+  const source = makeEditorSpec()
+  const primary = source.timeline.tracks[0]!
+  const split = applyTimelineCommand(source, {
+    type: 'splitClip',
+    trackId: primary.id,
+    clipId: primary.clips[0]!.id,
+    outputTime: 12,
+  }, editorContext)
+  const props = propsFor(split)
+  const { rerender } = render(<TimelineEditor {...props} />)
+  const joint = screen.getByRole('button', { name: /Sambungan/ })
+
+  fireEvent.drop(joint, {
+    dataTransfer: transitionTransfer('cross-dissolve'),
+  })
+
+  expect(props.onCommand).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'addTransition',
+    transition: expect.objectContaining({
+      type: 'cross-dissolve',
+      duration: 0.5,
+      target: expect.objectContaining({ kind: 'between-clips' }),
+    }),
+  }))
+  const command = props.onCommand.mock.calls.at(-1)![0]
+  if (command.type !== 'addTransition') throw new Error('Expected addTransition')
+  const withTransition = {
+    ...split,
+    timeline: {
+      ...split.timeline,
+      transitions: [command.transition],
+    },
+  }
+  rerender(<TimelineEditor {...propsFor(withTransition)} />)
+
+  expect(screen.getByRole('button', { name: 'Cross Dissolve, 0.5 detik' }))
+    .toHaveStyle({ left: `${12 * 36}px` })
 })

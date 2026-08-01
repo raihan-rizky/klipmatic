@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Pause, Play } from 'lucide-react'
 import {
   drawTimelineComposite,
+  evaluateTransitions,
   mapWordsToTimeline,
   type ActiveTimelineItem,
   type EditSpecV3,
+  type TimelineContext,
   type TranscriptWord,
   type VisualTransform,
 } from '@cheapclipper/engine'
@@ -104,6 +106,27 @@ export function TimelinePreview({
     () => mapWordsToTimeline(words, spec),
     [spec, words],
   )
+  const timelineContext = useMemo<TimelineContext>(() => {
+    const primary = spec.timeline.tracks.find(
+      (track) => track.id === spec.timeline.primaryTrackId,
+    )
+    const candidateAssetId = primary?.clips[0]?.assetId ?? assets[0]?.id ?? 'candidate'
+    return {
+      sourceId: 'preview',
+      candidateAssetId,
+      candidateDuration:
+        assets.find((asset) => asset.id === candidateAssetId)?.duration ??
+        spec.timeline.duration,
+      assets: Object.fromEntries(assets.map((asset) => [asset.id, {
+        id: asset.id,
+        mediaType: asset.mediaType,
+        duration: asset.duration,
+        width: asset.width,
+        height: asset.height,
+        hasAudio: asset.hasAudio,
+      }])),
+    }
+  }, [assets, spec.timeline.duration, spec.timeline.primaryTrackId, spec.timeline.tracks])
 
   useEffect(() => {
     function drawFrame(active: ActiveTimelineItem[], outputTime: number): void {
@@ -135,11 +158,20 @@ export function TimelinePreview({
       if (layers.length === 0) return
       const context = canvas.getContext('2d')
       if (!context) return
-      drawTimelineComposite(context, layers, spec, timelineWords, outputTime)
+      const transitionState = evaluateTransitions(spec, outputTime)
+      drawTimelineComposite(
+        context,
+        layers,
+        spec,
+        timelineWords,
+        outputTime,
+        transitionState,
+      )
     }
 
     const controller = createTimelinePlaybackController({
       spec,
+      context: timelineContext,
       mediaForClip: (item) => {
         const media = mediaPoolRef.current.get(item.clipId)
         return media instanceof HTMLMediaElement ? media : null
@@ -162,7 +194,7 @@ export function TimelinePreview({
       controller.dispose()
       controllerRef.current = null
     }
-  }, [spec, timelineWords])
+  }, [spec, timelineContext, timelineWords])
 
   useEffect(() => {
     const controller = controllerRef.current

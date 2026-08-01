@@ -1,6 +1,6 @@
 import { captionTokensAt } from './captions'
 import { coverCrop } from './geometry'
-import type { VisualTransform } from './timeline'
+import type { TransitionFrameState, VisualTransform } from './timeline'
 import type { EditSpecV1, TranscriptWord } from './types'
 
 export interface CompositeSpec extends Pick<EditSpecV1, 'output' | 'crop'> {
@@ -56,6 +56,7 @@ export function drawTimelineComposite(
   spec: CompositeSpec,
   words: TranscriptWord[],
   time: number,
+  transitionState?: TransitionFrameState,
 ): void {
   const outWidth = spec.output.width
   const outHeight = spec.output.height
@@ -64,7 +65,21 @@ export function drawTimelineComposite(
   context.fillStyle = '#000000'
   context.fillRect(0, 0, outWidth, outHeight)
   for (const layer of [...layers].sort((left, right) => left.order - right.order)) {
-    drawVisualLayer(context, layer, spec)
+    drawVisualLayer(context, {
+      ...layer,
+      opacity:
+        layer.opacity * (transitionState?.opacityByClipId[layer.clipId] ?? 1),
+    }, spec)
+  }
+  if ((transitionState?.blackOpacity ?? 0) > 0) {
+    context.save()
+    context.globalAlpha = Math.min(
+      Math.max(transitionState?.blackOpacity ?? 0, 0),
+      1,
+    )
+    context.fillStyle = '#000000'
+    context.fillRect(0, 0, outWidth, outHeight)
+    context.restore()
   }
   drawCaptions(context, spec, words, time)
   context.restore()

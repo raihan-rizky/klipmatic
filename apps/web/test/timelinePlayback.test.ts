@@ -4,7 +4,7 @@ import {
   createTimelinePlaybackController,
   type PlaybackMedia,
 } from '@/components/editor/timelinePlayback'
-import { makeEditorSpec } from './editorFixtures'
+import { editorContext, makeEditorSpec } from './editorFixtures'
 
 function makeCutSpec(): EditSpecV3 {
   const spec = makeEditorSpec()
@@ -29,6 +29,27 @@ function makeCutSpec(): EditSpecV3 {
             }
           : track,
       ),
+    },
+  }
+}
+
+function makeTransitionSpec(): EditSpecV3 {
+  const source = makeCutSpec()
+  return {
+    ...source,
+    timeline: {
+      ...source.timeline,
+      transitions: [{
+        id: 'transition-1',
+        type: 'cross-dissolve',
+        duration: 0.5,
+        target: {
+          kind: 'between-clips',
+          trackId: source.timeline.primaryTrackId,
+          fromClipId: 'left',
+          toClipId: 'right',
+        },
+      }],
     },
   }
 }
@@ -114,4 +135,28 @@ test('playback keeps a muted linked audio clip silent', async () => {
   expect(linkedAudio.pause).toHaveBeenCalled()
   expect(linkedAudio.play).not.toHaveBeenCalled()
   expect(visual.play).toHaveBeenCalled()
+})
+
+test('preview requests both split clips at transition midpoint', async () => {
+  const media = new Map<string, PlaybackMedia>()
+  const mediaForClip = vi.fn((item: { clipId: string }) => {
+    const existing = media.get(item.clipId)
+    if (existing) return existing
+    const created = fakeMediaElement()
+    media.set(item.clipId, created)
+    return created
+  })
+  const controller = createTimelinePlaybackController({
+    spec: makeTransitionSpec(),
+    context: editorContext,
+    mediaForClip,
+    onTime: vi.fn(),
+    onFrame: vi.fn(),
+    onStall: vi.fn(),
+  })
+
+  await controller.seek(10)
+
+  expect(mediaForClip).toHaveBeenCalledWith(expect.objectContaining({ clipId: 'left' }))
+  expect(mediaForClip).toHaveBeenCalledWith(expect.objectContaining({ clipId: 'right' }))
 })

@@ -4,7 +4,11 @@ import {
   createTimelineExporter,
   type TimelineExportRuntime,
 } from '@/lib/browserExport'
-import { editorContext, makeEditorSpec } from './editorFixtures'
+import {
+  editorContext,
+  makeEditorSpec,
+  makeSpecWithTransition,
+} from './editorFixtures'
 import type { ResolvedMediaAsset } from '@/lib/clipTypes'
 import { getBuiltInAsset } from '@/lib/builtinMedia'
 
@@ -342,6 +346,27 @@ test('does not mix a muted linked audio clip', async () => {
 
   expect(readAudioByAsset.get('asset-uploaded-video')).not.toHaveBeenCalled()
 })
+
+test.each(['fade', 'cross-dissolve', 'dip-to-black'] as const)(
+  'exports %s at the same duration and midpoint state as preview',
+  async (type) => {
+    const spec = makeSpecWithTransition(type, 0.5)
+    const { runtime, addVideoFrame, context } = fakeRuntime()
+
+    await createTimelineExporter(runtime)({
+      assets: [candidateVideo],
+      spec,
+      words: [],
+      title: type,
+    })
+
+    expect(addVideoFrame).toHaveBeenCalledTimes(spec.timeline.duration * 30)
+    expect(context.drawImage).toHaveBeenCalled()
+    if (type === 'dip-to-black') {
+      expect(context.fillRect).toHaveBeenCalledWith(0, 0, 1080, 1920)
+    }
+  },
+)
 
 const candidateVideo: ResolvedMediaAsset = {
   id: 'asset-candidate',

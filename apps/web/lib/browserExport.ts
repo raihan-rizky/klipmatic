@@ -3,10 +3,12 @@
 import {
   buildFrameSchedule,
   drawTimelineComposite,
+  evaluateTransitions,
   mapOutputTime,
   mapWordsToTimeline,
   type DrawableMedia,
   type EditSpecV3,
+  type TimelineContext,
   type TranscriptWord,
 } from '@cheapclipper/engine'
 import type { ResolvedMediaAsset } from './clipTypes'
@@ -107,6 +109,24 @@ export function createTimelineExporter(runtime: TimelineExportRuntime) {
     }
 
     const assetById = new Map(assets.map((asset) => [asset.id, asset]))
+    const primary = spec.timeline.tracks.find(
+      (track) => track.id === spec.timeline.primaryTrackId,
+    )
+    const candidateAssetId = primary?.clips[0]?.assetId ?? assets[0]?.id ?? 'candidate'
+    const timelineContext: TimelineContext = {
+      sourceId: 'export',
+      candidateAssetId,
+      candidateDuration:
+        assetById.get(candidateAssetId)?.duration ?? spec.timeline.duration,
+      assets: Object.fromEntries(assets.map((asset) => [asset.id, {
+        id: asset.id,
+        mediaType: asset.mediaType,
+        duration: asset.duration,
+        width: asset.width,
+        height: asset.height,
+        hasAudio: asset.hasAudio,
+      }])),
+    }
     const sources = new Map<string, ExportAssetSource>()
     const sourceFor = async (assetId: string): Promise<ExportAssetSource> => {
       const existing = sources.get(assetId)
@@ -126,7 +146,7 @@ export function createTimelineExporter(runtime: TimelineExportRuntime) {
 
       for (const frame of schedule) {
         const layers = []
-        const activeVideo = mapOutputTime(spec, frame.outputTime).filter(
+        const activeVideo = mapOutputTime(spec, frame.outputTime, timelineContext).filter(
           (item) => item.trackType === 'video',
         )
         for (const item of activeVideo) {
@@ -148,6 +168,7 @@ export function createTimelineExporter(runtime: TimelineExportRuntime) {
           spec,
           mappedWords,
           frame.outputTime,
+          evaluateTransitions(spec, frame.outputTime),
         )
         await output.addVideoFrame(frame.outputTime, frame.duration)
         onProgress?.(((frame.index + 1) / Math.max(schedule.length, 1)) * 0.85)
