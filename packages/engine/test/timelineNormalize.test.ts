@@ -6,6 +6,7 @@ import {
   normalizeEditSpecV3,
   type TimelineContextV2,
 } from '../src'
+import { context as v3Context, malformedTransitionSpec } from './timelineFixtures'
 
 const context: TimelineContextV2 = {
   candidateDuration: 30,
@@ -219,6 +220,14 @@ describe('normalizeEditSpecV3', () => {
       width: 0.05,
       height: 2,
     })
+    expect(twice).toEqual(once)
+  })
+
+  test('drops malformed transition targets idempotently', () => {
+    const once = normalizeEditSpecV3(malformedTransitionSpec, v3Context)
+    const twice = normalizeEditSpecV3(once, v3Context)
+
+    expect(once.timeline.transitions).toEqual([])
     expect(twice).toEqual(once)
   })
 })

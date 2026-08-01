@@ -1,5 +1,6 @@
 import { normalizeEditSpec } from '../types'
 import { createDefaultEditSpecV2, createDefaultEditSpecV3 } from './defaults'
+import { normalizeTransitions } from './transitions'
 import type {
   EditSpecV2,
   EditSpecV3,
@@ -330,7 +331,7 @@ export function normalizeEditSpecV3(
   const styling = normalizeEditSpec(input)
   const rawCaptions = record(root.captions)
 
-  return {
+  const normalized: EditSpecV3 = {
     version: 3,
     output: styling.output,
     crop: styling.crop,
@@ -348,6 +349,13 @@ export function normalizeEditSpecV3(
       duration,
       tracks,
       transitions: [],
+    },
+  }
+  return {
+    ...normalized,
+    timeline: {
+      ...normalized.timeline,
+      transitions: normalizeTransitions(timeline.transitions, normalized),
     },
   }
 }
