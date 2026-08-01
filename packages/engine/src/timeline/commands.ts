@@ -1,4 +1,5 @@
 import { normalizeEditSpecV3 } from './normalize'
+import { normalizeTransitions, transitionTargetKey } from './transitions'
 import type {
   AssetTimelineCommand,
   EditSpecV3,
@@ -6,11 +7,107 @@ import type {
   TimelineCommand,
   TimelineContext,
   TimelineTrack,
+  TransitionCommand,
   VisualTransform,
 } from './types'
 
 function findTrack(spec: EditSpecV3, trackId: string): TimelineTrack | undefined {
   return spec.timeline.tracks.find((track) => track.id === trackId)
+}
+
+function moveClip(
+  spec: EditSpecV3,
+  command: Extract<TimelineCommand, { type: 'moveClip' }>,
+): EditSpecV3 {
+  const track = findTrack(spec, command.trackId)
+  const selected = track && findClip(track, command.clipId)
+  if (!track || !selected || track.locked) return spec
+  const duration = selected.sourceOut - selected.sourceIn
+  const primary = track.id === spec.timeline.primaryTrackId
+  const requested = Number.isFinite(command.timelineStart)
+    ? command.timelineStart
+    : selected.timelineStart
+  const timelineStart = primary
+    ? Math.max(0, requested)
+    : Math.min(
+        Math.max(requested, 0),
+        Math.max(0, spec.timeline.duration - duration),
+      )
+  const delta = timelineStart - selected.timelineStart
+  if (Math.abs(delta) < 1e-9) return spec
+  const targets = primary
+    ? linkedClipIds(spec, selected.linkGroupId)
+    : new Set([selected.id])
+  if (targets.size === 0) targets.add(selected.id)
+
+  return replaceTracks(
+    spec,
+    spec.timeline.tracks.map((candidateTrack) => ({
+      ...candidateTrack,
+      clips: candidateTrack.clips.map((clip) =>
+        targets.has(clip.id)
+          ? { ...clip, timelineStart: Math.max(0, clip.timelineStart + delta) }
+          : clip,
+      ),
+    })),
+  )
+}
+
+function transitionCommand(
+  spec: EditSpecV3,
+  command: TransitionCommand,
+): EditSpecV3 {
+  if (command.type === 'addTransition') {
+    const normalized = normalizeTransitions([command.transition], spec)[0]
+    if (!normalized) return spec
+    const key = transitionTargetKey(normalized.target)
+    const occupied = spec.timeline.transitions.findIndex(
+      (transition) => transitionTargetKey(transition.target) === key,
+    )
+    const transitions = occupied < 0
+      ? [...spec.timeline.transitions, normalized]
+      : spec.timeline.transitions.map((transition, index) =>
+          index === occupied ? normalized : transition,
+        )
+    return {
+      ...spec,
+      timeline: { ...spec.timeline, transitions },
+    }
+  }
+
+  if (command.type === 'updateTransition') {
+    const index = spec.timeline.transitions.findIndex(
+      (transition) => transition.id === command.transitionId,
+    )
+    if (index < 0) return spec
+    const current = spec.timeline.transitions[index]!
+    const normalized = normalizeTransitions([{
+      ...current,
+      ...command.patch,
+    }], spec)[0]
+    if (!normalized || JSON.stringify(normalized) === JSON.stringify(current)) {
+      return spec
+    }
+    return {
+      ...spec,
+      timeline: {
+        ...spec.timeline,
+        transitions: spec.timeline.transitions.map((transition, candidate) =>
+          candidate === index ? normalized : transition,
+        ),
+      },
+    }
+  }
+
+  const transitions = spec.timeline.transitions.filter(
+    (transition) => transition.id !== command.transitionId,
+  )
+  return transitions.length === spec.timeline.transitions.length
+    ? spec
+    : {
+        ...spec,
+        timeline: { ...spec.timeline, transitions },
+      }
 }
 
 function findClip(track: TimelineTrack, clipId: string): TimelineClip | undefined {
@@ -362,9 +459,11 @@ function simpleTrackCommand(
     | { type: 'trimClip' }
     | { type: 'splitClip' }
     | { type: 'deleteClip' }
+    | { type: 'moveClip' }
     | { type: 'updateCrop' }
     | { type: 'updateCaptions' }
     | AssetTimelineCommand
+    | TransitionCommand
   >,
 ): EditSpecV3 {
   const track = 'trackId' in command
@@ -418,28 +517,6 @@ function simpleTrackCommand(
     if (command.type === 'reorderTrack') return { ...item, order: command.order }
     if (command.type === 'setTrackHidden') return { ...item, hidden: command.hidden }
     if (command.type === 'setTrackLocked') return { ...item, locked: command.locked }
-    if (command.type === 'moveClip') {
-      return {
-        ...item,
-        clips: item.clips.map((clip) =>
-          clip.id === command.clipId
-            ? {
-                ...clip,
-                timelineStart:
-                  item.id === spec.timeline.primaryTrackId
-                    ? clip.timelineStart
-                    : Math.min(
-                        Math.max(command.timelineStart, 0),
-                        Math.max(
-                          0,
-                          spec.timeline.duration - (clip.sourceOut - clip.sourceIn),
-                        ),
-                      ),
-              }
-            : clip,
-        ),
-      }
-    }
     return item
   })
   return replaceTracks(spec, tracks)
@@ -454,6 +531,7 @@ export function applyTimelineCommand(
   if (command.type === 'trimClip') changed = trim(spec, command)
   else if (command.type === 'splitClip') changed = split(spec, command)
   else if (command.type === 'deleteClip') changed = deleteClip(spec, command)
+  else if (command.type === 'moveClip') changed = moveClip(spec, command)
   else if (command.type === 'updateCrop') {
     changed = { ...spec, crop: { ...spec.crop, ...command.crop } }
   } else if (command.type === 'updateCaptions') {
@@ -465,6 +543,12 @@ export function applyTimelineCommand(
     command.type === 'replaceAsset'
   ) {
     changed = assetCommand(spec, command, context)
+  } else if (
+    command.type === 'addTransition' ||
+    command.type === 'updateTransition' ||
+    command.type === 'deleteTransition'
+  ) {
+    changed = transitionCommand(spec, command)
   } else {
     changed = simpleTrackCommand(spec, command)
   }

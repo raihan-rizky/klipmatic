@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
+  applyTimelineCommand,
   findTransitionJoints,
   normalizeEditSpecV3,
   normalizeTransitions,
@@ -14,6 +15,7 @@ import {
   primaryTrack,
   right,
   spec,
+  specWithTransition,
   specWithOverlay,
   splitSpec,
 } from './timelineFixtures'
@@ -66,5 +68,75 @@ describe('transition target discovery and normalization', () => {
     ], splitSpec)
 
     expect(normalized).toEqual([{ ...first, duration: 2 }])
+  })
+})
+
+describe('transition commands', () => {
+  test('adds cross dissolve only to a valid split joint without changing duration', () => {
+    const next = applyTimelineCommand(splitSpec, {
+      type: 'addTransition',
+      transition: specWithTransition.timeline.transitions[0]!,
+    }, context)
+
+    expect(next.timeline.transitions).toEqual(specWithTransition.timeline.transitions)
+    expect(next.timeline.duration).toBe(splitSpec.timeline.duration)
+    expect(applyTimelineCommand(spec, {
+      type: 'addTransition',
+      transition: specWithTransition.timeline.transitions[0]!,
+    }, context)).toBe(spec)
+  })
+
+  test('adding to an occupied target replaces it atomically', () => {
+    const next = applyTimelineCommand(specWithTransition, {
+      type: 'addTransition',
+      transition: {
+        ...specWithTransition.timeline.transitions[0]!,
+        id: 'replacement',
+        type: 'dip-to-black',
+        duration: 1,
+      },
+    }, context)
+
+    expect(next.timeline.transitions).toEqual([
+      expect.objectContaining({
+        id: 'replacement',
+        type: 'dip-to-black',
+        duration: 1,
+      }),
+    ])
+  })
+
+  test('updates and deletes a transition with target-aware duration clamping', () => {
+    const updated = applyTimelineCommand(specWithTransition, {
+      type: 'updateTransition',
+      transitionId: 'transition-1',
+      patch: { type: 'fade', duration: 20 },
+    }, context)
+    expect(updated.timeline.transitions[0]).toMatchObject({
+      type: 'fade',
+      duration: 2,
+    })
+
+    const deleted = applyTimelineCommand(updated, {
+      type: 'deleteTransition',
+      transitionId: 'transition-1',
+    }, context)
+    expect(deleted.timeline.transitions).toEqual([])
+    expect(applyTimelineCommand(deleted, {
+      type: 'deleteTransition',
+      transitionId: 'transition-1',
+    }, context)).toBe(deleted)
+  })
+
+  test('moving one joint clip removes its transition in the same command', () => {
+    const moved = applyTimelineCommand(specWithTransition, {
+      type: 'moveClip',
+      trackId: primaryTrack.id,
+      clipId: right!.id,
+      timelineStart: right!.timelineStart + 1,
+    }, context)
+
+    expect(moved.timeline.transitions).toEqual([])
+    expect(moved.timeline.tracks[0]!.clips[1]!.timelineStart).toBe(13)
   })
 })

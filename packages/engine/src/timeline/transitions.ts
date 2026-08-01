@@ -93,7 +93,7 @@ function edgeClip(
   return null
 }
 
-function targetKey(target: TimelineTransition['target']): string {
+export function transitionTargetKey(target: TimelineTransition['target']): string {
   return target.kind === 'between-clips'
     ? `between:${target.trackId}:${target.fromClipId}:${target.toClipId}`
     : `edge:${target.clipId}:${target.edge}`
@@ -163,7 +163,7 @@ export function normalizeTransitions(
       continue
     }
 
-    const key = targetKey(target)
+    const key = transitionTargetKey(target)
     const id = raw.id.trim().slice(0, 120)
     if (!id || usedIds.has(id) || usedTargets.has(key)) continue
     const requestedDuration = Number(raw.duration)

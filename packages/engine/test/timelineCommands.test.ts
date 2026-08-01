@@ -5,6 +5,7 @@ import {
   primaryClip,
   primaryTrack,
   spec,
+  specWithTransition,
   withTrack,
 } from './timelineFixtures'
 
@@ -250,5 +251,16 @@ describe('applyTimelineCommand', () => {
     }, context)
 
     expect(findClip(next, 'audio-1')!.timelineStart).toBe(18)
+  })
+
+  test('deleting a transition participant reconciles the transition array', () => {
+    const right = specWithTransition.timeline.tracks[0]!.clips[1]!
+    const next = applyTimelineCommand(specWithTransition, {
+      type: 'deleteClip',
+      trackId: specWithTransition.timeline.primaryTrackId,
+      clipId: right.id,
+    }, context)
+
+    expect(next.timeline.transitions).toEqual([])
   })
 })

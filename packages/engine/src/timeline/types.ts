@@ -86,6 +86,15 @@ export type TimelineTransition = {
       }
 }
 
+export type TransitionCommand =
+  | { type: 'addTransition'; transition: TimelineTransition }
+  | {
+      type: 'updateTransition'
+      transitionId: string
+      patch: { type?: TimelineTransition['type']; duration?: number }
+    }
+  | { type: 'deleteTransition'; transitionId: string }
+
 export interface EditSpecV3 {
   version: 3
   output: EditSpecV1['output']
@@ -160,6 +169,7 @@ export type TimelineCommand =
       captions: Partial<EditSpecV3['captions']>
     }
   | AssetTimelineCommand
+  | TransitionCommand
 
 export interface ActiveTimelineItem {
   trackId: string
