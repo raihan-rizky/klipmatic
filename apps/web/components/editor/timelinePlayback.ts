@@ -101,7 +101,8 @@ export function createTimelinePlaybackController({
         continue
       }
 
-      media.muted = item.trackType !== 'audio'
+      media.muted = item.trackType !== 'audio' || item.muted
+      if (item.trackType === 'audio' && item.muted) media.pause()
       if (Math.abs(media.currentTime - item.sourceTime) > DRIFT_TOLERANCE_SECONDS) {
         media.currentTime = item.sourceTime
       }
@@ -109,8 +110,12 @@ export function createTimelinePlaybackController({
 
     if (shouldPlay) {
       await Promise.all(
-        [...activeMedia.keys()].map((media) =>
-          media.paused ? media.play() : Promise.resolve(),
+        [...activeMedia.entries()].map(([media, item]) =>
+          item.trackType === 'audio' && item.muted
+            ? Promise.resolve()
+            : media.paused
+              ? media.play()
+              : Promise.resolve(),
         ),
       )
     }

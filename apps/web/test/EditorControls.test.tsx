@@ -9,6 +9,7 @@ import { CaptionControls } from '@/components/editor/CaptionControls'
 import { CropControls } from '@/components/editor/CropControls'
 import { TimelinePreview } from '@/components/editor/TimelinePreview'
 import { makeEditorSpec } from './editorFixtures'
+import type { ResolvedMediaAsset } from '@/lib/clipTypes'
 
 afterEach(cleanup)
 
@@ -101,8 +102,8 @@ test('timeline preview exposes one vertical canvas and transport controls', asyn
   const { unmount } = render(
     <TimelinePreview
       spec={makeEditorSpec()}
+      assets={[candidateVideo]}
       words={[]}
-      mediaUrl="/api/clips/clip-1/segment"
       playhead={0}
       playing={false}
       onPlayheadChange={vi.fn()}
@@ -122,3 +123,113 @@ test('timeline preview exposes one vertical canvas and transport controls', asyn
   pause.mockRestore()
   load.mockRestore()
 })
+
+test('preview renders distinct image, video, and audio asset elements', () => {
+  const source = makeEditorSpec()
+  const audioTrack = source.timeline.tracks.find((track) => track.type === 'audio')!
+  const spec = {
+    ...source,
+    timeline: {
+      ...source.timeline,
+      tracks: [
+        ...source.timeline.tracks.map((track) =>
+          track.id === audioTrack.id
+            ? {
+                ...track,
+                clips: [{
+                  ...track.clips[0]!,
+                  id: 'sfx-clip',
+                  assetId: 'sfx',
+                  sourceOut: 2,
+                }],
+              }
+            : track,
+        ),
+        {
+          id: 'overlay-track',
+          type: 'video' as const,
+          name: 'Overlay',
+          order: source.timeline.tracks.length,
+          hidden: false,
+          locked: false,
+          clips: [{
+            id: 'overlay-clip',
+            assetId: 'overlay',
+            timelineStart: 0,
+            sourceIn: 0,
+            sourceOut: 5,
+            muted: false,
+            transform: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
+          }],
+        },
+      ],
+    },
+  }
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+
+  render(
+    <TimelinePreview
+      spec={spec}
+      assets={[candidateVideo, overlayImage, soundEffect]}
+      words={[]}
+      playhead={0}
+      playing={false}
+      onPlayheadChange={vi.fn()}
+      onPlayingChange={vi.fn()}
+      onStall={vi.fn()}
+    />,
+  )
+
+  expect(screen.getByTestId('asset-media-candidate')).toHaveAttribute(
+    'src',
+    candidateVideo.url,
+  )
+  expect(screen.getByTestId('asset-media-overlay')).toHaveAttribute(
+    'src',
+    overlayImage.url,
+  )
+  expect(screen.getByTestId('asset-media-sfx')).toHaveAttribute(
+    'src',
+    soundEffect.url,
+  )
+})
+
+const candidateVideo: ResolvedMediaAsset = {
+  id: 'asset-candidate',
+  name: 'Candidate.mp4',
+  mediaType: 'video',
+  status: 'ready',
+  url: '/candidate.mp4',
+  bytes: 1_000,
+  width: 1920,
+  height: 1080,
+  duration: 30,
+  hasAudio: true,
+  expiresAt: null,
+  expiresSoon: false,
+}
+
+const overlayImage: ResolvedMediaAsset = {
+  ...candidateVideo,
+  id: 'overlay',
+  name: 'Overlay.png',
+  mediaType: 'image',
+  url: '/overlay.png',
+  width: 800,
+  height: 600,
+  duration: null,
+  hasAudio: false,
+}
+
+const soundEffect: ResolvedMediaAsset = {
+  ...candidateVideo,
+  id: 'sfx',
+  name: 'Pop.mp3',
+  mediaType: 'audio',
+  url: '/pop.mp3',
+  width: null,
+  height: null,
+  duration: 2,
+  hasAudio: true,
+}

@@ -11,6 +11,7 @@ import {
   type VisualTransform,
 } from '@cheapclipper/engine'
 import { Button } from '@/components/ui/button'
+import type { ResolvedMediaAsset } from '@/lib/clipTypes'
 import {
   createTimelinePlaybackController,
   type TimelinePlaybackController,
@@ -23,8 +24,8 @@ import {
 
 type TimelinePreviewProps = {
   spec: EditSpecV3
+  assets: ResolvedMediaAsset[]
   words: TranscriptWord[]
-  mediaUrl: string
   playhead: number
   playing: boolean
   onPlayheadChange: (outputTime: number) => void
@@ -48,8 +49,8 @@ function formatTime(value: number): string {
 
 export function TimelinePreview({
   spec,
+  assets,
   words,
-  mediaUrl,
   playhead,
   playing,
   onPlayheadChange,
@@ -61,7 +62,9 @@ export function TimelinePreview({
   onAssetDrop,
 }: TimelinePreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const mediaPoolRef = useRef(new Map<string, HTMLMediaElement>())
+  const mediaPoolRef = useRef(
+    new Map<string, HTMLMediaElement | HTMLImageElement>(),
+  )
   const controllerRef = useRef<TimelinePlaybackController | null>(null)
   const reportedTimeRef = useRef(playhead)
   const callbacksRef = useRef({
@@ -77,21 +80,26 @@ export function TimelinePreview({
     onPrimaryVideoChange,
   }
 
-  const mediaEntries = useMemo(
-    () =>
-      spec.timeline.tracks.flatMap((track) =>
-        track.type === 'caption'
-          ? []
-          : track.clips.map((clip) => ({
+  const mediaEntries = useMemo(() => {
+    const byId = new Map(assets.map((asset) => [asset.id, asset]))
+    return spec.timeline.tracks.flatMap((track) =>
+      track.type === 'caption'
+        ? []
+        : track.clips.flatMap((clip) => {
+            const asset = byId.get(clip.assetId)
+            if (!asset || asset.status !== 'ready' || !asset.url) return []
+            return [{
               clipId: clip.id,
               trackType: track.type,
               primary:
                 track.type === 'video' &&
                 track.id === spec.timeline.primaryTrackId,
-            })),
-      ),
-    [spec],
-  )
+              asset,
+              muted: clip.muted,
+            }]
+          }),
+    )
+  }, [assets, spec])
   const timelineWords = useMemo(
     () => mapWordsToTimeline(words, spec),
     [spec, words],
@@ -105,11 +113,14 @@ export function TimelinePreview({
         .filter((item) => item.trackType === 'video')
         .flatMap((item) => {
           const media = mediaPoolRef.current.get(item.clipId)
-          if (
-            !(media instanceof HTMLVideoElement) ||
-            media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
-            media.videoWidth === 0
-          ) return []
+          if (media instanceof HTMLVideoElement) {
+            if (
+              media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+              media.videoWidth === 0
+            ) return []
+          } else if (media instanceof HTMLImageElement) {
+            if (!media.complete || media.naturalWidth === 0) return []
+          } else return []
           return [{
             clipId: item.clipId,
             media,
@@ -122,7 +133,6 @@ export function TimelinePreview({
           }]
         })
       if (layers.length === 0) return
-
       const context = canvas.getContext('2d')
       if (!context) return
       drawTimelineComposite(context, layers, spec, timelineWords, outputTime)
@@ -130,7 +140,10 @@ export function TimelinePreview({
 
     const controller = createTimelinePlaybackController({
       spec,
-      mediaForClip: (item) => mediaPoolRef.current.get(item.clipId) ?? null,
+      mediaForClip: (item) => {
+        const media = mediaPoolRef.current.get(item.clipId)
+        return media instanceof HTMLMediaElement ? media : null
+      },
       onTime: (outputTime) => {
         reportedTimeRef.current = outputTime
         callbacksRef.current.onPlayheadChange(outputTime)
@@ -169,9 +182,13 @@ export function TimelinePreview({
   useEffect(
     () => () => {
       for (const media of mediaPoolRef.current.values()) {
-        media.pause()
-        media.removeAttribute('src')
-        media.load()
+        if (media instanceof HTMLMediaElement) {
+          media.pause()
+          media.removeAttribute('src')
+          media.load()
+        } else {
+          media.removeAttribute('src')
+        }
       }
       mediaPoolRef.current.clear()
     },
@@ -180,7 +197,7 @@ export function TimelinePreview({
 
   function registerMedia(
     clipId: string,
-    media: HTMLMediaElement | null,
+    media: HTMLMediaElement | HTMLImageElement | null,
     primary: boolean,
   ): void {
     if (media) {
@@ -283,29 +300,46 @@ export function TimelinePreview({
       </div>
 
       <div hidden aria-hidden="true">
-        {mediaEntries.map((entry) =>
-          entry.trackType === 'video' ? (
+        {mediaEntries.map((entry) => {
+          const testId = `asset-media-${entry.asset.id.replace(/^asset-/, '')}`
+          if (entry.asset.mediaType === 'image') {
+            return (
+              // eslint-disable-next-line @next/next/no-img-element -- hidden decode source for canvas composition.
+              <img
+                key={entry.clipId}
+                ref={(media) => registerMedia(entry.clipId, media, false)}
+                src={entry.asset.url!}
+                alt=""
+                data-testid={testId}
+                onLoad={redrawLoadedFrame}
+              />
+            )
+          }
+          return entry.trackType === 'video' ? (
             <video
               key={entry.clipId}
               ref={(media) => registerMedia(entry.clipId, media, entry.primary)}
-              src={mediaUrl}
+              src={entry.asset.url!}
               preload="auto"
               playsInline
               muted
               tabIndex={-1}
+              data-testid={testId}
               onLoadedData={redrawLoadedFrame}
             />
           ) : (
             <audio
               key={entry.clipId}
               ref={(media) => registerMedia(entry.clipId, media, false)}
-              src={mediaUrl}
+              src={entry.asset.url!}
               preload="auto"
+              muted={entry.muted}
               tabIndex={-1}
+              data-testid={testId}
               onLoadedData={redrawLoadedFrame}
             />
-          ),
-        )}
+          )
+        })}
       </div>
     </section>
   )

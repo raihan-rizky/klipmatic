@@ -169,8 +169,8 @@ test('dropping an image on canvas inserts it at normalized position', () => {
   render(
     <TimelinePreview
       spec={makeReadyPayload().clip.editSpec}
+      assets={makeReadyPayload().assets}
       words={[]}
-      mediaUrl="/segment.mp4"
       playhead={4}
       playing={false}
       onPlayheadChange={vi.fn()}

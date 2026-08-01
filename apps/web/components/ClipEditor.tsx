@@ -406,6 +406,9 @@ function ReadyClipEditor({
 
   const support = browserExportSupport(history.present)
   const uploadedAssets = assets.filter((asset) => asset.id !== candidateAssetId)
+  const previewAssets = assets.map((asset) =>
+    asset.id === candidateAssetId ? { ...asset, url: mediaUrl } : asset,
+  )
   const expiringAssets = uploadedAssets.filter((asset) => asset.expiresSoon)
   const expiredAssets = uploadedAssets.filter((asset) => asset.status === 'expired')
   const inspector = (
@@ -443,8 +446,8 @@ function ReadyClipEditor({
         preview={
           <TimelinePreview
             spec={history.present}
+            assets={previewAssets}
             words={payload.words}
-            mediaUrl={mediaUrl}
             playhead={playhead}
             playing={playing}
             onPlayheadChange={setPlayhead}

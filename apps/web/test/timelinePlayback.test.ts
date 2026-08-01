@@ -81,3 +81,37 @@ test('stalls pause transport without mutating the spec', async () => {
   expect(onStall).toHaveBeenCalledWith('Video berhenti merespons.')
   expect(spec).toEqual(original)
 })
+
+test('playback keeps a muted linked audio clip silent', async () => {
+  const source = makeEditorSpec()
+  const spec: EditSpecV3 = {
+    ...source,
+    timeline: {
+      ...source.timeline,
+      tracks: source.timeline.tracks.map((track) =>
+        track.type === 'audio'
+          ? {
+              ...track,
+              clips: track.clips.map((clip) => ({ ...clip, muted: true })),
+            }
+          : track,
+      ),
+    },
+  }
+  const visual = fakeMediaElement()
+  const linkedAudio = fakeMediaElement()
+  const controller = createTimelinePlaybackController({
+    spec,
+    mediaForClip: (item) => item.trackType === 'audio' ? linkedAudio : visual,
+    onTime: vi.fn(),
+    onFrame: vi.fn(),
+    onStall: vi.fn(),
+  })
+
+  await controller.play()
+
+  expect(linkedAudio.muted).toBe(true)
+  expect(linkedAudio.pause).toHaveBeenCalled()
+  expect(linkedAudio.play).not.toHaveBeenCalled()
+  expect(visual.play).toHaveBeenCalled()
+})
