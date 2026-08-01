@@ -1,23 +1,25 @@
 import { normalizeEditSpecV2 } from './normalize'
 import type {
   EditSpecV2,
-  TimelineClip,
+  TimelineClipV2,
   TimelineCommand,
-  TimelineContext,
+  TimelineContextV2,
   TimelineTrack,
 } from './types'
 
-function findTrack(spec: EditSpecV2, trackId: string): TimelineTrack | undefined {
+type LegacyTrack = TimelineTrack<TimelineClipV2>
+
+function findTrack(spec: EditSpecV2, trackId: string): LegacyTrack | undefined {
   return spec.timeline.tracks.find((track) => track.id === trackId)
 }
 
-function findClip(track: TimelineTrack, clipId: string): TimelineClip | undefined {
+function findClip(track: LegacyTrack, clipId: string): TimelineClipV2 | undefined {
   return track.clips.find((clip) => clip.id === clipId)
 }
 
 function replaceTracks(
   spec: EditSpecV2,
-  tracks: TimelineTrack[],
+  tracks: LegacyTrack[],
   primaryTrackId = spec.timeline.primaryTrackId,
 ): EditSpecV2 {
   return {
@@ -242,7 +244,7 @@ function simpleTrackCommand(
 export function applyTimelineCommand(
   spec: EditSpecV2,
   command: TimelineCommand,
-  context: TimelineContext,
+  context: TimelineContextV2,
 ): EditSpecV2 {
   let changed: EditSpecV2
   if (command.type === 'trimClip') changed = trim(spec, command)

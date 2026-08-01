@@ -1,6 +1,6 @@
 import type { TranscriptWord } from '../types'
 import type {
-  ActiveTimelineItem,
+  ActiveTimelineItemV2,
   AudioScheduleItem,
   EditSpecV2,
   FrameScheduleItem,
@@ -9,7 +9,7 @@ import type {
 export function mapOutputTime(
   spec: EditSpecV2,
   outputTime: number,
-): ActiveTimelineItem[] {
+): ActiveTimelineItemV2[] {
   return spec.timeline.tracks
     .filter((track) => !track.hidden)
     .flatMap((track) =>
