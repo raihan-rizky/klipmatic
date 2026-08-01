@@ -1,6 +1,8 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  PutObjectCommand,
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3'
@@ -24,6 +26,40 @@ function command(key: string): GetObjectCommand {
 
 export async function signedR2Get(key: string, expiresIn = 3600): Promise<string> {
   return getSignedUrl(client(), command(key), { expiresIn })
+}
+
+export async function signedR2Put(
+  key: string,
+  contentType: string,
+  expiresIn = 900,
+): Promise<string> {
+  return getSignedUrl(
+    client(),
+    new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET!,
+      Key: key,
+      ContentType: contentType,
+    }),
+    { expiresIn },
+  )
+}
+
+export async function headR2Object(
+  key: string,
+): Promise<{ bytes: number; contentType: string | null }> {
+  const response = await client().send(
+    new HeadObjectCommand({ Bucket: process.env.R2_BUCKET!, Key: key }),
+  )
+  return {
+    bytes: Number(response.ContentLength ?? 0),
+    contentType: response.ContentType ?? null,
+  }
+}
+
+export async function deleteR2Object(key: string): Promise<void> {
+  await client().send(
+    new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET!, Key: key }),
+  )
 }
 
 export async function readR2Json<T>(key: string): Promise<T> {
