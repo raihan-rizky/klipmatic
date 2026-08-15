@@ -17,7 +17,13 @@ APP = Path(__file__).resolve().parents[1] / "app"
 
 # Spec §8.2: transcripts/ sengaja tanpa aturan kedaluwarsa. Didaftarkan di sini
 # supaya prefix baru yang lupa diputuskan tetap menggagalkan tes.
-PREFIX_TANPA_KEDALUWARSA = {"transcripts/", "clip-transcripts/"}
+PREFIX_TANPA_KEDALUWARSA = {
+    "transcripts/",
+    "clip-transcripts/",
+    # Thumbnail hidup selama candidate row-nya hidup. Re-analysis menghapus
+    # object lama setelah penggantian row berhasil.
+    "candidate-thumbnails/",
+}
 
 
 def _prefix_kunci_r2() -> set[str]:
