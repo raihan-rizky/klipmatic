@@ -104,3 +104,28 @@ test('probe_asset is an allowed job type', async () => {
     insert into jobs (type, payload) values ('probe_asset', '{"asset_id":"asset-1"}'::jsonb)
   `).resolves.toBeDefined()
 })
+
+test('prepare_thumbnails is an allowed job type', async () => {
+  await expect(sql`
+    insert into jobs (type, payload)
+    values ('prepare_thumbnails', '{"project_id":"p"}'::jsonb)
+  `).resolves.toBeDefined()
+})
+
+test('candidate thumbnail status is constrained', async () => {
+  const userId = await makeUser(sql, 'thumbnail-schema@test.id')
+  const [source] = await sql`
+    insert into sources (kind, external_id, is_public, url_original, status)
+    values ('youtube', 'thumbschema1', true, 'https://youtu.be/thumbschema1', 'ready')
+    returning id`
+  const [project] = await sql`
+    insert into projects (user_id, source_id, title)
+    values (${userId}, ${source!.id}, 'Thumb') returning id`
+
+  await expect(sql`
+    insert into clip_candidates
+      (project_id, start_sec, end_sec, score, title, hook_text,
+       transcript_slice, thumbnail_status)
+    values (${project!.id}, 10, 80, 0.9, 'c', 'h', 't', 'unknown')
+  `).rejects.toThrow(/check constraint/)
+})

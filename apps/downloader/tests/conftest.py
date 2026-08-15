@@ -20,6 +20,7 @@ def conn():
         c.execute((DB_PKG / "sql" / "000_auth_shim.sql").read_text())
         c.execute((DB_PKG / "migrations" / "0000_init.sql").read_text())
         c.execute((DB_PKG / "migrations" / "0001_media_assets.sql").read_text())
+        c.execute((DB_PKG / "migrations" / "0002_candidate_previews.sql").read_text())
     with psycopg.connect(TEST_DB_URL) as c:
         yield c
 

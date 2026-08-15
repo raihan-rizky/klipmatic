@@ -61,6 +61,7 @@ export async function freshDb() {
 
   await sql.unsafe(readFileSync(join(HERE, '../migrations/0000_init.sql'), 'utf8'))
   await sql.unsafe(readFileSync(join(HERE, '../migrations/0001_media_assets.sql'), 'utf8'))
+  await sql.unsafe(readFileSync(join(HERE, '../migrations/0002_candidate_previews.sql'), 'utf8'))
 
   await sql.unsafe(`
     grant select, insert, update, delete on all tables in schema public to authenticated;
