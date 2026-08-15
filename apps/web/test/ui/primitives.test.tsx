@@ -15,6 +15,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 
 describe('UI primitives', () => {
@@ -57,5 +64,22 @@ describe('UI primitives', () => {
     render(<Progress value={42} aria-label="Proses video" />)
 
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
+  })
+
+  test('dialog exposes an accessible title and icon close control', () => {
+    render(
+      <Dialog>
+        <DialogTrigger>Preview candidate</DialogTrigger>
+        <DialogContent>
+          <DialogTitle>Candidate #1</DialogTitle>
+          <DialogDescription>Hook candidate</DialogDescription>
+        </DialogContent>
+      </Dialog>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview candidate' }))
+    expect(screen.getByRole('dialog', { name: 'Candidate #1' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Tutup preview' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
