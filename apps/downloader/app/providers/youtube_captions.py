@@ -5,10 +5,15 @@ import logging
 import os
 import re
 import subprocess
+import time
+from collections.abc import Mapping
+from itertools import pairwise
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
+from app.observability import elapsed_ms, emit
 from app.providers.transcription import TranscriptResult, Word, cache_model
+from app.subprocesses import run_command
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +95,7 @@ def _cue_words(event: dict[str, Any], cue_end: float) -> list[Word]:
 
     # Beberapa JSON3 memberi semua segmen offset 0. Dalam kasus itu hasil di
     # atas saling tumpang tindih; lebih aman interpolasi seluruh cue.
-    if any(a.start < b.end and b.start < a.end for a, b in zip(words, words[1:])):
+    if any(a.start < b.end and b.start < a.end for a, b in pairwise(words)):
         return _distribute("".join(str(segment["utf8"]) for segment in segments), start, cue_end)
     return words
 
@@ -99,7 +104,7 @@ def _merged_coverage(intervals: list[tuple[float, float]]) -> float:
     if not intervals:
         return 0.0
     total = 0.0
-    current_start, current_end = sorted(intervals)[0]
+    current_start, current_end = min(intervals)
     for start, end in sorted(intervals)[1:]:
         if start <= current_end:
             current_end = max(current_end, end)
@@ -190,8 +195,9 @@ def fetch_youtube_caption(
     prefix = "youtube-caption"
     workdir.mkdir(parents=True, exist_ok=True)
     output = workdir / f"{prefix}.%(ext)s"
+    started = time.monotonic()
     try:
-        proc = subprocess.run(
+        proc = run_command(
             [
                 "yt-dlp",
                 "--skip-download",
@@ -207,15 +213,37 @@ def fetch_youtube_caption(
                 str(output),
                 url,
             ],
-            capture_output=True,
-            text=True,
-            timeout=300,
+            tool="yt-dlp",
+            operation="fetch_caption",
+            timeout_sec=300,
         )
     except (OSError, subprocess.TimeoutExpired) as error:
-        log.info("caption YouTube gagal diambil; fallback ke audio (%s)", type(error).__name__)
+        emit(
+            log,
+            "provider.request.failed",
+            level=logging.WARNING,
+            provider="youtube_caption",
+            operation="fetch_caption",
+            error_code=(
+                "TIMEOUT"
+                if isinstance(error, subprocess.TimeoutExpired)
+                else "TRANSPORT"
+            ),
+            error_class=type(error).__name__,
+            duration_ms=elapsed_ms(started),
+        )
         return None
     if proc.returncode != 0:
-        log.info("caption YouTube tidak tersedia; fallback ke audio (yt-dlp %d)", proc.returncode)
+        emit(
+            log,
+            "provider.request.failed",
+            level=logging.INFO,
+            provider="youtube_caption",
+            operation="fetch_caption",
+            error_code="UNAVAILABLE",
+            status_code=proc.returncode,
+            duration_ms=elapsed_ms(started),
+        )
         return None
 
     paths = list(workdir.glob(f"{prefix}.*.json3"))
@@ -227,13 +255,28 @@ def fetch_youtube_caption(
         try:
             body = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            log.warning("caption YouTube %s rusak; mencoba track berikutnya", language)
             continue
         try:
             result = parse_json3(body, language=language, duration_sec=duration_sec, env=env)
         except (TypeError, ValueError):
-            log.warning("timestamp caption YouTube %s rusak; mencoba track berikutnya", language)
             continue
         if result is not None:
+            emit(
+                log,
+                "provider.request.completed",
+                provider="youtube_caption",
+                operation="fetch_caption",
+                result_count=len(result.words),
+                duration_ms=elapsed_ms(started),
+            )
             return result
+    emit(
+        log,
+        "provider.request.failed",
+        level=logging.INFO,
+        provider="youtube_caption",
+        operation="fetch_caption",
+        error_code="UNAVAILABLE",
+        duration_ms=elapsed_ms(started),
+    )
     return None

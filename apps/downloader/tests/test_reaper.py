@@ -1,6 +1,7 @@
-from app.queue import claim_job, complete_job, enqueue
+import logging
 from unittest.mock import MagicMock, call
 
+from app.queue import claim_job, complete_job, enqueue
 from app.reaper import reap_expired_media_assets, reap_stale_jobs
 
 
@@ -43,6 +44,24 @@ def test_reaper_menghormati_max_attempts(conn):
         conn.execute("select status from jobs where id = %s", (job_id,)).fetchone()[0]
         == "dead"
     )
+
+
+def test_job_reaper_logs_summary(conn, caplog):
+    caplog.set_level(logging.INFO)
+    enqueue(conn, "ingest", {})
+    claim_job(conn, "w1")
+    conn.execute("update jobs set locked_at = now() - interval '10 minutes'")
+    conn.commit()
+
+    assert reap_stale_jobs(conn, older_than_sec=300) == 1
+
+    record = next(
+        record
+        for record in caplog.records
+        if getattr(record, "event_name", None) == "reaper.jobs.completed"
+    )
+    assert record.event_fields["reaped_count"] == 1
+    assert record.event_fields["operation"] == "stale_jobs"
 
 
 def _media_project(conn) -> tuple[str, str]:

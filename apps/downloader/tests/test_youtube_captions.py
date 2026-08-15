@@ -1,4 +1,5 @@
 import json
+import logging
 import subprocess
 
 import pytest
@@ -127,3 +128,28 @@ def test_caption_first_dapat_dimatikan_lewat_env(raw, expected):
 
 def test_daftar_bahasa_dapat_dikonfigurasi():
     assert preferred_languages({"YOUTUBE_CAPTION_LANGS": "id,en-US"}) == ("id", "en-US")
+
+
+def test_fetch_logs_safe_provider_outcome(tmp_path, monkeypatch, caplog):
+    caplog.set_level(logging.INFO)
+    monkeypatch.setattr(
+        "app.providers.youtube_captions.subprocess.run",
+        lambda args, **kwargs: subprocess.CompletedProcess(args, 1, "", "private"),
+    )
+
+    assert (
+        fetch_youtube_caption(
+            "https://youtu.be/private?token=secret", 60, tmp_path, env=_env()
+        )
+        is None
+    )
+
+    record = next(
+        record
+        for record in caplog.records
+        if getattr(record, "event_name", None) == "provider.request.failed"
+    )
+    assert record.event_fields["provider"] == "youtube_caption"
+    assert record.event_fields["error_code"] == "UNAVAILABLE"
+    assert "token=secret" not in caplog.text
+    assert "private" not in caplog.text

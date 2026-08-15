@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import logging
 import os
+import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
 
 import httpx
 
 from app.errors import JobError
+from app.observability import elapsed_ms, emit
 
 log = logging.getLogger(__name__)
 
@@ -168,10 +170,11 @@ def transcribe(
     client = http or httpx.Client(timeout=600)
 
     errors: list[str] = []
-    for cfg in chain:
+    for attempt, cfg in enumerate(chain, start=1):
+        started = time.monotonic()
         try:
             result = _call(cfg, audio, model, client)
-            return TranscriptResult(
+            final = TranscriptResult(
                 language=result.language,
                 text=result.text,
                 words=result.words,
@@ -179,8 +182,27 @@ def transcribe(
                 model=model,
                 cost_usd=estimate_cost(cfg, duration_sec),
             )
-        except JobError as e:
-            log.warning("provider transkripsi %s gagal: %s", cfg.name, e)
-            errors.append(f"{cfg.name}: {e}")
+            emit(
+                log,
+                "provider.request.completed",
+                provider=cfg.name,
+                operation="transcribe",
+                attempt=attempt,
+                result_count=len(final.words),
+                duration_ms=elapsed_ms(started),
+            )
+            return final
+        except JobError as error:
+            emit(
+                log,
+                "provider.request.failed",
+                level=logging.WARNING,
+                provider=cfg.name,
+                operation="transcribe",
+                attempt=attempt,
+                error_code=error.code,
+                duration_ms=elapsed_ms(started),
+            )
+            errors.append(f"{cfg.name}: {error}")
 
     raise JobError("TRANSCRIBE_FAILED", "; ".join(errors), terminal=False)

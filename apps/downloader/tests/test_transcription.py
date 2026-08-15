@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import httpx
@@ -243,3 +244,38 @@ def test_providers_dapat_disuntikkan_untuk_pengujian(env, tmp_path: Path):
 
     result = transcribe(audio, 60, http=_client(handler), providers=custom)
     assert result.provider == "sendiri"
+
+
+def test_transcribe_logs_each_fallback_attempt_without_secrets(
+    env, tmp_path: Path, caplog
+):
+    caplog.set_level(logging.INFO)
+    audio = tmp_path / "private-audio.opus"
+    audio.write_bytes(b"x")
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(503, text="RAHASIA-DEEPINFRA-123")
+        return httpx.Response(200, json=_fixture("groq_ok.json"))
+
+    transcribe(audio, 60, http=_client(handler))
+
+    events = [
+        (record.event_name, record.event_fields)
+        for record in caplog.records
+        if getattr(record, "event_name", "").startswith("provider.request.")
+    ]
+    assert [name for name, _fields in events] == [
+        "provider.request.failed",
+        "provider.request.completed",
+    ]
+    assert [fields["provider"] for _name, fields in events] == [
+        "deepinfra",
+        "groq",
+    ]
+    assert events[-1][1]["result_count"] > 0
+    assert "RAHASIA" not in caplog.text
+    assert "private-audio" not in caplog.text

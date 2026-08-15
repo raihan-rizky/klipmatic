@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import logging
 import os
+import time
+from collections.abc import Mapping
 from typing import Any
-from typing import Mapping
 
 import httpx
 
 from app.crypto import ApiKeyRecord
 from app.errors import JobError
+from app.observability import elapsed_ms, emit
+
+log = logging.getLogger(__name__)
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 ANTHROPIC_BASE = "https://api.anthropic.com/v1"
@@ -127,25 +132,96 @@ def call_llm(key: ApiKeyRecord, prompt: str, *, http: httpx.Client | None = None
     """
     url, headers, payload = _request(key, prompt)
     client = http or httpx.Client(timeout=180)
-    resp = client.post(url, headers=headers, json=payload, timeout=180)
+    started = time.monotonic()
+    try:
+        resp = client.post(url, headers=headers, json=payload, timeout=180)
+    except Exception as error:
+        emit(
+            log,
+            "provider.request.failed",
+            level=logging.ERROR,
+            provider=key.provider,
+            operation="generate",
+            error_code="TRANSPORT",
+            error_class=type(error).__name__,
+            duration_ms=elapsed_ms(started),
+        )
+        raise
 
     if resp.status_code in (401, 403, 429):
         # 429 di sini berarti kuota milik user habis, bukan sistem kita
         # kelebihan beban. Mencoba ulang hanya membuang percobaan dan menunda
         # pesan yang seharusnya user lihat.
-        raise JobError(
+        error = JobError(
             "BYOK_INVALID",
             f"provider {key.provider} menolak kredensial (HTTP {resp.status_code})",
             terminal=True,
         )
+        emit(
+            log,
+            "provider.request.failed",
+            level=logging.WARNING,
+            provider=key.provider,
+            operation="generate",
+            status_code=resp.status_code,
+            error_code=error.code,
+            duration_ms=elapsed_ms(started),
+        )
+        raise error
     if resp.status_code != 200:
-        raise JobError(
+        error = JobError(
             "LLM_BAD_OUTPUT",
             f"provider {key.provider} membalas HTTP {resp.status_code}",
             terminal=False,
         )
+        emit(
+            log,
+            "provider.request.failed",
+            level=logging.WARNING,
+            provider=key.provider,
+            operation="generate",
+            status_code=resp.status_code,
+            error_code=error.code,
+            duration_ms=elapsed_ms(started),
+        )
+        raise error
 
-    text = _extract_text(key.provider, resp.json())
+    try:
+        text = _extract_text(key.provider, resp.json())
+    except JobError as error:
+        emit(
+            log,
+            "provider.request.failed",
+            level=logging.WARNING,
+            provider=key.provider,
+            operation="generate",
+            status_code=resp.status_code,
+            error_code=error.code,
+            duration_ms=elapsed_ms(started),
+        )
+        raise
     if not text or not text.strip():
-        raise JobError("LLM_BAD_OUTPUT", f"respons {key.provider} kosong", terminal=False)
+        error = JobError(
+            "LLM_BAD_OUTPUT", f"respons {key.provider} kosong", terminal=False
+        )
+        emit(
+            log,
+            "provider.request.failed",
+            level=logging.WARNING,
+            provider=key.provider,
+            operation="generate",
+            status_code=resp.status_code,
+            error_code=error.code,
+            duration_ms=elapsed_ms(started),
+        )
+        raise error
+    emit(
+        log,
+        "provider.request.completed",
+        provider=key.provider,
+        operation="generate",
+        status_code=resp.status_code,
+        result_count=len(text),
+        duration_ms=elapsed_ms(started),
+    )
     return text

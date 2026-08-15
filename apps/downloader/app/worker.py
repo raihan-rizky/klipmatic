@@ -165,14 +165,10 @@ def main() -> None:
         while True:
             now = time.monotonic()
             if now - last_reap > reap_every:
-                reaped = reap_stale_jobs(conn)
-                if reaped:
-                    log.warning("mengembalikan %d job basi ke antrian", reaped)
+                reap_stale_jobs(conn)
                 last_reap = now
             if now - last_asset_reap > asset_reap_every:
-                reaped_assets = reap_expired_media_assets(conn, storage)
-                if reaped_assets:
-                    log.info("menghapus %d upload media kedaluwarsa", reaped_assets)
+                reap_expired_media_assets(conn, storage)
                 last_asset_reap = now
             if not run_once(conn, worker_id, handlers):
                 time.sleep(poll)

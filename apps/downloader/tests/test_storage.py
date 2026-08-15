@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from pathlib import Path
@@ -63,3 +64,23 @@ def test_delete_is_idempotent(storage: Storage, tmp_path: Path, prefix: str):
     storage.delete(key)
 
     assert storage.exists(key) is False
+
+
+def test_put_file_logs_safe_summary(storage: Storage, tmp_path: Path, prefix: str, caplog):
+    caplog.set_level(logging.INFO)
+    path = tmp_path / "private-filename.txt"
+    path.write_bytes(b"abc")
+
+    storage.put_file(f"{prefix}/private-object.txt", path, "text/plain")
+
+    record = next(
+        record
+        for record in caplog.records
+        if getattr(record, "event_name", None) == "storage.operation.completed"
+    )
+    assert record.event_fields["operation"] == "put_file"
+    assert record.event_fields["bucket_role"] == "media"
+    assert record.event_fields["byte_count"] == 3
+    assert record.event_fields["duration_ms"] >= 0
+    assert "private-filename" not in caplog.text
+    assert "private-object" not in caplog.text

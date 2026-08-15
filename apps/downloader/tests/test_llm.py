@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import httpx
@@ -205,3 +206,27 @@ def test_provider_tidak_dikenal_ditolak_terminal():
         call_llm(_key("provider_karangan"), "p", http=_client(lambda r: httpx.Response(200)))
     assert e.value.code == "BYOK_INVALID"
     assert e.value.terminal is True
+
+
+def test_call_llm_logs_safe_provider_success(caplog):
+    caplog.set_level(logging.INFO)
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_fixture("llm_gemini_ok.json"))
+
+    call_llm(
+        _key("gemini"),
+        "private prompt with secret",
+        http=_client(handler),
+    )
+
+    record = next(
+        record
+        for record in caplog.records
+        if getattr(record, "event_name", None) == "provider.request.completed"
+    )
+    assert record.event_fields["provider"] == "gemini"
+    assert record.event_fields["operation"] == "generate"
+    assert record.event_fields["status_code"] == 200
+    assert "private prompt" not in caplog.text
+    assert SECRET not in caplog.text
