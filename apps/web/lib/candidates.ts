@@ -16,6 +16,8 @@ export interface CandidateView {
 
 export type PipelineJobStatus = 'queued' | 'running' | 'done' | 'failed' | 'dead'
 
+export class CandidateNotFoundError extends Error {}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
@@ -84,6 +86,28 @@ export async function latestThumbnailJobStatus(
      limit 1
   `
   return (rows[0]?.status as PipelineJobStatus | undefined) ?? null
+}
+
+export async function loadCandidateThumbnail(
+  sql: Sql,
+  userId: string,
+  candidateId: string,
+): Promise<{ key: string }> {
+  if (!UUID_RE.test(candidateId)) throw new CandidateNotFoundError()
+
+  const rows = await sql`
+    select c.thumbnail_r2_key
+      from clip_candidates c
+      join projects p on p.id = c.project_id
+     where c.id = ${candidateId}
+       and c.thumbnail_status = 'ready'
+       and c.thumbnail_r2_key is not null
+       and p.user_id = ${userId}
+     limit 1
+  `
+  const key = rows[0]?.thumbnail_r2_key as string | undefined
+  if (!key) throw new CandidateNotFoundError()
+  return { key }
 }
 
 function mmss(totalSec: number): string {

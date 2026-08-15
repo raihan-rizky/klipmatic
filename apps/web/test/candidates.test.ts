@@ -26,7 +26,13 @@ import ProjectError from '../app/projects/[id]/error'
 import ProjectPage from '../app/projects/[id]/page'
 import { CandidateList } from '../components/CandidateList'
 import * as candidateLib from '../lib/candidates'
-import { formatRange, listCandidates, projectViewState } from '../lib/candidates'
+import {
+  CandidateNotFoundError,
+  formatRange,
+  listCandidates,
+  loadCandidateThumbnail,
+  projectViewState,
+} from '../lib/candidates'
 
 let sql: postgres.Sql
 let alice: string
@@ -127,6 +133,29 @@ test('latest thumbnail job status is ownership checked', async () => {
   await expect(
     candidateLib.latestThumbnailJobStatus(sql, bob, projectTopId),
   ).resolves.toBeNull()
+})
+
+test('candidate thumbnail key is returned only for its owner when ready', async () => {
+  const [candidate] = await listCandidates(sql, alice, projectTopId)
+  await expect(loadCandidateThumbnail(sql, alice, candidate!.id)).resolves.toEqual({
+    key: 'candidate-thumbnails/top.webp',
+  })
+  await expect(loadCandidateThumbnail(sql, bob, candidate!.id)).rejects.toBeInstanceOf(
+    CandidateNotFoundError,
+  )
+})
+
+test('candidate thumbnail rejects invalid, missing, and pending candidates', async () => {
+  const candidates = await listCandidates(sql, alice, projectTopId)
+  await expect(loadCandidateThumbnail(sql, alice, 'not-a-uuid')).rejects.toBeInstanceOf(
+    CandidateNotFoundError,
+  )
+  await expect(
+    loadCandidateThumbnail(sql, alice, '00000000-0000-0000-0000-000000000000'),
+  ).rejects.toBeInstanceOf(CandidateNotFoundError)
+  await expect(loadCandidateThumbnail(sql, alice, candidates[1]!.id)).rejects.toBeInstanceOf(
+    CandidateNotFoundError,
+  )
 })
 
 test('queued thumbnail job keeps candidate rows behind progress', () => {
