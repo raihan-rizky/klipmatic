@@ -11,6 +11,7 @@ test('renders ranked candidate details and transcript disclosure', () => {
       candidates={[
         {
           id: 'candidate-1',
+          rank: 1,
           title: 'Hook yang kuat',
           hookText: 'Kalimat pembuka',
           startSec: 10,
@@ -18,6 +19,8 @@ test('renders ranked candidate details and transcript disclosure', () => {
           score: 0.91,
           reason: 'Langsung ke inti',
           transcriptSlice: 'Isi transkrip',
+          thumbnailStatus: 'ready',
+          thumbnailUrl: '/api/candidates/candidate-1/thumbnail',
         },
       ]}
     />,

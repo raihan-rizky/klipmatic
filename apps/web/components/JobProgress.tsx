@@ -11,10 +11,10 @@ import { type JobState, progressLabel } from './jobProgressLabel'
 
 type PipelineJob = JobState & {
   id: string
-  type: 'ingest' | 'transcribe' | 'analyze'
+  type: 'ingest' | 'transcribe' | 'analyze' | 'prepare_thumbnails'
 }
 
-const PIPELINE_TYPES = ['ingest', 'transcribe', 'analyze'] as const
+const PIPELINE_TYPES = ['ingest', 'transcribe', 'analyze', 'prepare_thumbnails'] as const
 
 export function JobProgress({ projectId }: { projectId: string }) {
   const [job, setJob] = useState<PipelineJob | null>(null)
@@ -49,9 +49,14 @@ export function JobProgress({ projectId }: { projectId: string }) {
         errorCode: latest.error_code,
       })
 
-      // Kandidat dirender server-side. Begitu analyze selesai, refresh menarik
-      // kandidat baru dan otomatis mengganti progress bar dengan hasil.
-      if (latest.type === 'analyze' && latest.status === 'done') window.location.reload()
+      // Kandidat baru boleh tampil setelah preview-nya siap atau worker sudah
+      // mencapai terminal state sehingga halaman tidak reload di tengah tahap.
+      if (
+        latest.type === 'prepare_thumbnails' &&
+        (latest.status === 'done' || latest.status === 'failed' || latest.status === 'dead')
+      ) {
+        window.location.reload()
+      }
     }
 
     void refreshJob()
@@ -90,7 +95,7 @@ export function JobProgress({ projectId }: { projectId: string }) {
 
   const failed = job.status === 'failed' || job.status === 'dead'
   const currentIndex = PIPELINE_TYPES.indexOf(job.type)
-  const labels = ['Ambil video', 'Transkripsi', 'Cari highlight']
+  const labels = ['Ambil video', 'Transkripsi', 'Cari highlight', 'Siapkan preview']
 
   return (
     <Card className={cn(failed && 'border-danger/35')}>
@@ -110,7 +115,7 @@ export function JobProgress({ projectId }: { projectId: string }) {
         </div>
         {!failed && <Progress className="mt-4" value={job.progress} aria-label="Progress pipeline" />}
 
-        <ol className="mt-6 grid gap-3 sm:grid-cols-3">
+        <ol className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {labels.map((label, index) => {
             const complete = index < currentIndex || (index === currentIndex && job.status === 'done')
             const active = index === currentIndex && !complete

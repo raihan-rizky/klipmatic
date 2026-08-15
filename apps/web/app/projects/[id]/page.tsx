@@ -5,7 +5,7 @@ import { JobProgress } from '@/components/JobProgress'
 import { PageHeader } from '@/components/PageHeader'
 import { StatePanel } from '@/components/StatePanel'
 import { Button } from '@/components/ui/button'
-import { listCandidates, projectViewState } from '@/lib/candidates'
+import { latestThumbnailJobStatus, listCandidates, projectViewState } from '@/lib/candidates'
 import { sql } from '@/lib/db'
 import { supabaseServer } from '@/lib/supabase/server'
 
@@ -42,10 +42,14 @@ export default async function ProjectPage({
     )
   }
 
-  const candidates = await listCandidates(sql, user.id, id)
+  const [candidates, thumbnailJobStatus] = await Promise.all([
+    listCandidates(sql, user.id, id),
+    latestThumbnailJobStatus(sql, user.id, id),
+  ])
   const view = projectViewState({
     hasActiveJob: Boolean(job),
     candidateCount: candidates.length,
+    thumbnailJobStatus,
   })
 
   return (
@@ -64,7 +68,7 @@ export default async function ProjectPage({
         }
       />
 
-      {view === 'progress' && job && <JobProgress projectId={id} />}
+      {view === 'progress' && <JobProgress projectId={id} />}
       {view === 'no-job' && (
         <StatePanel
           tone="warning"

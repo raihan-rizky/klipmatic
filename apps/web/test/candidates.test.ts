@@ -25,6 +25,7 @@ vi.mock('@/lib/supabase/server', () => ({
 import ProjectError from '../app/projects/[id]/error'
 import ProjectPage from '../app/projects/[id]/page'
 import { CandidateList } from '../components/CandidateList'
+import * as candidateLib from '../lib/candidates'
 import { formatRange, listCandidates, projectViewState } from '../lib/candidates'
 
 let sql: postgres.Sql
@@ -32,6 +33,7 @@ let alice: string
 let bob: string
 let projectId: string
 let projectKosongId: string
+let projectTopId: string
 
 async function renderPage(id: string, job?: string): Promise<string> {
   const element = await ProjectPage({
@@ -47,8 +49,9 @@ beforeAll(async () => {
   bob = await makeUser(sql, 'bob@test.id')
 
   const [src] = await sql`
-    insert into sources (kind, external_id, is_public, url_original, status, duration_sec)
-    values ('youtube', 'kandidat001', true, 'https://youtu.be/x', 'ready', 600)
+    insert into sources (kind, external_id, is_public, url_original, status, duration_sec, thumbnail_url)
+    values ('youtube', 'kandidat001', true, 'https://youtu.be/x', 'ready', 600,
+            'https://img.test/source.webp')
     returning id`
   const [proj] = await sql`
     insert into projects (user_id, source_id, title)
@@ -59,6 +62,11 @@ beforeAll(async () => {
     insert into projects (user_id, source_id, title)
     values (${alice}, ${src!.id}, 'belum dianalisis') returning id`
   projectKosongId = kosong!.id as string
+
+  const [top] = await sql`
+    insert into projects (user_id, source_id, title)
+    values (${alice}, ${src!.id}, 'top candidates') returning id`
+  projectTopId = top!.id as string
 
   infra.sql = sql
 
@@ -75,6 +83,22 @@ beforeAll(async () => {
       values (${projectId}, 10, 80, ${score}, ${title}, ${'hook ' + title},
               ${reason}, ${'transkrip ' + title})`
   }
+
+  for (let index = 0; index < 12; index += 1) {
+    await sql`
+      insert into clip_candidates (project_id, start_sec, end_sec, score, title,
+                                   hook_text, reason, transcript_slice)
+      values (${projectTopId}, ${index * 20}, ${index * 20 + 15},
+              ${0.99 - index * 0.01}, ${`Top ${index + 1}`},
+              ${`hook top ${index + 1}`}, 'reason', 'transcript')`
+  }
+  const [highest] = await sql`
+    select id from clip_candidates where project_id = ${projectTopId}
+    order by score desc, start_sec asc limit 1`
+  await sql`
+    update clip_candidates set thumbnail_status = 'ready',
+      thumbnail_r2_key = 'candidate-thumbnails/top.webp'
+    where id = ${highest!.id}`
 })
 afterAll(async () => {
   await sql.end()
@@ -83,6 +107,44 @@ afterAll(async () => {
 test('mengembalikan kandidat terurut dari skor tertinggi', async () => {
   const rows = await listCandidates(sql, alice, projectId)
   expect(rows.map((r) => r.title)).toEqual(['Tinggi', 'Sedang', 'Rendah'])
+})
+
+test('returns only ranked Top 10 with candidate and source fallbacks', async () => {
+  const rows = await listCandidates(sql, alice, projectTopId)
+  expect(rows).toHaveLength(10)
+  expect(rows.map((row) => row.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+  expect(rows[0]!.thumbnailUrl).toBe(`/api/candidates/${rows[0]!.id}/thumbnail`)
+  expect(rows[1]!.thumbnailUrl).toBe('https://img.test/source.webp')
+})
+
+test('latest thumbnail job status is ownership checked', async () => {
+  await sql`
+    insert into jobs (type, payload, user_id, project_id, status)
+    values ('prepare_thumbnails', '{}'::jsonb, ${alice}, ${projectTopId}, 'running')`
+  await expect(
+    candidateLib.latestThumbnailJobStatus(sql, alice, projectTopId),
+  ).resolves.toBe('running')
+  await expect(
+    candidateLib.latestThumbnailJobStatus(sql, bob, projectTopId),
+  ).resolves.toBeNull()
+})
+
+test('queued thumbnail job keeps candidate rows behind progress', () => {
+  expect(projectViewState({
+    hasActiveJob: false,
+    candidateCount: 10,
+    thumbnailJobStatus: 'queued',
+  })).toBe('progress')
+})
+
+test('terminal or legacy thumbnail state reveals results', () => {
+  for (const thumbnailJobStatus of ['done', 'failed', 'dead', null] as const) {
+    expect(projectViewState({
+      hasActiveJob: false,
+      candidateCount: 10,
+      thumbnailJobStatus,
+    })).toBe('results')
+  }
 })
 
 test('angka dikembalikan sebagai number, bukan string', async () => {

@@ -2,6 +2,7 @@ import type { Sql } from 'postgres'
 
 export interface CandidateView {
   id: string
+  rank: number
   startSec: number
   endSec: number
   score: number
@@ -9,7 +10,11 @@ export interface CandidateView {
   hookText: string
   reason: string | null
   transcriptSlice: string
+  thumbnailStatus: 'pending' | 'ready' | 'failed'
+  thumbnailUrl: string | null
 }
+
+export type PipelineJobStatus = 'queued' | 'running' | 'done' | 'failed' | 'dead'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -31,17 +36,21 @@ export async function listCandidates(
 
   const rows = await sql`
     select c.id, c.start_sec, c.end_sec, c.score, c.title, c.hook_text,
-           c.reason, c.transcript_slice
+           c.reason, c.transcript_slice, c.thumbnail_status,
+           c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url
       from clip_candidates c
       join projects p on p.id = c.project_id
+      join sources s on s.id = p.source_id
      where c.project_id = ${projectId} and p.user_id = ${userId}
      order by c.score desc, c.start_sec asc
+     limit 10
   `
   // Kolom numeric datang sebagai string dari driver: presisi arbitrer tidak
   // muat di double. Konversi dilakukan di sini supaya pemanggil tidak pernah
   // menerima string yang diam-diam ikut operasi aritmetika.
-  return rows.map((r) => ({
+  return rows.map((r, index) => ({
     id: r.id as string,
+    rank: index + 1,
     startSec: Number(r.start_sec),
     endSec: Number(r.end_sec),
     score: Number(r.score),
@@ -49,7 +58,32 @@ export async function listCandidates(
     hookText: r.hook_text as string,
     reason: (r.reason as string | null) ?? null,
     transcriptSlice: r.transcript_slice as string,
+    thumbnailStatus: r.thumbnail_status as CandidateView['thumbnailStatus'],
+    thumbnailUrl:
+      r.thumbnail_status === 'ready' && r.thumbnail_r2_key
+        ? `/api/candidates/${r.id as string}/thumbnail`
+        : ((r.source_thumbnail_url as string | null) ?? null),
   }))
+}
+
+export async function latestThumbnailJobStatus(
+  sql: Sql,
+  userId: string,
+  projectId: string,
+): Promise<PipelineJobStatus | null> {
+  if (!UUID_RE.test(projectId)) return null
+
+  const rows = await sql`
+    select j.status
+      from jobs j
+      join projects p on p.id = j.project_id
+     where j.project_id = ${projectId}
+       and j.type = 'prepare_thumbnails'
+       and p.user_id = ${userId}
+     order by j.created_at desc
+     limit 1
+  `
+  return (rows[0]?.status as PipelineJobStatus | undefined) ?? null
 }
 
 function mmss(totalSec: number): string {
@@ -79,7 +113,11 @@ export type ProjectViewState = 'progress' | 'no-job' | 'results'
 export function projectViewState(args: {
   hasActiveJob: boolean
   candidateCount: number
+  thumbnailJobStatus?: PipelineJobStatus | null
 }): ProjectViewState {
+  if (args.thumbnailJobStatus === 'queued' || args.thumbnailJobStatus === 'running') {
+    return 'progress'
+  }
   if (args.candidateCount > 0) return 'results'
   return args.hasActiveJob ? 'progress' : 'no-job'
 }
