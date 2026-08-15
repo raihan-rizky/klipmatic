@@ -1,6 +1,6 @@
-# CheapClipper
+# Klipmatic
 
-CheapClipper mengubah video panjang menjadi kandidat klip pendek dengan
+Klipmatic mengubah video panjang menjadi kandidat klip pendek dengan
 caption/transkripsi bertimestamp dan analisis LLM. Status development saat
 ini sudah sampai akhir P2: alur URL → ingest → transcribe → analyze →
 candidate → editor browser → export MP4 tersedia.
@@ -79,6 +79,35 @@ uv run python -m app.worker
 
 Web tersedia di `http://localhost:3000`, PostgreSQL di port `55432`, dan
 console MinIO di `http://localhost:9001`.
+
+## Structured logging
+
+`LOG_FORMAT=pretty` enak dibaca saat development, sedangkan `json` cocok untuk
+log collector di production. `LOG_LEVEL` menerima `DEBUG`, `INFO`, `WARNING`,
+`ERROR`, atau `CRITICAL`.
+
+Contoh menjalankan web dengan JSON log:
+
+```powershell
+$env:LOG_FORMAT='json'
+$env:LOG_LEVEL='INFO'
+bun run dev
+```
+
+Pantau worker container:
+
+```powershell
+docker compose -f docker-compose.dev.yml logs -f worker
+```
+
+Web memakai `x-request-id` sebagai correlation ID dan mengembalikannya di
+response. Worker memakai `job_id`, jadi satu job bisa diikuti dari claim,
+handler, progress, sampai selesai/retry/gagal. Progress hanya dicatat saat
+melewati milestone 0%, 25%, 50%, 75%, dan 100% supaya log tetap signal-rich.
+
+Log sengaja tidak menyimpan raw content, URL, command/argument subprocess,
+stdout, stderr, SQL, maupun credential. Contohnya, error database dicatat
+sebagai `error_class=PostgresError error_code=42703`, bukan query dan parameter.
 
 ## Quality checks
 
