@@ -17,7 +17,11 @@ MAX_DURATION_SEC = 4 * 60 * 60  # Spec §9.1
 _ERROR_PATTERNS: list[tuple[str, str, bool]] = [
     (r"not made this video available in your country|geo.?restrict", "SOURCE_GEOBLOCKED", True),
     (r"confirm your age|age.?restrict", "SOURCE_AGE_RESTRICTED", True),
-    (r"not a bot|Sign in to confirm|too many requests|HTTP Error 429", "SOURCE_BLOCKED", False),
+    (
+        r"not a bot|Sign in to confirm|too many requests|HTTP Error (?:403|429)|403 Forbidden",
+        "SOURCE_BLOCKED",
+        False,
+    ),
     (r"unable to extract|player response|nsig extraction", "SOURCE_BLOCKED", False),
     (
         r"private video|is private|removed by the uploader|Video unavailable|does not exist",

@@ -1,21 +1,90 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: cheapclipper
-    # 54322 (rencana awal) jatuh di rentang port yang dicadangkan Windows
-    # Hyper-V/WinNAT (54226-54325), sehingga bind-nya ditolak OS.
-    ports: ["55432:5432"]
+      POSTGRES_DB: klipmatic
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - klipmatic-postgres:/var/lib/postgresql/data
+      - ./packages/db/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d klipmatic"]
       interval: 2s
-      retries: 15
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  migrate:
+    image: postgres:16-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: postgres
+    volumes:
+      - ./packages/db/migrations:/migrations:ro
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if [ "$(psql -h postgres -U postgres -d klipmatic -tAc "select to_regclass('public.jobs')")" != "jobs" ]; then
+          psql -v ON_ERROR_STOP=1 -h postgres -U postgres -d klipmatic -f /migrations/0000_init.sql
+        fi
+        if [ "$(psql -h postgres -U postgres -d klipmatic -tAc "select to_regclass('public.media_assets')")" != "media_assets" ]; then
+          psql -v ON_ERROR_STOP=1 -h postgres -U postgres -d klipmatic -f /migrations/0001_media_assets.sql
+        fi
+        if [ "$(psql -h postgres -U postgres -d klipmatic -tAc "select 1 from information_schema.columns where table_name = 'clip_candidates' and column_name = 'thumbnail_status'")" != "1" ]; then
+          psql -v ON_ERROR_STOP=1 -h postgres -U postgres -d klipmatic -f /migrations/0002_candidate_previews.sql
+        fi
+
   minio:
     image: minio/minio
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
       MINIO_API_CORS_ALLOW_ORIGIN: http://localhost:3000
-    ports: ["9000:9000", "9001:9001"]
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - klipmatic-minio:/data
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/downloader/Dockerfile
+    image: klipmatic-worker:dev
+    restart: unless-stopped
+    init: true
+    working_dir: /work/apps/downloader
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${WORKER_DATABASE_URL:-${DATABASE_URL}}
+      R2_ENDPOINT: http://minio:9000
+      R2_ACCESS_KEY_ID: minioadmin
+      R2_SECRET_ACCESS_KEY: minioadmin
+      R2_BUCKET: klipmatic
+      UV_PROJECT_ENVIRONMENT: /venv
+      UV_LINK_MODE: copy
+    volumes:
+      - .:/work
+      - worker-venv:/venv
+    command: uv run python -m app.worker
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio:
+        condition: service_started
+    stop_grace_period: 20s
+
+volumes:
+  klipmatic-postgres:
+  klipmatic-minio:
+  worker-venv:

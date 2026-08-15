@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -86,7 +87,8 @@ def test_handler_prepares_only_ranked_top_ten(conn, tmp_path):
     assert all(call.args[2] == "image/webp" for call in storage.put_file.call_args_list)
 
 
-def test_one_thumbnail_failure_does_not_fail_batch(conn, tmp_path):
+def test_one_thumbnail_failure_does_not_fail_batch(conn, tmp_path, caplog):
+    caplog.set_level(logging.INFO)
     uid, sid, pid, _ = setup_project_with_candidates(conn, count=2)
     calls = 0
 
@@ -115,6 +117,17 @@ def test_one_thumbnail_failure_does_not_fail_batch(conn, tmp_path):
         ).fetchall()
     ]
     assert states == ["failed", "ready"]
+    events = [
+        (record.event_name, record.event_fields)
+        for record in caplog.records
+        if hasattr(record, "event_name")
+        and record.event_name == "thumbnail.failed"
+    ]
+    assert len(events) == 1
+    assert events[0][1]["error_code"] == "SOURCE_BLOCKED"
+    assert events[0][1]["error_class"] == "JobError"
+    assert events[0][1]["candidate_id"]
+    assert "temporary" not in caplog.text
 
 
 def test_handler_rejects_job_for_different_owner(conn, tmp_path):
