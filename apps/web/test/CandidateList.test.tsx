@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { CandidateView } from '@/lib/candidates'
 import { CandidateList } from '@/components/CandidateList'
@@ -62,4 +62,14 @@ test('broken poster falls back without changing media dimensions', () => {
   render(<CandidateList candidates={[candidate1]} />)
   fireEvent.error(screen.getByRole('img', { name: candidate1.title }))
   expect(screen.getByTestId('candidate-thumbnail-placeholder')).toHaveClass('aspect-video')
+})
+
+test('Escape closes modal and restores focus to its preview card', async () => {
+  render(<CandidateList candidates={[candidate1, candidate2]} />)
+  const opener = screen.getByRole('button', { name: `Preview ${candidate1.title}` })
+  opener.focus()
+  fireEvent.click(opener)
+  expect(screen.getByRole('dialog', { name: candidate1.title })).toBeVisible()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  await waitFor(() => expect(opener).toHaveFocus())
 })

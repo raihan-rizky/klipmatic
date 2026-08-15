@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Clock3, ImageOff, Play, Quote, Sparkles } from 'lucide-react'
 import { type CandidateView, formatRange } from '@/lib/candidates'
 import {
@@ -24,6 +24,7 @@ export function CandidateList({ candidates }: { candidates: CandidateView[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const [broken, setBroken] = useState<Record<string, boolean>>({})
   const [clipIds, setClipIds] = useState<Record<string, string>>({})
+  const previewButtons = useRef<Array<HTMLButtonElement | null>>([])
 
   if (candidates.length === 0) {
     return (
@@ -49,6 +50,9 @@ export function CandidateList({ candidates }: { candidates: CandidateView[] }) {
             <li key={candidate.id}>
               <Card className="group flex h-full flex-col overflow-hidden rounded-lg transition duration-200 hover:-translate-y-0.5 hover:border-primary/30">
                 <button
+                  ref={(element) => {
+                    previewButtons.current[index] = element
+                  }}
                   type="button"
                   aria-label={`Preview ${candidate.title}`}
                   className="relative block aspect-video w-full overflow-hidden bg-surface-soft text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
@@ -146,7 +150,11 @@ export function CandidateList({ candidates }: { candidates: CandidateView[] }) {
           hasNext={activeIndex < candidates.length - 1}
           initialClipId={clipIds[activeCandidate.id] ?? null}
           onOpenChange={(open) => {
-            if (!open) setActiveIndex(null)
+            if (!open) {
+              const opener = previewButtons.current[activeIndex]
+              setActiveIndex(null)
+              window.setTimeout(() => opener?.focus(), 0)
+            }
           }}
           onPrevious={() => setActiveIndex((current) => current === null ? null : current - 1)}
           onNext={() => setActiveIndex((current) => current === null ? null : current + 1)}
