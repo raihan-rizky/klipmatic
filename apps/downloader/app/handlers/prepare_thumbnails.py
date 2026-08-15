@@ -3,14 +3,15 @@ from __future__ import annotations
 import logging
 import shutil
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import psycopg
 
 from app.errors import JobError
 from app.ffmpeg import extract_thumbnail as _extract_thumbnail
 from app.ffmpeg import sha256_file
+from app.observability import emit
 from app.queue import Job, heartbeat
 from app.storage import Storage, storage_from_env
 from app.ytdlp import download_section as _download_section
@@ -64,8 +65,17 @@ def handle_prepare_thumbnails(
                     "thumbnail_r2_key = %s where id = %s and project_id = %s",
                     (key, candidate_id, job.project_id),
                 )
-            except Exception:  # noqa: BLE001 - satu thumbnail tidak membatalkan batch
-                log.exception("gagal membuat thumbnail kandidat %s", candidate_id)
+            except Exception as exc:  # noqa: BLE001 - satu thumbnail tidak membatalkan batch
+                error_code = exc.code if isinstance(exc, JobError) else "INTERNAL"
+                emit(
+                    log,
+                    "thumbnail.failed",
+                    level=logging.ERROR,
+                    exception=exc,
+                    candidate_id=str(candidate_id),
+                    error_code=error_code,
+                    error_class=type(exc).__name__,
+                )
                 conn.execute(
                     "update clip_candidates set thumbnail_status = 'failed', "
                     "thumbnail_r2_key = null where id = %s and project_id = %s",
