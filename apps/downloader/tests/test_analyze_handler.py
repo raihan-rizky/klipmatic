@@ -254,3 +254,48 @@ def test_menjalankan_ulang_pada_proyek_sama_tidak_menggandakan_kandidat(conn, de
         "select count(*) from clip_candidates where project_id = %s", (pid,)
     ).fetchone()[0]
     assert n == 2
+
+
+def test_analyze_enqueues_thumbnail_job(conn, deps):
+    uid, sid, pid = _setup(conn, external_id="analysis-thumb-job")
+    handle_analyze(conn, _job(conn, sid, pid, uid), **deps)
+
+    row = conn.execute(
+        "select type, payload, user_id, project_id from jobs "
+        "where type = 'prepare_thumbnails' and project_id = %s",
+        (pid,),
+    ).fetchone()
+    assert row[0] == "prepare_thumbnails"
+    assert row[1]["source_id"] == sid
+    assert row[1]["project_id"] == pid
+    assert str(row[2]) == uid
+    assert str(row[3]) == pid
+
+
+def test_analyze_retry_keeps_one_active_thumbnail_job(conn, deps):
+    uid, sid, pid = _setup(conn, external_id="analysis-thumb-retry")
+    job = _job(conn, sid, pid, uid)
+    handle_analyze(conn, job, **deps)
+    handle_analyze(conn, job, **deps)
+
+    count = conn.execute(
+        "select count(*) from jobs where type='prepare_thumbnails' "
+        "and project_id=%s and status in ('queued','running')",
+        (pid,),
+    ).fetchone()[0]
+    assert count == 1
+
+
+def test_reanalysis_deletes_replaced_thumbnail_object(conn, deps):
+    uid, sid, pid = _setup(conn, external_id="analysis-thumb-cleanup")
+    handle_analyze(conn, _job(conn, sid, pid, uid), **deps)
+    conn.execute(
+        "update clip_candidates set thumbnail_status='ready', "
+        "thumbnail_r2_key='candidate-thumbnails/old.webp' where project_id=%s",
+        (pid,),
+    )
+    conn.commit()
+
+    handle_analyze(conn, _job(conn, sid, pid, uid), **deps)
+
+    deps["storage"].delete.assert_called_with("candidate-thumbnails/old.webp")

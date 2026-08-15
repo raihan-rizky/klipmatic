@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from typing import Any, Callable
 
 import psycopg
@@ -21,6 +22,8 @@ from app.providers.transcription import Word
 from app.queue import Job, heartbeat
 from app.storage import Storage, storage_from_env
 
+log = logging.getLogger(__name__)
+
 
 def compute_input_hash(transcript_id: str, prompt_version: str, model: str) -> str:
     """Kunci cache analisis (spec §7 langkah 3).
@@ -37,13 +40,24 @@ def compute_input_hash(transcript_id: str, prompt_version: str, model: str) -> s
 def _write_candidates(
     conn: psycopg.Connection,
     project_id: str,
+    source_id: str,
     llm_run_id: str,
     candidates: list[Candidate],
     words: list[Word],
+    job: Job,
+    storage: Storage,
 ) -> None:
     # Job dapat dicoba ulang setelah kegagalan sementara. Tanpa pembersihan
     # ini, percobaan kedua menambahkan satu set kandidat lagi ke proyek yang
     # sama alih-alih menggantikannya.
+    old_thumbnail_keys = [
+        row[0]
+        for row in conn.execute(
+            "select distinct thumbnail_r2_key from clip_candidates "
+            "where project_id = %s and thumbnail_r2_key is not null",
+            (project_id,),
+        ).fetchall()
+    ]
     conn.execute("delete from clip_candidates where project_id = %s", (project_id,))
     for c in candidates:
         conn.execute(
@@ -64,7 +78,27 @@ def _write_candidates(
                 slice_transcript(words, c.start_sec, c.end_sec),
             ),
         )
+    active_thumbnail_job = conn.execute(
+        "select id from jobs where type = 'prepare_thumbnails' and project_id = %s "
+        "and status in ('queued','running') limit 1",
+        (project_id,),
+    ).fetchone()
+    if active_thumbnail_job is None:
+        conn.execute(
+            "insert into jobs (type, payload, user_id, project_id) "
+            "values ('prepare_thumbnails', %s::jsonb, %s, %s)",
+            (
+                json.dumps({"source_id": source_id, "project_id": project_id}),
+                job.user_id,
+                project_id,
+            ),
+        )
     conn.commit()
+    for thumbnail_key in old_thumbnail_keys:
+        try:
+            storage.delete(thumbnail_key)
+        except Exception:  # noqa: BLE001 - cleanup tidak boleh membatalkan hasil analisis
+            log.exception("gagal menghapus thumbnail kandidat lama %s", thumbnail_key)
 
 
 def _candidates_from_output(output: dict[str, Any], duration_sec: int) -> list[Candidate]:
@@ -113,9 +147,12 @@ def handle_analyze(
         _write_candidates(
             conn,
             project_id,
+            source_id,
             str(cached[0]),
             _candidates_from_output(cached[1], duration_sec),
             words,
+            job,
+            storage,
         )
         return
 
@@ -149,4 +186,13 @@ def handle_analyze(
     ).fetchone()
     conn.commit()
 
-    _write_candidates(conn, project_id, str(run[0]), candidates, words)
+    _write_candidates(
+        conn,
+        project_id,
+        source_id,
+        str(run[0]),
+        candidates,
+        words,
+        job,
+        storage,
+    )
