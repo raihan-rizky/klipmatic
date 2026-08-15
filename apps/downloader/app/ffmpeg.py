@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 from app.errors import JobError
+from app.subprocesses import run_command
 
 # Whisper mengharapkan 16 kHz mono. Menghasilkannya di sini membuat berkas
 # kecil (~40 MB per jam) dan menghemat kerja di sisi penyedia transkripsi.
@@ -34,7 +34,7 @@ def _positive_float(value: object) -> float | None:
 
 def probe_media(path: Path) -> MediaProbe:
     """Read trusted media metadata with ffprobe, never from upload headers."""
-    proc = subprocess.run(
+    proc = run_command(
         [
             "ffprobe",
             "-v",
@@ -45,9 +45,9 @@ def probe_media(path: Path) -> MediaProbe:
             "json",
             str(path),
         ],
-        capture_output=True,
-        text=True,
-        timeout=60,
+        tool="ffprobe",
+        operation="probe_media",
+        timeout_sec=60,
     )
     if proc.returncode != 0:
         raise JobError("ASSET_INVALID", f"ffprobe gagal: {proc.stderr[-500:]}", terminal=True)
@@ -102,16 +102,16 @@ def probe_media(path: Path) -> MediaProbe:
 
 def extract_audio(src: Path, dest: Path) -> Path:
     dest.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run(
+    proc = run_command(
         [
             "ffmpeg", "-i", str(src), "-vn",
             "-ac", "1", "-ar", str(SAMPLE_RATE),
             "-c:a", "libopus", "-b:a", BITRATE,
             "-y", str(dest),
         ],
-        capture_output=True,
-        text=True,
-        timeout=1800,
+        tool="ffmpeg",
+        operation="extract_audio",
+        timeout_sec=1800,
     )
     if proc.returncode != 0 or not dest.exists():
         raise JobError("INTERNAL", f"ffmpeg gagal: {proc.stderr[-500:]}")
@@ -120,7 +120,7 @@ def extract_audio(src: Path, dest: Path) -> Path:
 
 def extract_thumbnail(src: Path, dest: Path) -> Path:
     dest.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run(
+    proc = run_command(
         [
             "ffmpeg",
             "-i",
@@ -136,9 +136,9 @@ def extract_thumbnail(src: Path, dest: Path) -> Path:
             "-y",
             str(dest),
         ],
-        capture_output=True,
-        text=True,
-        timeout=120,
+        tool="ffmpeg",
+        operation="extract_thumbnail",
+        timeout_sec=120,
     )
     if proc.returncode != 0 or not dest.exists():
         raise JobError("INTERNAL", f"thumbnail ffmpeg gagal: {proc.stderr[-500:]}")

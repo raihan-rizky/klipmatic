@@ -1,8 +1,11 @@
 import json
+import logging
+import subprocess
 from pathlib import Path
 
 import pytest
 
+from app import ytdlp
 from app.errors import JobError
 from app.ytdlp import SourceMeta, classify_ytdlp_error, parse_meta
 
@@ -56,3 +59,30 @@ def test_classify_ytdlp_error(stderr, code, terminal):
 def test_pesan_error_tidak_membocorkan_stderr_mentah_ke_kode():
     err = classify_ytdlp_error("ERROR: /home/rahasia/path/bocor.txt not found")
     assert err.code == "INTERNAL"
+
+
+def test_probe_emits_safe_subprocess_events(monkeypatch, caplog):
+    caplog.set_level(logging.INFO)
+    body = (FIXTURES / "ytdlp_youtube_ok.json").read_text(encoding="utf-8")
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            ["yt-dlp", "https://example.test/?token=secret"], 0, body, ""
+        ),
+    )
+
+    ytdlp.probe("https://example.test/?token=secret")
+
+    events = [
+        (record.event_name, record.event_fields)
+        for record in caplog.records
+        if hasattr(record, "event_name")
+    ]
+    assert [name for name, _fields in events] == [
+        "subprocess.started",
+        "subprocess.completed",
+    ]
+    assert events[-1][1]["tool"] == "yt-dlp"
+    assert events[-1][1]["operation"] == "probe"
+    assert "token=secret" not in caplog.text

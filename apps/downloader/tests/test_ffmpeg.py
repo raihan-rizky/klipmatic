@@ -1,10 +1,11 @@
 import json
+import logging
 import subprocess
 from pathlib import Path
 
 import pytest
 
-import app.ffmpeg as ffmpeg
+from app import ffmpeg
 from app.ffmpeg import extract_audio, sha256_file
 
 
@@ -61,6 +62,25 @@ def test_extract_audio_jauh_lebih_kecil_dari_sumber(tone: Path, tmp_path: Path):
     dest = tmp_path / "out.opus"
     extract_audio(tone, dest)
     assert dest.stat().st_size < tone.stat().st_size
+
+
+def test_extract_audio_emits_safe_subprocess_events(
+    tone: Path, tmp_path: Path, caplog
+):
+    caplog.set_level(logging.INFO)
+    extract_audio(tone, tmp_path / "private-output.opus")
+    events = [
+        (record.event_name, record.event_fields)
+        for record in caplog.records
+        if hasattr(record, "event_name")
+    ]
+    assert [name for name, _fields in events] == [
+        "subprocess.started",
+        "subprocess.completed",
+    ]
+    assert events[-1][1]["tool"] == "ffmpeg"
+    assert events[-1][1]["operation"] == "extract_audio"
+    assert "private-output" not in caplog.text
 
 
 def test_sha256_stabil_dan_membedakan_isi(tmp_path: Path):

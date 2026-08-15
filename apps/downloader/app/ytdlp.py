@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from app.errors import JobError
+from app.subprocesses import SubprocessSpan, run_command
 
 MAX_DURATION_SEC = 4 * 60 * 60  # Spec §9.1
 
@@ -65,7 +67,19 @@ def parse_meta(raw: dict[str, Any]) -> SourceMeta:
 
 
 def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(args, capture_output=True, text=True, timeout=1800)
+    operation = (
+        "probe"
+        if "-J" in args
+        else "download_section"
+        if "--download-sections" in args
+        else "run"
+    )
+    return run_command(
+        args,
+        tool="yt-dlp",
+        operation=operation,
+        timeout_sec=1800,
+    )
 
 
 def probe(url: str) -> SourceMeta:
@@ -81,30 +95,32 @@ _PROGRESS_RE = re.compile(r"\[download\]\s+(\d+(?:\.\d+)?)%")
 def download_audio(url: str, dest: Path, on_progress: Callable[[int], None]) -> Path:
     """Mengunduh trek audio saja (fase 1 dari download dua fase, spec §3.1)."""
     dest.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.Popen(
-        [
-            "yt-dlp",
-            "-f",
-            "bestaudio/best",
-            "--no-playlist",
-            "--no-warnings",
-            "--newline",
-            "-o",
-            str(dest),
-            url,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    assert proc.stdout is not None
-    for line in proc.stdout:
-        m = _PROGRESS_RE.search(line)
-        if m:
-            on_progress(int(float(m.group(1))))
-    proc.wait(timeout=3600)
-    if proc.returncode != 0:
-        raise classify_ytdlp_error(proc.stderr.read() if proc.stderr else "")
+    with SubprocessSpan("yt-dlp", "download_audio", 3600) as span:
+        proc = subprocess.Popen(
+            [
+                "yt-dlp",
+                "-f",
+                "bestaudio/best",
+                "--no-playlist",
+                "--no-warnings",
+                "--newline",
+                "-o",
+                str(dest),
+                url,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            m = _PROGRESS_RE.search(line)
+            if m:
+                on_progress(int(float(m.group(1))))
+        proc.wait(timeout=3600)
+        span.finish(proc.returncode)
+        if proc.returncode != 0:
+            raise classify_ytdlp_error(proc.stderr.read() if proc.stderr else "")
     if not dest.exists():
         raise JobError("INTERNAL", "yt-dlp selesai tanpa menghasilkan berkas")
     return dest
