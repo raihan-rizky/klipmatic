@@ -155,15 +155,19 @@ function requestLogger(requestId: string): RequestLogger {
   }
 }
 
-export function withRequestLogging<TContext>(
+type LoggedRoute<TContext> = [TContext] extends [undefined]
+  ? (request: Request) => Promise<Response>
+  : (request: Request, context: TContext) => Promise<Response>
+
+export function withRequestLogging<TContext = undefined>(
   route: string,
   handler: (
     request: Request,
     context: TContext,
     log: RequestLogger,
   ) => Promise<Response>,
-) {
-  return async (request: Request, context?: TContext): Promise<Response> => {
+): LoggedRoute<TContext> {
+  const wrapped = async (request: Request, context?: TContext): Promise<Response> => {
     const supplied = request.headers.get('x-request-id') ?? ''
     const requestId = REQUEST_ID.test(supplied) ? supplied : crypto.randomUUID()
     const started = performance.now()
@@ -190,4 +194,5 @@ export function withRequestLogging<TContext>(
       throw error
     }
   }
+  return wrapped as LoggedRoute<TContext>
 }

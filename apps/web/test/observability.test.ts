@@ -95,7 +95,6 @@ test('returns and logs one validated request id', async () => {
     new Request('http://local/api/example', {
       headers: { 'x-request-id': 'request-123' },
     }),
-    {},
   )
 
   expect(response.headers.get('x-request-id')).toBe('request-123')
@@ -113,7 +112,6 @@ test('invalid request id is replaced with a uuid', async () => {
     new Request('http://local/api/example', {
       headers: { 'x-request-id': 'bad id with spaces' },
     }),
-    {},
   )
 
   expect(response.headers.get('x-request-id')).toMatch(
@@ -132,7 +130,6 @@ test('thrown handler logs safe failure and rethrows', async () => {
       new Request('http://local/api/example', {
         headers: { 'x-request-id': 'request-failure' },
       }),
-      {},
     ),
   ).rejects.toThrow('private request body')
 
@@ -149,7 +146,7 @@ test('returned server error remains a completed request with status', async () =
     Response.json({ error: true }, { status: 500 }),
   )
 
-  await handler(new Request('http://local/api/example'), {})
+  await handler(new Request('http://local/api/example'))
 
   const rendered = output.mock.calls.flat().join(' ')
   expect(rendered).toContain('http.request.completed')
