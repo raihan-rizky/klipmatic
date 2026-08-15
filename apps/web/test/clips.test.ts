@@ -28,6 +28,7 @@ vi.mock('@/lib/r2', () => ({
 import {
   ClipNotFoundError,
   createClipFromCandidate,
+  loadClipPreview,
   loadClipSegment,
   loadClipEditor,
   updateClip,
@@ -98,6 +99,21 @@ test('klik berulang memakai draft dan job aktif yang sama', async () => {
   ).toHaveLength(1)
 })
 
+test('parallel create requests reuse one clip and active job', async () => {
+  const results = await Promise.all([
+    createClipFromCandidate(sql, alice, candidateId),
+    createClipFromCandidate(sql, alice, candidateId),
+  ])
+  expect(new Set(results.map((result) => result.clipId)).size).toBe(1)
+  expect(await sql`select id from clips where candidate_id = ${candidateId}`).toHaveLength(1)
+  expect(
+    await sql`
+      select id from jobs
+       where type = 'fetch_segments' and project_id = ${projectId}
+         and status in ('queued', 'running')`,
+  ).toHaveLength(1)
+})
+
 test('user lain tidak dapat membuat clip dari kandidat Alice', async () => {
   await expect(createClipFromCandidate(sql, bob, candidateId)).rejects.toBeInstanceOf(
     ClipNotFoundError,
@@ -114,6 +130,41 @@ test('editor pending tidak membuat signed URL', async () => {
   expect(r2.signed).not.toHaveBeenCalled()
   expect(r2.json).not.toHaveBeenCalled()
   expect(r2.optionalJson).not.toHaveBeenCalled()
+})
+
+test('preview status is lightweight and pending before segment exists', async () => {
+  r2.json.mockClear()
+  r2.optionalJson.mockClear()
+  await expect(loadClipPreview(sql, alice, clipId)).resolves.toMatchObject({
+    clipId,
+    status: 'pending',
+    url: null,
+    errorCode: null,
+  })
+  expect(r2.json).not.toHaveBeenCalled()
+  expect(r2.optionalJson).not.toHaveBeenCalled()
+})
+
+test('preview status maps a terminal fetch job to failed', async () => {
+  await sql`
+    update jobs set status = 'failed', error_code = 'SEGMENT_FETCH_FAILED'
+     where type = 'fetch_segments' and payload->>'clip_id' = ${clipId}`
+  await expect(loadClipPreview(sql, alice, clipId)).resolves.toMatchObject({
+    clipId,
+    status: 'failed',
+    url: null,
+    errorCode: 'SEGMENT_FETCH_FAILED',
+  })
+  await sql`
+    update jobs set status = 'queued', error_code = null
+     where type = 'fetch_segments' and payload->>'clip_id' = ${clipId}`
+})
+
+test('preview status enforces ownership', async () => {
+  await expect(loadClipPreview(sql, bob, clipId)).rejects.toBeInstanceOf(ClipNotFoundError)
+  await expect(loadClipPreview(sql, alice, 'not-a-uuid')).rejects.toBeInstanceOf(
+    ClipNotFoundError,
+  )
 })
 
 test('editor ready memakai proxy same-origin, V3 candidate asset, dan caption relatif', async () => {
@@ -143,6 +194,14 @@ test('editor ready memakai proxy same-origin, V3 candidate asset, dan caption re
     { text: 'halo', start: 0, end: 1 },
     { text: 'dunia', start: 1, end: 2 },
   ])
+})
+
+test('preview status returns existing same-origin segment', async () => {
+  await expect(loadClipPreview(sql, alice, clipId)).resolves.toMatchObject({
+    clipId,
+    status: 'ready',
+    url: `/api/clips/${clipId}/segment`,
+  })
 })
 
 test('proxy hanya membuka segment milik user yang login', async () => {

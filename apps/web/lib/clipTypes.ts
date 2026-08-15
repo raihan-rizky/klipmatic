@@ -3,6 +3,14 @@ import type { MediaAssetDto } from './mediaAssets'
 
 export type ResolvedMediaAsset = MediaAssetDto
 
+export interface ClipPreviewStatus {
+  clipId: string
+  status: 'pending' | 'ready' | 'failed'
+  url: string | null
+  jobId: string | null
+  errorCode: string | null
+}
+
 export interface ClipEditorPayload {
   clip: {
     id: string

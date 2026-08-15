@@ -6,7 +6,7 @@ import {
   type TimelineContext,
   type TranscriptWord,
 } from '@cheapclipper/engine'
-import type { ClipEditorPayload, ResolvedMediaAsset } from './clipTypes'
+import type { ClipEditorPayload, ClipPreviewStatus, ResolvedMediaAsset } from './clipTypes'
 import {
   referencedAssetIds,
   resolveProjectAssets,
@@ -121,6 +121,53 @@ export async function loadClipSegment(
   return {
     key: segment.r2_key as string,
     bytes: Number(segment.bytes),
+  }
+}
+
+export async function loadClipPreview(
+  sql: Sql,
+  userId: string,
+  clipId: string,
+): Promise<ClipPreviewStatus> {
+  if (!UUID_RE.test(clipId)) throw new ClipNotFoundError()
+
+  const [row] = await sql`
+    select cl.id, segment.id as segment_id, job.id as job_id,
+           job.status as job_status, job.error_code as job_error_code
+      from clips cl
+      join clip_candidates c on c.id = cl.candidate_id
+      join projects p on p.id = cl.project_id
+      left join lateral (
+        select ms.id
+          from media_segments ms
+         where ms.source_id = p.source_id
+           and ms.start_sec = c.start_sec
+           and ms.end_sec = c.end_sec
+           and ms.expires_at > now()
+         limit 1
+      ) segment on true
+      left join lateral (
+        select j.id, j.status, j.error_code
+          from jobs j
+         where j.type = 'fetch_segments'
+           and j.project_id = p.id
+           and j.payload->>'clip_id' = cl.id::text
+         order by j.created_at desc
+         limit 1
+      ) job on true
+     where cl.id = ${clipId}
+       and p.user_id = ${userId}
+     limit 1`
+  if (!row) throw new ClipNotFoundError()
+
+  const ready = Boolean(row.segment_id)
+  const failed = row.job_status === 'failed' || row.job_status === 'dead'
+  return {
+    clipId: row.id as string,
+    status: ready ? 'ready' : failed ? 'failed' : 'pending',
+    url: ready ? `/api/clips/${clipId}/segment` : null,
+    jobId: (row.job_id as string | null) ?? null,
+    errorCode: (row.job_error_code as string | null) ?? null,
   }
 }
 
