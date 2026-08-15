@@ -38,6 +38,11 @@ def test_parse_meta_menolak_durasi_tidak_diketahui():
     "stderr,code,terminal",
     [
         ("ERROR: Sign in to confirm you're not a bot", "SOURCE_BLOCKED", False),
+        (
+            "HTTP error 403 Forbidden; Server returned 403 Forbidden (access denied)",
+            "SOURCE_BLOCKED",
+            False,
+        ),
         ("ERROR: Video unavailable. This video is private", "SOURCE_UNAVAILABLE", True),
         ("ERROR: This video has been removed by the uploader", "SOURCE_UNAVAILABLE", True),
         (
