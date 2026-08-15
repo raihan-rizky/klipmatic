@@ -160,7 +160,9 @@ def main() -> None:
     configure_logging()
     emit(log, "worker.started", worker_id=worker_id)
 
-    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+    with psycopg.connect(
+        os.environ["DATABASE_URL"], prepare_threshold=None
+    ) as conn:
         storage = storage_from_env()
         while True:
             now = time.monotonic()
