@@ -118,6 +118,33 @@ def extract_audio(src: Path, dest: Path) -> Path:
     return dest
 
 
+def extract_thumbnail(src: Path, dest: Path) -> Path:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(
+        [
+            "ffmpeg",
+            "-i",
+            str(src),
+            "-frames:v",
+            "1",
+            "-vf",
+            "scale=640:360:force_original_aspect_ratio=increase,crop=640:360",
+            "-c:v",
+            "libwebp",
+            "-quality",
+            "78",
+            "-y",
+            str(dest),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if proc.returncode != 0 or not dest.exists():
+        raise JobError("INTERNAL", f"thumbnail ffmpeg gagal: {proc.stderr[-500:]}")
+    return dest
+
+
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:

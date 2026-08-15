@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import app.ffmpeg as ffmpeg
 from app.ffmpeg import extract_audio, sha256_file
 
 
@@ -69,3 +70,31 @@ def test_sha256_stabil_dan_membedakan_isi(tmp_path: Path):
     assert sha256_file(a) == sha256_file(a)
     assert sha256_file(a) != sha256_file(b)
     assert len(sha256_file(a)) == 64
+
+
+def test_extract_thumbnail_menghasilkan_webp_16_9(tmp_path: Path):
+    source = tmp_path / "source.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-f", "lavfi", "-i", "testsrc=size=320x240:duration=1",
+            "-pix_fmt", "yuv420p", "-y", str(source),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    destination = tmp_path / "thumbnail.webp"
+
+    ffmpeg.extract_thumbnail(source, destination)
+
+    assert destination.exists() and destination.stat().st_size > 0
+    dimensions = subprocess.run(
+        [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=width,height", "-of", "csv=p=0",
+            str(destination),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert dimensions == "640,360"

@@ -1,3 +1,4 @@
+import app.worker as worker
 from app.errors import JobError
 from app.queue import enqueue
 from app.worker import run_once
@@ -55,3 +56,7 @@ def test_tipe_tanpa_handler_gagal_terminal(conn):
         "select status, error_code from jobs where id = %s", (job_id,)
     ).fetchone()
     assert row == ("failed", "INTERNAL")
+
+
+def test_default_handlers_register_thumbnail_preparation():
+    assert "prepare_thumbnails" in worker.default_handlers()

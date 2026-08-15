@@ -44,23 +44,30 @@ def run_once(
     return True
 
 
-def main() -> None:
+def default_handlers() -> dict[str, Handler]:
     # Diimpor di dalam fungsi: handler menarik boto3, httpx, dan yt-dlp,
     # sementara run_once diuji dengan handler suntikan tanpa perlu semua itu.
     from app.handlers.analyze import handle_analyze
     from app.handlers.fetch_segments import handle_fetch_segments
     from app.handlers.ingest import handle_ingest
+    from app.handlers.prepare_thumbnails import handle_prepare_thumbnails
     from app.handlers.probe_asset import handle_probe_asset
     from app.handlers.transcribe import handle_transcribe
-    from app.storage import storage_from_env
 
-    handlers: dict[str, Handler] = {
+    return {
         "ingest": handle_ingest,
         "transcribe": handle_transcribe,
         "analyze": handle_analyze,
+        "prepare_thumbnails": handle_prepare_thumbnails,
         "fetch_segments": handle_fetch_segments,
         "probe_asset": handle_probe_asset,
     }
+
+
+def main() -> None:
+    from app.storage import storage_from_env
+
+    handlers = default_handlers()
     worker_id = os.environ.get("WORKER_ID", "worker-1")
     poll = float(os.environ.get("WORKER_POLL_INTERVAL_SEC", "2"))
     reap_every = 60.0
