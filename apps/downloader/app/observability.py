@@ -114,15 +114,32 @@ def emit(
     event: str,
     *,
     level: int = logging.INFO,
+    exception: BaseException | None = None,
     **fields: object,
 ) -> None:
     event_name = event if _SAFE_EVENT.fullmatch(event) else "logging.invalid_event"
     safe = sanitize_fields({**_current_context(), **fields})
+    safe_trace = (
+        [
+            {
+                "file": os.path.basename(frame.filename),
+                "function": frame.name,
+                "line": frame.lineno,
+            }
+            for frame in traceback.extract_tb(exception.__traceback__)
+        ]
+        if exception is not None and exception.__traceback__ is not None
+        else []
+    )
     try:
         logger.log(
             level,
             event_name,
-            extra={"event_name": event_name, "event_fields": safe},
+            extra={
+                "event_name": event_name,
+                "event_fields": safe,
+                "safe_trace": safe_trace,
+            },
         )
     except Exception:  # noqa: BLE001 - logging must not change business behavior
         sys.stderr.write(
@@ -159,16 +176,8 @@ def _record_fields(record: logging.LogRecord) -> dict[str, LogValue]:
 
 
 def _safe_trace(record: logging.LogRecord) -> list[dict[str, str | int]] | None:
-    if not record.exc_info or record.exc_info[2] is None:
-        return None
-    return [
-        {
-            "file": os.path.basename(frame.filename),
-            "function": frame.name,
-            "line": frame.lineno,
-        }
-        for frame in traceback.extract_tb(record.exc_info[2])
-    ]
+    frames = getattr(record, "safe_trace", None)
+    return frames if isinstance(frames, list) and frames else None
 
 
 class JsonFormatter(logging.Formatter):

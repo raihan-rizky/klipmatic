@@ -3,17 +3,36 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Callable
+from collections.abc import Callable
 
 import psycopg
 
 from app.errors import JobError
-from app.queue import Job, claim_job, complete_job, fail_job
+from app.observability import (
+    bind_context,
+    configure_logging,
+    elapsed_ms,
+    emit,
+    reset_context,
+    reset_progress_milestones,
+)
+from app.queue import (
+    BACKOFF_BASE_SEC,
+    BACKOFF_FACTOR,
+    Job,
+    claim_job,
+    complete_job,
+    fail_job,
+)
 from app.reaper import reap_expired_media_assets, reap_stale_jobs
 
 log = logging.getLogger(__name__)
 
 Handler = Callable[[psycopg.Connection, Job], None]
+
+
+def _retry_delay(attempt: int) -> int:
+    return BACKOFF_BASE_SEC * BACKOFF_FACTOR ** max(attempt - 1, 0)
 
 
 def run_once(
@@ -24,23 +43,86 @@ def run_once(
     if job is None:
         return False
 
-    handler = handlers.get(job.type)
-    if handler is None:
-        log.error("tidak ada handler untuk tipe job %s", job.type)
-        fail_job(
-            conn, job.id, "INTERNAL", f"handler tidak terdaftar: {job.type}", terminal=True
-        )
-        return True
-
+    started = time.monotonic()
+    token = bind_context(
+        worker_id=worker_id,
+        job_id=job.id,
+        job_type=job.type,
+        project_id=job.project_id,
+        attempt=job.attempts,
+    )
+    reset_progress_milestones()
     try:
+        emit(log, "job.claimed")
+        handler = handlers.get(job.type)
+        if handler is None:
+            fail_job(
+                conn,
+                job.id,
+                "INTERNAL",
+                f"handler tidak terdaftar: {job.type}",
+                terminal=True,
+            )
+            emit(
+                log,
+                "job.failed",
+                level=logging.ERROR,
+                error_code="INTERNAL",
+                duration_ms=elapsed_ms(started),
+            )
+            return True
+
+        emit(log, "job.handler.started")
         handler(conn, job)
         complete_job(conn, job.id)
-    except JobError as e:
-        log.warning("job %s gagal: %s", job.id, e.code)
-        fail_job(conn, job.id, e.code, str(e), terminal=e.terminal)
-    except Exception as e:  # noqa: BLE001 — jaring pengaman terakhir worker
-        log.exception("job %s melempar exception tak terduga", job.id)
-        fail_job(conn, job.id, "INTERNAL", str(e), terminal=False)
+        emit(log, "job.completed", duration_ms=elapsed_ms(started))
+    except JobError as error:
+        fail_job(
+            conn,
+            job.id,
+            error.code,
+            str(error),
+            terminal=error.terminal,
+        )
+        terminal = error.terminal or job.attempts >= job.max_attempts
+        if terminal:
+            emit(
+                log,
+                "job.failed",
+                level=logging.WARNING,
+                error_code=error.code,
+                duration_ms=elapsed_ms(started),
+            )
+        else:
+            emit(
+                log,
+                "job.retry_scheduled",
+                level=logging.WARNING,
+                error_code=error.code,
+                next_attempt=job.attempts + 1,
+                retry_delay_sec=_retry_delay(job.attempts),
+                duration_ms=elapsed_ms(started),
+            )
+    except Exception as error:  # noqa: BLE001 - last-resort worker boundary
+        fail_job(conn, job.id, "INTERNAL", str(error), terminal=False)
+        terminal = job.attempts >= job.max_attempts
+        fields: dict[str, object] = {
+            "error_code": "INTERNAL",
+            "error_class": type(error).__name__,
+            "duration_ms": elapsed_ms(started),
+        }
+        if not terminal:
+            fields["next_attempt"] = job.attempts + 1
+            fields["retry_delay_sec"] = _retry_delay(job.attempts)
+        emit(
+            log,
+            "job.failed" if terminal else "job.retry_scheduled",
+            level=logging.ERROR,
+            exception=error,
+            **fields,
+        )
+    finally:
+        reset_context(token)
     return True
 
 
@@ -75,8 +157,8 @@ def main() -> None:
     asset_reap_every = 60.0 * 60.0
     last_asset_reap = 0.0
 
-    logging.basicConfig(level=logging.INFO)
-    log.info("worker %s mulai", worker_id)
+    configure_logging()
+    emit(log, "worker.started", worker_id=worker_id)
 
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         storage = storage_from_env()

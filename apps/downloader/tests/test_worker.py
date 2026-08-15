@@ -1,7 +1,18 @@
-import app.worker as worker
+import logging
+
+from app import worker
 from app.errors import JobError
-from app.queue import enqueue
+from app.observability import emit
+from app.queue import enqueue, heartbeat
 from app.worker import run_once
+
+
+def _events(caplog):
+    return [
+        (record.event_name, record.event_fields, record)
+        for record in caplog.records
+        if hasattr(record, "event_name")
+    ]
 
 
 def test_run_once_mengembalikan_false_saat_antrian_kosong(conn):
@@ -60,3 +71,96 @@ def test_tipe_tanpa_handler_gagal_terminal(conn):
 
 def test_default_handlers_register_thumbnail_preparation():
     assert "prepare_thumbnails" in worker.default_handlers()
+
+
+def test_run_once_logs_correlated_success(conn, caplog):
+    caplog.set_level(logging.INFO)
+    job_id = enqueue(conn, "ingest", {})
+
+    assert run_once(conn, "w1", {"ingest": lambda _conn, _job: None}) is True
+
+    events = _events(caplog)
+    assert [name for name, _fields, _record in events] == [
+        "job.claimed",
+        "job.handler.started",
+        "job.completed",
+    ]
+    assert all(fields["job_id"] == job_id for _name, fields, _record in events)
+    assert all(fields["worker_id"] == "w1" for _name, fields, _record in events)
+    assert events[-1][1]["duration_ms"] >= 0
+
+
+def test_job_error_logs_retry_schedule(conn, caplog):
+    caplog.set_level(logging.INFO)
+    enqueue(conn, "ingest", {})
+
+    def handler(_conn, _job):
+        raise JobError("SOURCE_BLOCKED", "sensitive detail", terminal=False)
+
+    run_once(conn, "w1", {"ingest": handler})
+
+    event = next(item for item in _events(caplog) if item[0] == "job.retry_scheduled")
+    assert event[1]["error_code"] == "SOURCE_BLOCKED"
+    assert event[1]["next_attempt"] == 2
+    assert event[1]["retry_delay_sec"] == 60
+    assert "sensitive detail" not in caplog.text
+
+
+def test_terminal_error_logs_failed(conn, caplog):
+    caplog.set_level(logging.INFO)
+    enqueue(conn, "ingest", {})
+
+    def handler(_conn, _job):
+        raise JobError("SOURCE_UNAVAILABLE", "private title", terminal=True)
+
+    run_once(conn, "w1", {"ingest": handler})
+
+    event = next(item for item in _events(caplog) if item[0] == "job.failed")
+    assert event[1]["error_code"] == "SOURCE_UNAVAILABLE"
+    assert "private title" not in caplog.text
+
+
+def test_unexpected_exception_logs_safe_trace(conn, caplog):
+    caplog.set_level(logging.INFO)
+    enqueue(conn, "ingest", {})
+
+    def handler(_conn, _job):
+        raise ValueError("secret payload")
+
+    run_once(conn, "w1", {"ingest": handler})
+
+    event = next(item for item in _events(caplog) if item[0] == "job.retry_scheduled")
+    assert event[1]["error_code"] == "INTERNAL"
+    assert event[1]["error_class"] == "ValueError"
+    assert event[2].exc_info is None
+    assert event[2].safe_trace[-1]["function"] == "handler"
+    assert "secret payload" not in caplog.text
+
+
+def test_heartbeat_logs_only_crossed_milestones(conn, caplog):
+    caplog.set_level(logging.INFO)
+    enqueue(conn, "ingest", {})
+
+    def handler(c, job):
+        for progress in (5, 25, 26, 75, 100, 100):
+            heartbeat(c, job.id, progress)
+
+    run_once(conn, "w1", {"ingest": handler})
+
+    progress = [
+        fields["progress"]
+        for name, fields, _record in _events(caplog)
+        if name == "job.progress"
+    ]
+    assert progress == [0, 25, 50, 75, 100]
+
+
+def test_job_context_is_cleared_after_run(conn, caplog):
+    caplog.set_level(logging.INFO)
+    enqueue(conn, "ingest", {})
+    run_once(conn, "w1", {"ingest": lambda _conn, _job: None})
+
+    emit(logging.getLogger("test.worker"), "worker.started", worker_id="outside")
+    outside = _events(caplog)[-1]
+    assert outside[0] == "worker.started"
+    assert outside[1] == {"worker_id": "outside"}

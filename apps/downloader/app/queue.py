@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 import psycopg
+
+from app.observability import emit_progress_milestones
+
+log = logging.getLogger(__name__)
 
 # Backoff eksponensial: percobaan ke-1 → 1 menit, ke-2 → 5 menit, ke-3 → 25 menit.
 BACKOFF_BASE_SEC = 60
@@ -153,3 +158,4 @@ def heartbeat(conn: psycopg.Connection, job_id: str, progress: int) -> None:
         (progress, job_id),
     )
     conn.commit()
+    emit_progress_milestones(log, progress)
