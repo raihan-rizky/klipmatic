@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server'
 import { CandidateNotFoundError, loadCandidateThumbnail } from '@/lib/candidates'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
+import { errorFields, withRequestLogging } from '@/lib/observability'
 import { signedR2Get } from '@/lib/r2'
 import { supabaseServer } from '@/lib/supabase/server'
 
-export async function GET(
-  _request: Request,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export const GET = withRequestLogging<{ params: Promise<{ id: string }> }>(
+  '/api/candidates/[id]/thumbnail',
+  async (_request, ctx, log) => {
   const supabase = await supabaseServer()
   const {
     data: { user },
@@ -42,10 +41,11 @@ export async function GET(
         { status: 404 },
       )
     }
-    console.error('gagal mem-proxy thumbnail kandidat', describeError(error))
+    log.error('candidate.thumbnail.failed', errorFields(error))
     return NextResponse.json(
       { error: { code: 'STORAGE_ERROR', message: 'Thumbnail gagal dimuat.' } },
       { status: 502 },
     )
   }
-}
+  },
+)

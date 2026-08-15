@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { ClipNotFoundError, createClipFromCandidate } from '@/lib/clips'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
+import { errorFields, withRequestLogging } from '@/lib/observability'
 import { supabaseServer } from '@/lib/supabase/server'
 
-export async function POST(req: Request) {
+export const POST = withRequestLogging('/api/clips', async (req, _ctx, log) => {
   const supabase = await supabaseServer()
   const {
     data: { user },
@@ -30,10 +30,10 @@ export async function POST(req: Request) {
         { status: 404 },
       )
     }
-    console.error('gagal membuat clip', describeError(error))
+    log.error('clip.create.failed', errorFields(error))
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Gagal membuat clip.' } },
       { status: 500 },
     )
   }
-}
+})

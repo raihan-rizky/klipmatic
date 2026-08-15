@@ -472,7 +472,7 @@ test('kegagalan database dijawab 500 berbentuk galat proyek dan tercatat tanpa n
 })
 
 test('GET hanya mengembalikan key milik pemanggil, tanpa medan kredensial', async () => {
-  const res = await GET()
+  const res = await GET(new Request('http://localhost/api/keys'))
   expect(res.status).toBe(200)
   const body = (await res.json()) as { keys: { label: string }[] }
   expect(body.keys.every((k) => k.label !== 'punya bob')).toBe(true)

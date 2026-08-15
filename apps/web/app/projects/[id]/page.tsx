@@ -7,6 +7,7 @@ import { StatePanel } from '@/components/StatePanel'
 import { Button } from '@/components/ui/button'
 import { latestThumbnailJobStatus, listCandidates, projectViewState } from '@/lib/candidates'
 import { sql } from '@/lib/db'
+import { errorFields, writeEvent } from '@/lib/observability'
 import { supabaseServer } from '@/lib/supabase/server'
 
 export default async function ProjectPage({
@@ -45,7 +46,13 @@ export default async function ProjectPage({
   const [candidates, thumbnailJobStatus] = await Promise.all([
     listCandidates(sql, user.id, id),
     latestThumbnailJobStatus(sql, user.id, id),
-  ])
+  ]).catch((error) => {
+    writeEvent('ERROR', 'page.project.failed', {
+      project_id: id,
+      ...errorFields(error),
+    })
+    throw error
+  })
   const view = projectViewState({
     hasActiveJob: Boolean(job),
     candidateCount: candidates.length,
@@ -85,7 +92,7 @@ export default async function ProjectPage({
       {candidates.length > 0 && (
         <div>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-black tracking-[-0.025em]">Hasil teratas</h2>
+            <h2 className="text-lg font-black tracking-normal">Hasil teratas</h2>
             <span className="text-sm text-muted">{candidates.length} kandidat</span>
           </div>
           <CandidateList candidates={candidates} />

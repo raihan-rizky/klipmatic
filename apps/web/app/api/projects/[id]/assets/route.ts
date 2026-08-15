@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
 import {
   createMediaUpload,
   listProjectUploads,
   MediaAssetError,
   type CreateMediaUploadInput,
 } from '@/lib/mediaAssets'
+import { errorFields, type RequestLogger, withRequestLogging } from '@/lib/observability'
 import { supabaseServer } from '@/lib/supabase/server'
 
 const STATUS_BY_CODE = {
@@ -33,24 +33,23 @@ function unauthorized() {
   )
 }
 
-function failure(error: unknown, action: string) {
+function failure(error: unknown, event: string, log: RequestLogger) {
   if (error instanceof MediaAssetError) {
     return NextResponse.json(
       { error: { code: error.code, message: error.message } },
       { status: STATUS_BY_CODE[error.code] },
     )
   }
-  console.error(`gagal ${action} media project`, describeError(error))
+  log.error(event, errorFields(error))
   return NextResponse.json(
     { error: { code: 'INTERNAL', message: 'Media project gagal diproses.' } },
     { status: 500 },
   )
 }
 
-export async function GET(
-  _request: Request,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export const GET = withRequestLogging<{ params: Promise<{ id: string }> }>(
+  '/api/projects/[id]/assets',
+  async (_request, ctx, log) => {
   const uid = await userId()
   if (!uid) return unauthorized()
   try {
@@ -58,14 +57,14 @@ export async function GET(
       await listProjectUploads(sql, uid, (await ctx.params).id),
     )
   } catch (error) {
-    return failure(error, 'memuat')
+    return failure(error, 'asset.list.failed', log)
   }
-}
+  },
+)
 
-export async function POST(
-  request: Request,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export const POST = withRequestLogging<{ params: Promise<{ id: string }> }>(
+  '/api/projects/[id]/assets',
+  async (request, ctx, log) => {
   const uid = await userId()
   if (!uid) return unauthorized()
   const input = (await request.json().catch(() => ({}))) as CreateMediaUploadInput
@@ -75,6 +74,7 @@ export async function POST(
       { status: 201 },
     )
   } catch (error) {
-    return failure(error, 'membuat')
+    return failure(error, 'asset.create.failed', log)
   }
-}
+  },
+)

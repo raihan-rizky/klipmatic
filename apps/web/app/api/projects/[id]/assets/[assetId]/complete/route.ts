@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
 import { finalizeMediaUpload, MediaAssetError } from '@/lib/mediaAssets'
+import { errorFields, withRequestLogging } from '@/lib/observability'
 import { supabaseServer } from '@/lib/supabase/server'
 
 const STATUS_BY_CODE = {
@@ -13,10 +13,9 @@ const STATUS_BY_CODE = {
   ASSET_READ_ONLY: 409,
 } as const
 
-export async function POST(
-  _request: Request,
-  ctx: { params: Promise<{ id: string; assetId: string }> },
-) {
+export const POST = withRequestLogging<{
+  params: Promise<{ id: string; assetId: string }>
+}>('/api/projects/[id]/assets/[assetId]/complete', async (_request, ctx, log) => {
   const supabase = await supabaseServer()
   const {
     data: { user },
@@ -39,10 +38,10 @@ export async function POST(
         { status: STATUS_BY_CODE[error.code] },
       )
     }
-    console.error('gagal menyelesaikan upload media', describeError(error))
+    log.error('asset.complete.failed', errorFields(error))
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Upload gagal diselesaikan.' } },
       { status: 500 },
     )
   }
-}
+})

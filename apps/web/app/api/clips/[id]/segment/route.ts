@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ClipNotFoundError, loadClipSegment } from '@/lib/clips'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
+import { errorFields, withRequestLogging } from '@/lib/observability'
 import { signedR2Get } from '@/lib/r2'
 import { supabaseServer } from '@/lib/supabase/server'
 
@@ -13,10 +13,9 @@ async function userId(): Promise<string | null> {
   return user?.id ?? null
 }
 
-export async function GET(
-  _request: Request,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export const GET = withRequestLogging<{ params: Promise<{ id: string }> }>(
+  '/api/clips/[id]/segment',
+  async (_request, ctx, log) => {
   const uid = await userId()
   if (!uid) {
     return NextResponse.json(
@@ -48,10 +47,11 @@ export async function GET(
         { status: 404 },
       )
     }
-    console.error('gagal mem-proxy segment clip', describeError(error))
+    log.error('clip.segment.failed', errorFields(error))
     return NextResponse.json(
       { error: { code: 'STORAGE_ERROR', message: 'Potongan video gagal dimuat.' } },
       { status: 502 },
     )
   }
-}
+  },
+)

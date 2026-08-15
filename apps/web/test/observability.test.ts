@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
+  errorFields,
   formatEvent,
   parseLogConfig,
   withRequestLogging,
@@ -153,4 +154,18 @@ test('returned server error remains a completed request with status', async () =
   const rendered = output.mock.calls.flat().join(' ')
   expect(rendered).toContain('http.request.completed')
   expect(rendered).toContain('status_code=500')
+})
+
+test('error metadata keeps class and code without leaking message or query', () => {
+  class DriverError extends Error {
+    code = '42703'
+    query = 'select secret from private_table'
+  }
+  const error = new DriverError('column secret does not exist')
+
+  expect(errorFields(error)).toEqual({
+    error_class: 'DriverError',
+    error_code: '42703',
+  })
+  expect(JSON.stringify(errorFields(error))).not.toContain('secret')
 })

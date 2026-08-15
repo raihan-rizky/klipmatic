@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { ApiKeyValidationError, listApiKeys, saveApiKey } from '@/lib/apiKeys'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
 import { messageFor } from '@/lib/errorMessages'
+import { errorFields, withRequestLogging } from '@/lib/observability'
 import { supabaseServer } from '@/lib/supabase/server'
 
 async function currentUserId(): Promise<string | null> {
@@ -20,13 +20,13 @@ function unauthorized() {
   )
 }
 
-export async function GET() {
+export const GET = withRequestLogging('/api/keys', async () => {
   const userId = await currentUserId()
   if (!userId) return unauthorized()
   return NextResponse.json({ keys: await listApiKeys(sql, userId) })
-}
+})
 
-export async function POST(req: Request) {
+export const POST = withRequestLogging('/api/keys', async (req, _ctx, log) => {
   const userId = await currentUserId()
   if (!userId) return unauthorized()
 
@@ -56,10 +56,10 @@ export async function POST(req: Request) {
     // Hanya ringkasan galat, bukan objeknya: galat driver postgres membawa
     // teks query beserta parameternya. Tanpa ringkasan ini kegagalan 500 tidak
     // meninggalkan jejak apa pun.
-    console.error('gagal menyimpan API key untuk user', userId, describeError(e))
+    log.error('api_key.save.failed', errorFields(e))
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: messageFor('INTERNAL') } },
       { status: 500 },
     )
   }
-}
+})

@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { deleteApiKey } from '@/lib/apiKeys'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
 import { messageFor } from '@/lib/errorMessages'
+import { errorFields, withRequestLogging } from '@/lib/observability'
 import { supabaseServer } from '@/lib/supabase/server'
 
-export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export const DELETE = withRequestLogging<{ params: Promise<{ id: string }> }>(
+  '/api/keys/[id]',
+  async (_req, ctx, log) => {
   const supabase = await supabaseServer()
   const {
     data: { user },
@@ -33,10 +35,11 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     // Tanpa penjaga ini galat driver keluar sebagai 500 bawaan Next — bentuknya
     // bukan { error: { code, message } } yang dibaca klien, dan jejaknya memuat
     // query beserta parameter.
-    console.error('gagal menghapus API key untuk user', user.id, describeError(e))
+    log.error('api_key.delete.failed', errorFields(e))
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: messageFor('INTERNAL') } },
       { status: 500 },
     )
   }
-}
+  },
+)

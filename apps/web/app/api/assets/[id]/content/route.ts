@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
 import { loadAssetObject, MediaAssetError } from '@/lib/mediaAssets'
+import { errorFields, withRequestLogging } from '@/lib/observability'
 import { signedR2Get } from '@/lib/r2'
 import { supabaseServer } from '@/lib/supabase/server'
 
@@ -14,10 +14,9 @@ const STATUS_BY_CODE = {
   ASSET_READ_ONLY: 409,
 } as const
 
-export async function GET(
-  _request: Request,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export const GET = withRequestLogging<{ params: Promise<{ id: string }> }>(
+  '/api/assets/[id]/content',
+  async (_request, ctx, log) => {
   const supabase = await supabaseServer()
   const {
     data: { user },
@@ -53,10 +52,11 @@ export async function GET(
         { status: STATUS_BY_CODE[error.code] },
       )
     }
-    console.error('gagal mem-proxy media asset', describeError(error))
+    log.error('asset.content.failed', errorFields(error))
     return NextResponse.json(
       { error: { code: 'STORAGE_ERROR', message: 'Media gagal dimuat.' } },
       { status: 502 },
     )
   }
-}
+  },
+)

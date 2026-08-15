@@ -44,6 +44,7 @@ test('returns lightweight preview status', async () => {
     params: Promise.resolve({ id: 'clip-1' }),
   })
   expect(response.status).toBe(200)
+  expect(response.headers.get('x-request-id')).toMatch(/^[A-Za-z0-9._-]+$/)
   await expect(response.json()).resolves.toEqual({
     clipId: 'clip-1',
     status: 'ready',

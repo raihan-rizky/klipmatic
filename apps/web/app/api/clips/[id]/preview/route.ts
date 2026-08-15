@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ClipNotFoundError, loadClipPreview } from '@/lib/clips'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
+import { errorFields, withRequestLogging } from '@/lib/observability'
 import { supabaseServer } from '@/lib/supabase/server'
 
 function missing() {
@@ -11,10 +11,9 @@ function missing() {
   )
 }
 
-export async function GET(
-  _request: Request,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export const GET = withRequestLogging<{ params: Promise<{ id: string }> }>(
+  '/api/clips/[id]/preview',
+  async (_request, ctx, log) => {
   const supabase = await supabaseServer()
   const {
     data: { user },
@@ -30,10 +29,11 @@ export async function GET(
     return NextResponse.json(await loadClipPreview(sql, user.id, (await ctx.params).id))
   } catch (error) {
     if (error instanceof ClipNotFoundError) return missing()
-    console.error('gagal memuat status preview clip', describeError(error))
+    log.error('clip.preview.failed', errorFields(error))
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Gagal memuat preview.' } },
       { status: 500 },
     )
   }
-}
+  },
+)

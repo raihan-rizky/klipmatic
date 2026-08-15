@@ -130,6 +130,19 @@ export function writeEvent(
   }
 }
 
+export function errorFields(error: unknown): Record<string, SafeLogValue> {
+  const fields: Record<string, SafeLogValue> = {
+    error_class: error instanceof Error ? error.constructor.name : typeof error,
+  }
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const code = error.code
+    if (typeof code === 'string' || (typeof code === 'number' && Number.isFinite(code))) {
+      fields.error_code = code
+    }
+  }
+  return sanitizeFields(fields)
+}
+
 function requestLogger(requestId: string): RequestLogger {
   return {
     requestId,
@@ -150,13 +163,13 @@ export function withRequestLogging<TContext>(
     log: RequestLogger,
   ) => Promise<Response>,
 ) {
-  return async (request: Request, context: TContext): Promise<Response> => {
+  return async (request: Request, context?: TContext): Promise<Response> => {
     const supplied = request.headers.get('x-request-id') ?? ''
     const requestId = REQUEST_ID.test(supplied) ? supplied : crypto.randomUUID()
     const started = performance.now()
     const log = requestLogger(requestId)
     try {
-      const response = await handler(request, context, log)
+      const response = await handler(request, context as TContext, log)
       writeEvent('INFO', 'http.request.completed', {
         request_id: requestId,
         method: request.method,
@@ -172,7 +185,7 @@ export function withRequestLogging<TContext>(
         method: request.method,
         route,
         duration_ms: Math.max(0, Math.round(performance.now() - started)),
-        error_class: error instanceof Error ? error.constructor.name : typeof error,
+        ...errorFields(error),
       })
       throw error
     }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ClipNotFoundError, loadClipEditor, updateClip } from '@/lib/clips'
 import { sql } from '@/lib/db'
-import { describeError } from '@/lib/errorLog'
+import { errorFields, withRequestLogging } from '@/lib/observability'
 import { supabaseServer } from '@/lib/supabase/server'
 
 async function userId(): Promise<string | null> {
@@ -19,7 +19,9 @@ function missing() {
   )
 }
 
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export const GET = withRequestLogging<{ params: Promise<{ id: string }> }>(
+  '/api/clips/[id]',
+  async (_req, ctx, log) => {
   const uid = await userId()
   if (!uid) {
     return NextResponse.json(
@@ -31,15 +33,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json(await loadClipEditor(sql, uid, (await ctx.params).id))
   } catch (error) {
     if (error instanceof ClipNotFoundError) return missing()
-    console.error('gagal memuat clip', describeError(error))
+    log.error('clip.load.failed', errorFields(error))
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Gagal memuat editor.' } },
       { status: 500 },
     )
   }
-}
+  },
+)
 
-export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+export const PATCH = withRequestLogging<{ params: Promise<{ id: string }> }>(
+  '/api/clips/[id]',
+  async (req, ctx, log) => {
   const uid = await userId()
   if (!uid) {
     return NextResponse.json(
@@ -55,10 +60,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json(await updateClip(sql, uid, (await ctx.params).id, body))
   } catch (error) {
     if (error instanceof ClipNotFoundError) return missing()
-    console.error('gagal menyimpan clip', describeError(error))
+    log.error('clip.update.failed', errorFields(error))
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Gagal menyimpan perubahan.' } },
       { status: 500 },
     )
   }
-}
+  },
+)
