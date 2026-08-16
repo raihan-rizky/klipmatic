@@ -20,6 +20,8 @@ const candidate1: CandidateView = {
   transcriptSlice: 'Isi transkrip',
   thumbnailStatus: 'ready',
   thumbnailUrl: '/api/candidates/candidate-1/thumbnail',
+  previewStatus: 'pending',
+  previewUrl: null,
 }
 
 const candidate2: CandidateView = {

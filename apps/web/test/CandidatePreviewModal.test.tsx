@@ -21,6 +21,8 @@ const candidate3: CandidateView = {
   transcriptSlice: 'Transcript tiga',
   thumbnailStatus: 'ready',
   thumbnailUrl: '/api/candidates/candidate-3/thumbnail',
+  previewStatus: 'pending',
+  previewUrl: null,
 }
 
 const fetchMock = vi.fn<typeof fetch>()
@@ -172,4 +174,20 @@ test('known clip can open editor directly and arrow keys respect boundaries', ()
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowLeft' })
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' })
   expect(onPrevious).toHaveBeenCalledOnce()
+})
+
+test('pre-rendered candidate plays instantly without creating a clip', () => {
+  const prerendered: CandidateView = {
+    ...candidate3,
+    previewStatus: 'ready',
+    previewUrl: '/api/candidates/candidate-3/preview-file',
+  }
+  render(<CandidatePreviewModal {...props({ candidate: prerendered })} />)
+  // Video langsung muncul tanpa tombol Putar dan tanpa panggilan fetch.
+  expect(screen.getByTestId('candidate-preview-video')).toHaveAttribute(
+    'src',
+    '/api/candidates/candidate-3/preview-file',
+  )
+  expect(screen.queryByRole('button', { name: /Putar preview/i })).toBeNull()
+  expect(fetchMock).not.toHaveBeenCalled()
 })

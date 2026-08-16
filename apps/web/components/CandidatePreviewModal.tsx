@@ -10,7 +10,7 @@ import {
   Play,
   RotateCcw,
 } from 'lucide-react'
-import type { ErrorCode } from '@cheapclipper/shared'
+import type { ErrorCode } from '@klipmatic/shared'
 import type { CandidateView } from '@/lib/candidates'
 import { createPreviewClip, fetchClipPreviewStatus } from '@/lib/candidatePreviewClient'
 import { messageFor } from '@/lib/errorMessages'
@@ -78,7 +78,11 @@ export function CandidatePreviewModal({
   onClipResolved,
 }: CandidatePreviewModalProps) {
   const router = useRouter()
-  const [state, setState] = useState<PreviewState>({ kind: 'idle' })
+  const [state, setState] = useState<PreviewState>(() =>
+    candidate.previewUrl
+      ? { kind: 'ready', clipId: initialClipId ?? '', url: candidate.previewUrl }
+      : { kind: 'idle' },
+  )
   const operationRef = useRef<AbortController | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
@@ -94,9 +98,16 @@ export function CandidatePreviewModal({
 
   useEffect(() => {
     stopMedia()
-    setState({ kind: 'idle' })
+    // Kalau kandidat sudah punya preview pre-render, langsung putar tanpa
+    // membuat clip dulu; jalur create-clip hanya untuk kandidat yang belum
+    // di-render oleh worker.
+    if (candidate.previewUrl) {
+      setState({ kind: 'ready', clipId: initialClipId ?? '', url: candidate.previewUrl })
+    } else {
+      setState({ kind: 'idle' })
+    }
     return stopMedia
-  }, [candidate.id, open, stopMedia])
+  }, [candidate.id, candidate.previewUrl, initialClipId, open, stopMedia])
 
   const poll = useCallback(async (clipId: string, signal: AbortSignal) => {
     let retryIndex = 0

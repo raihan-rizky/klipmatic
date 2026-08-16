@@ -26,6 +26,8 @@ const candidates: CandidateView[] = thumbnails.map((thumbnailUrl, index) => ({
   transcriptSlice: 'Potongan transcript fixture yang cukup panjang untuk menguji wrapping.',
   thumbnailStatus: 'ready',
   thumbnailUrl,
+  previewStatus: 'pending',
+  previewUrl: null,
 }))
 
 export default function CandidatePreviewFixturePage() {

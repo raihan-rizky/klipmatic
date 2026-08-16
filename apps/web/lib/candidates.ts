@@ -12,6 +12,8 @@ export interface CandidateView {
   transcriptSlice: string
   thumbnailStatus: 'pending' | 'ready' | 'failed'
   thumbnailUrl: string | null
+  previewStatus: 'pending' | 'rendering' | 'ready' | 'failed'
+  previewUrl: string | null
 }
 
 export type PipelineJobStatus = 'queued' | 'running' | 'done' | 'failed' | 'dead'
@@ -39,7 +41,8 @@ export async function listCandidates(
   const rows = await sql`
     select c.id, c.start_sec, c.end_sec, c.score, c.title, c.hook_text,
            c.reason, c.transcript_slice, c.thumbnail_status,
-           c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url
+           c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url,
+           c.preview_status, c.preview_r2_key
       from clip_candidates c
       join projects p on p.id = c.project_id
       join sources s on s.id = p.source_id
@@ -65,6 +68,11 @@ export async function listCandidates(
       r.thumbnail_status === 'ready' && r.thumbnail_r2_key
         ? `/api/candidates/${r.id as string}/thumbnail`
         : ((r.source_thumbnail_url as string | null) ?? null),
+    previewStatus: (r.preview_status as CandidateView['previewStatus']) ?? 'pending',
+    previewUrl:
+      r.preview_status === 'ready' && r.preview_r2_key
+        ? `/api/candidates/${r.id as string}/preview-file`
+        : null,
   }))
 }
 
@@ -106,6 +114,28 @@ export async function loadCandidateThumbnail(
      limit 1
   `
   const key = rows[0]?.thumbnail_r2_key as string | undefined
+  if (!key) throw new CandidateNotFoundError()
+  return { key }
+}
+
+export async function loadCandidatePreviewFile(
+  sql: Sql,
+  userId: string,
+  candidateId: string,
+): Promise<{ key: string }> {
+  if (!UUID_RE.test(candidateId)) throw new CandidateNotFoundError()
+
+  const rows = await sql`
+    select c.preview_r2_key
+      from clip_candidates c
+      join projects p on p.id = c.project_id
+     where c.id = ${candidateId}
+       and c.preview_status = 'ready'
+       and c.preview_r2_key is not null
+       and p.user_id = ${userId}
+     limit 1
+  `
+  const key = rows[0]?.preview_r2_key as string | undefined
   if (!key) throw new CandidateNotFoundError()
   return { key }
 }
