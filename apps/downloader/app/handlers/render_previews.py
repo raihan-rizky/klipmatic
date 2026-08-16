@@ -122,7 +122,7 @@ def handle_render_previews(
                     (key, cid, project_id),
                 )
                 conn.commit()
-            except Exception as exc:  # satu kandidat gagal tidak menghentikan batch
+            except Exception as exc:  # noqa: BLE001 - satu kandidat gagal tidak menghentikan batch
                 error_code = exc.code if isinstance(exc, JobError) else "INTERNAL"
                 emit(
                     log,
