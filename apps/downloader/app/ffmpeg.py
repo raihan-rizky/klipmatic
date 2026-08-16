@@ -151,3 +151,50 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def crop_vertical(
+    src: Path,
+    dest: Path,
+    focus_x: float,
+    *,
+    width: int = 720,
+    height: int = 1280,
+) -> Path:
+    """Crop sumber ke jendela 9:16 berpusat pada focus_x, lalu scale ke resolusi target.
+
+    focus_x (0..1) menyatakan posisi horizontal pusat crop relatif terhadap
+    lebar frame asli. Jendela di-clamp supaya tidak keluar dari tepi kiri atau
+    kanan. Encoding memakai preset veryfast dan CRF 28 agar preview siap dalam
+    hitungan detik per kandidat; -movflags +faststart menempatkan moov atom
+    di depan file sehingga playback dapat dimulai sebelum unduhan selesai.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    # FFmpeg expression evaluator tidak punya clamp(); gunakan min/max bersarang.
+    # cw = ih*9/16 ; x = clamp(focus_x*iw - cw/2, 0, iw-cw).
+    # Koma dalam ekspresi harus di-escape dengan backslash agar parser filtergraph
+    # tidak menganggapnya sebagai pemisah antar-filter.
+    fx = str(float(focus_x))
+    vf = (
+        "crop=ih*9/16:ih:"
+        f"min(max({fx}*iw-(ih*9/16)/2\\,0)\\,iw-ih*9/16):0,"
+        f"scale={width}:{height}:flags=lanczos"
+    )
+    proc = run_command(
+        [
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-i", str(src),
+            "-vf", vf,
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "128k",
+            "-movflags", "+faststart",
+            str(dest),
+        ],
+        tool="ffmpeg",
+        operation="crop_vertical",
+        timeout_sec=600,
+    )
+    if proc.returncode != 0 or not dest.exists():
+        raise JobError("INTERNAL", f"ffmpeg crop gagal: {proc.stderr[-500:]}")
+    return dest

@@ -118,3 +118,82 @@ def test_extract_thumbnail_menghasilkan_webp_16_9(tmp_path: Path):
         text=True,
     ).stdout.strip()
     assert dimensions == "640,360"
+
+
+def _split_color_video(path: Path) -> Path:
+    """Video 1280x360: kiri merah, kanan biru. Untuk tes posisi crop."""
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-f", "lavfi", "-i", "color=c=red:s=640x360:d=0.5",
+            "-f", "lavfi", "-i", "color=c=blue:s=640x360:d=0.5",
+            "-filter_complex", "[0:v][1:v]hstack",
+            "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+            "-y", str(path),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return path
+
+
+def _first_pixel_rgb(path: Path) -> tuple[int, int, int]:
+    """Mengambil piksel pertama frame pertama sebagai RGB mentah."""
+    proc = subprocess.run(
+        [
+            "ffmpeg", "-i", str(path),
+            "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return proc.stdout[0], proc.stdout[1], proc.stdout[2]
+
+
+def _probe_video(path: Path) -> dict:
+    out = subprocess.run(
+        [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name,width,height",
+            "-of", "json", str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return json.loads(out)["streams"][0]
+
+
+def test_crop_vertical_menghasilkan_9_16_h264(tmp_path: Path):
+    src = _split_color_video(tmp_path / "src.mp4")
+    dest = tmp_path / "out.mp4"
+
+    ffmpeg.crop_vertical(src, dest, focus_x=0.5)
+
+    assert dest.exists() and dest.stat().st_size > 0
+    stream = _probe_video(dest)
+    assert stream["codec_name"] == "h264"
+    assert stream["width"] == 720
+    assert stream["height"] == 1280
+
+
+def test_crop_vertical_focus_kiri_memilih_sisi_merah(tmp_path: Path):
+    """focus_x=0 → jendela crop di tepi kiri (merah)."""
+    src = _split_color_video(tmp_path / "src.mp4")
+    dest = tmp_path / "out.mp4"
+
+    ffmpeg.crop_vertical(src, dest, focus_x=0.0)
+
+    r, _g, b = _first_pixel_rgb(dest)
+    assert r > 150 and b < 80
+
+
+def test_crop_vertical_focus_kanan_memilih_sisi_biru(tmp_path: Path):
+    """focus_x=1 → jendela crop di tepi kanan (biru)."""
+    src = _split_color_video(tmp_path / "src.mp4")
+    dest = tmp_path / "out.mp4"
+
+    ffmpeg.crop_vertical(src, dest, focus_x=1.0)
+
+    r, _g, b = _first_pixel_rgb(dest)
+    assert b > 150 and r < 80
