@@ -40,6 +40,9 @@ services:
         if [ "$(psql -h postgres -U postgres -d klipmatic -tAc "select 1 from information_schema.columns where table_name = 'clip_candidates' and column_name = 'thumbnail_status'")" != "1" ]; then
           psql -v ON_ERROR_STOP=1 -h postgres -U postgres -d klipmatic -f /migrations/0002_candidate_previews.sql
         fi
+        if [ "$(psql -h postgres -U postgres -d klipmatic -tAc "select 1 from information_schema.columns where table_name = 'clip_candidates' and column_name = 'preview_status'")" != "1" ]; then
+          psql -v ON_ERROR_STOP=1 -h postgres -U postgres -d klipmatic -f /migrations/0003_candidate_preview_renders.sql
+        fi
 
   minio:
     image: minio/minio
