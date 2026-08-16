@@ -1,7 +1,14 @@
 # Desain: Top-10 Preload, 9:16 Face-Crop, Face Detection, Scoring, dan Responsiveness
 
 Tanggal: 2026-08-16
-Status: draft — menunggu review
+Status: disetujui
+
+## Status sub-proyek
+
+- Sub-proyek 1 (fix editor playback): **selesai** — commit 6c80136
+- Sub-proyek 2+3 (preload pipeline + face-crop): **selesai** — commit 396082e..7a698e7
+- Sub-proyek 4 (scoring): belum dimulai
+- Sub-proyek 5 (UI responsiveness): belum dimulai
 
 ## Konteks
 
