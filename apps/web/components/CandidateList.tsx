@@ -79,6 +79,22 @@ export function CandidateList({ candidates }: { candidates: CandidateView[] }) {
                   <span className="absolute left-3 top-3 rounded-md bg-black/80 px-2.5 py-1 text-xs font-black text-white">
                     #{candidate.rank}
                   </span>
+                  {candidate.previewStatus === 'rendering' && (
+                    <span
+                      data-testid="candidate-preview-rendering"
+                      className="absolute right-3 top-3 animate-pulse rounded-md bg-primary/90 px-2.5 py-1 text-xs font-bold text-white"
+                    >
+                      Menyiapkan preview…
+                    </span>
+                  )}
+                  {candidate.previewStatus === 'failed' && (
+                    <span
+                      data-testid="candidate-preview-failed"
+                      className="absolute right-3 top-3 rounded-md bg-destructive/90 px-2.5 py-1 text-xs font-bold text-white"
+                    >
+                      Preview gagal
+                    </span>
+                  )}
                   <span className="absolute bottom-3 right-3 rounded-md bg-black/80 px-2 py-1 font-mono text-xs font-bold text-white">
                     {durationLabel(candidate.startSec, candidate.endSec)}
                   </span>

@@ -75,3 +75,23 @@ test('Escape closes modal and restores focus to its preview card', async () => {
   fireEvent.keyDown(document, { key: 'Escape' })
   await waitFor(() => expect(opener).toHaveFocus())
 })
+
+test('rendering badge appears when preview is in progress', () => {
+  const rendering: CandidateView = {
+    ...candidate1,
+    previewStatus: 'rendering',
+  }
+  render(<CandidateList candidates={[rendering]} />)
+  expect(screen.getByTestId('candidate-preview-rendering')).toHaveTextContent(
+    'Menyiapkan preview…',
+  )
+})
+
+test('failed badge appears when preview render failed', () => {
+  const failed: CandidateView = {
+    ...candidate1,
+    previewStatus: 'failed',
+  }
+  render(<CandidateList candidates={[failed]} />)
+  expect(screen.getByTestId('candidate-preview-failed')).toHaveTextContent('Preview gagal')
+})
