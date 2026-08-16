@@ -286,6 +286,35 @@ def test_analyze_retry_keeps_one_active_thumbnail_job(conn, deps):
     assert count == 1
 
 
+def test_analyze_enqueues_render_previews_job(conn, deps):
+    uid, sid, pid = _setup(conn, external_id="analysis-render-job")
+    handle_analyze(conn, _job(conn, sid, pid, uid), **deps)
+
+    row = conn.execute(
+        "select type, payload, user_id, project_id from jobs "
+        "where type = 'render_previews' and project_id = %s",
+        (pid,),
+    ).fetchone()
+    assert row[0] == "render_previews"
+    assert row[1]["project_id"] == pid
+    assert str(row[2]) == uid
+    assert str(row[3]) == pid
+
+
+def test_analyze_retry_keeps_one_active_render_previews_job(conn, deps):
+    uid, sid, pid = _setup(conn, external_id="analysis-render-retry")
+    job = _job(conn, sid, pid, uid)
+    handle_analyze(conn, job, **deps)
+    handle_analyze(conn, job, **deps)
+
+    count = conn.execute(
+        "select count(*) from jobs where type='render_previews' "
+        "and project_id=%s and status in ('queued','running')",
+        (pid,),
+    ).fetchone()[0]
+    assert count == 1
+
+
 def test_reanalysis_deletes_replaced_thumbnail_object(conn, deps):
     uid, sid, pid = _setup(conn, external_id="analysis-thumb-cleanup")
     handle_analyze(conn, _job(conn, sid, pid, uid), **deps)

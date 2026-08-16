@@ -93,6 +93,23 @@ def _write_candidates(
                 project_id,
             ),
         )
+    # Queue render_previews setelah kandidat ditulis; sama seperti thumbnail,
+    # satu project hanya punya satu job aktif supaya retry tidak menggandakan.
+    active_render_job = conn.execute(
+        "select id from jobs where type = 'render_previews' and project_id = %s "
+        "and status in ('queued','running') limit 1",
+        (project_id,),
+    ).fetchone()
+    if active_render_job is None:
+        conn.execute(
+            "insert into jobs (type, payload, user_id, project_id) "
+            "values ('render_previews', %s::jsonb, %s, %s)",
+            (
+                json.dumps({"project_id": project_id}),
+                job.user_id,
+                project_id,
+            ),
+        )
     conn.commit()
     for thumbnail_key in old_thumbnail_keys:
         try:

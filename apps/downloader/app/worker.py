@@ -134,6 +134,7 @@ def default_handlers() -> dict[str, Handler]:
     from app.handlers.ingest import handle_ingest
     from app.handlers.prepare_thumbnails import handle_prepare_thumbnails
     from app.handlers.probe_asset import handle_probe_asset
+    from app.handlers.render_previews import handle_render_previews
     from app.handlers.transcribe import handle_transcribe
 
     return {
@@ -143,6 +144,7 @@ def default_handlers() -> dict[str, Handler]:
         "prepare_thumbnails": handle_prepare_thumbnails,
         "fetch_segments": handle_fetch_segments,
         "probe_asset": handle_probe_asset,
+        "render_previews": handle_render_previews,
     }
 
 
