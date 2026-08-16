@@ -115,7 +115,7 @@ def handle_render_previews(
                     (key, cid, project_id),
                 )
                 conn.commit()
-            except Exception as exc:  # noqa: BLE001 - satu kandidat gagal tidak menghentikan batch
+            except Exception as exc:  # satu kandidat gagal tidak menghentikan batch
                 error_code = exc.code if isinstance(exc, JobError) else "INTERNAL"
                 log.exception(
                     "preview render gagal untuk kandidat %s", cid,
@@ -128,7 +128,7 @@ def handle_render_previews(
                         (cid, project_id),
                     )
                     conn.commit()
-                except Exception:  # noqa: BLE001
+                except Exception:
                     log.exception("gagal mencatat status failed untuk kandidat %s", cid)
             heartbeat(conn, job.id, (index + 1) * 100 // len(rows))
     finally:

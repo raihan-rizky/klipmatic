@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import app.handlers.render_previews as render_previews
+from app.handlers import render_previews
 from app.queue import Job, enqueue
 
 

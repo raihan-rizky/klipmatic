@@ -9,7 +9,7 @@ from app.face_focus import compute_focus_x
 
 def _fake_detect(per_frame: list[list[tuple[float, float]]]):
     """Membuat callable _detect_frames yang mengembalikan hit statis."""
-    def detect(frames: list[Path]) -> list[list[tuple[float, float]]]:  # noqa: ARG001
+    def detect(_frames: list[Path]) -> list[list[tuple[float, float]]]:
         return per_frame
     return detect
 
