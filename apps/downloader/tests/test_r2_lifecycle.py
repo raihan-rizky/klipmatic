@@ -59,6 +59,11 @@ def test_ttl_segmen_sama_dengan_yang_dicatat_handler_ke_database():
     assert _rule("segments/")["Expiration"]["Days"] == SEGMENT_TTL_DAYS
 
 
+def test_ttl_preview_sama_dengan_segmen():
+    """Preview turunan kandidat memakai TTL yang sama dengan segmen."""
+    assert _rule("previews/")["Expiration"]["Days"] == SEGMENT_TTL_DAYS
+
+
 def test_audio_kedaluwarsa_30_hari_sesuai_spec():
     assert _rule("audio/")["Expiration"]["Days"] == 30
 
@@ -109,8 +114,8 @@ def test_apply_cors_hanya_mengizinkan_origin_aplikasi():
             self._s3 = S3Palsu()
 
     storage = StoragePalsu()
-    apply_cors(storage, ["https://app.cheapclipper.id"])
+    apply_cors(storage, ["https://app.klipmatic.id"])
     rule = storage._s3.panggilan[0]["CORSConfiguration"]["CORSRules"][0]
-    assert rule["AllowedOrigins"] == ["https://app.cheapclipper.id"]
+    assert rule["AllowedOrigins"] == ["https://app.klipmatic.id"]
     assert rule["AllowedMethods"] == ["GET", "HEAD"]
     assert "PUT" not in rule["AllowedMethods"]

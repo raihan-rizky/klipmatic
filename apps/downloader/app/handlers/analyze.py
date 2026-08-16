@@ -50,6 +50,11 @@ def _write_candidates(
     # Job dapat dicoba ulang setelah kegagalan sementara. Tanpa pembersihan
     # ini, percobaan kedua menambahkan satu set kandidat lagi ke proyek yang
     # sama alih-alih menggantikannya.
+    # Catatan: preview_r2_key sengaja TIDAK dihapus di sini. Kunci preview
+    # bersifat content-addressed sehingga dapat dipakai bersama oleh kandidat
+    # identik di proyek lain; menghapusnya saat re-analysis bisa merusak
+    # preview proyek lain. Aturan lifecycle 7 hari pada prefix previews/
+    # (scripts/r2_lifecycle.py) yang membersihkan objek yatim.
     old_thumbnail_keys = [
         row[0]
         for row in conn.execute(

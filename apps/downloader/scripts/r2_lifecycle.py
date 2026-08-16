@@ -40,6 +40,14 @@ RULES = {
             "Status": "Enabled",
             "Expiration": {"Days": 7},
         },
+        {
+            # Preview turunan kandidat; TTL sama dengan segmen supaya objek
+            # yatim (re-analysis) tetap terhapus meski cleanup eksplisit gagal.
+            "ID": "preview-7-hari",
+            "Filter": {"Prefix": "previews/"},
+            "Status": "Enabled",
+            "Expiration": {"Days": 7},
+        },
         # transcripts/ sengaja tidak punya aturan kedaluwarsa: ukurannya kecil
         # dan ia adalah lapis cache paling berharga.
     ]
