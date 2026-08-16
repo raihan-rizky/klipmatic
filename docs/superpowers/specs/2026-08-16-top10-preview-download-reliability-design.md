@@ -102,6 +102,15 @@ menunjukkan `SOURCE_BLOCKED` melalui queue yang sudah ada. Job tidak boleh lagi
 berstatus `done` ketika masih ada kegagalan source sementara yang belum habis
 retry policy-nya.
 
+### Web pipeline wiring
+
+Web saat ini memakai `prepare_thumbnails` sebagai penanda stage terakhir pada
+`JobProgress`, `latestThumbnailJobStatus`, dan `projectViewState`. Ketiga wiring
+tersebut dipindahkan ke `render_previews` supaya halaman tetap menunggu satu
+pipeline gabungan yang baru dan reload ketika job itu terminal. Nama helper dan
+argumen state diubah menjadi preview-oriented agar kontraknya tidak misleading.
+Ini perubahan orchestration tanpa perubahan copy atau layout visual.
+
 ## Recovery project yang terdampak
 
 Setelah worker baru aktif, project
@@ -128,7 +137,8 @@ Regression coverage wajib membuktikan:
 6. `SOURCE_BLOCKED` memakai retry lokal, lalu memicu retry job bila masih gagal;
 7. error permanen satu kandidat tidak membatalkan kandidat lain;
 8. log tetap tidak membocorkan raw stderr atau URL;
-9. focused downloader tests, Ruff, dan full relevant suite lulus.
+9. web progress dan result gate mengikuti `render_previews`, bukan job thumbnail;
+10. focused downloader/web tests, Ruff, type-check, dan full relevant suite lulus.
 
 Verifikasi runtime menggunakan worker Docker hasil rebuild dan project nyata yang
 terdampak. Sukses berarti status Top-10 seluruhnya ready, object thumbnail dan
@@ -138,7 +148,7 @@ preview dapat dibaca dari storage, serta log tidak memuat burst kegagalan
 ## Non-goals
 
 - Cookie pool, residential proxy, atau bypass autentikasi YouTube.
-- Perubahan model face detection, crop, scoring kandidat, atau UI.
+- Perubahan model face detection, crop, scoring kandidat, atau visual UI.
 - Penyimpanan ulang raw segment Top-10 di R2.
 - Menghapus schema/job type `prepare_thumbnails` dalam perubahan ini.
 
