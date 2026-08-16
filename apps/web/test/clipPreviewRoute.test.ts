@@ -27,6 +27,7 @@ beforeEach(() => {
     url: '/api/clips/clip-1/segment',
     jobId: 'job-1',
     errorCode: null,
+    prerendered: false,
   })
 })
 
@@ -51,8 +52,28 @@ test('returns lightweight preview status', async () => {
     url: '/api/clips/clip-1/segment',
     jobId: 'job-1',
     errorCode: null,
+    prerendered: false,
   })
   expect(deps.load).toHaveBeenCalledWith({}, 'user-1', 'clip-1')
+})
+
+test('returns prerendered url when preview is already rendered', async () => {
+  deps.load.mockResolvedValueOnce({
+    clipId: 'clip-1',
+    status: 'ready',
+    url: '/api/clips/clip-1/preview-file',
+    jobId: 'job-render',
+    errorCode: null,
+    prerendered: true,
+  })
+  const response = await GET(new Request('http://localhost'), {
+    params: Promise.resolve({ id: 'clip-1' }),
+  })
+  expect(response.status).toBe(200)
+  await expect(response.json()).resolves.toMatchObject({
+    url: '/api/clips/clip-1/preview-file',
+    prerendered: true,
+  })
 })
 
 test('returns 404 without leaking ownership', async () => {

@@ -1,14 +1,16 @@
-import type { EditSpecV3, TranscriptWord } from '@cheapclipper/engine'
+import type { EditSpecV3, TranscriptWord } from '@klipmatic/engine'
 import type { MediaAssetDto } from './mediaAssets'
 
 export type ResolvedMediaAsset = MediaAssetDto
 
 export interface ClipPreviewStatus {
   clipId: string
-  status: 'pending' | 'ready' | 'failed'
+  status: 'pending' | 'rendering' | 'ready' | 'failed'
   url: string | null
   jobId: string | null
   errorCode: string | null
+  /** True ketika preview sudah di-render sebagai klip 9:16 oleh worker. */
+  prerendered: boolean
 }
 
 export interface ClipEditorPayload {

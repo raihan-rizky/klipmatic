@@ -5,7 +5,7 @@ import {
   type EditSpecV3,
   type TimelineContext,
   type TranscriptWord,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import type { ClipEditorPayload, ClipPreviewStatus, ResolvedMediaAsset } from './clipTypes'
 import {
   referencedAssetIds,
@@ -132,8 +132,13 @@ export async function loadClipPreview(
   if (!UUID_RE.test(clipId)) throw new ClipNotFoundError()
 
   const [row] = await sql`
-    select cl.id, segment.id as segment_id, job.id as job_id,
-           job.status as job_status, job.error_code as job_error_code
+    select cl.id,
+           c.preview_status,
+           c.preview_r2_key,
+           segment.id as segment_id,
+           job.id as job_id,
+           job.status as job_status,
+           job.error_code as job_error_code
       from clips cl
       join clip_candidates c on c.id = cl.candidate_id
       join projects p on p.id = cl.project_id
@@ -149,9 +154,8 @@ export async function loadClipPreview(
       left join lateral (
         select j.id, j.status, j.error_code
           from jobs j
-         where j.type = 'fetch_segments'
+         where j.type = 'render_previews'
            and j.project_id = p.id
-           and j.payload->>'clip_id' = cl.id::text
          order by j.created_at desc
          limit 1
       ) job on true
@@ -160,15 +164,59 @@ export async function loadClipPreview(
      limit 1`
   if (!row) throw new ClipNotFoundError()
 
-  const ready = Boolean(row.segment_id)
-  const failed = row.job_status === 'failed' || row.job_status === 'dead'
+  const prerenderReady = row.preview_status === 'ready' && Boolean(row.preview_r2_key)
+  const segmentReady = Boolean(row.segment_id)
+  const failed = row.preview_status === 'failed' || row.job_status === 'failed' || row.job_status === 'dead'
+
+  if (prerenderReady) {
+    return {
+      clipId: row.id as string,
+      status: 'ready',
+      url: `/api/clips/${clipId}/preview-file`,
+      jobId: (row.job_id as string | null) ?? null,
+      errorCode: null,
+      prerendered: true,
+    }
+  }
+  if (segmentReady) {
+    return {
+      clipId: row.id as string,
+      status: 'ready',
+      url: `/api/clips/${clipId}/segment`,
+      jobId: (row.job_id as string | null) ?? null,
+      errorCode: null,
+      prerendered: false,
+    }
+  }
+  const previewStatus = row.preview_status as 'pending' | 'rendering' | 'ready' | 'failed' | null
   return {
     clipId: row.id as string,
-    status: ready ? 'ready' : failed ? 'failed' : 'pending',
-    url: ready ? `/api/clips/${clipId}/segment` : null,
+    status: failed ? 'failed' : previewStatus === 'rendering' ? 'rendering' : 'pending',
+    url: null,
     jobId: (row.job_id as string | null) ?? null,
     errorCode: (row.job_error_code as string | null) ?? null,
+    prerendered: false,
   }
+}
+
+export async function loadClipPreviewFile(
+  sql: Sql,
+  userId: string,
+  clipId: string,
+): Promise<{ key: string }> {
+  if (!UUID_RE.test(clipId)) throw new ClipNotFoundError()
+  const [row] = await sql`
+    select c.preview_r2_key
+      from clips cl
+      join clip_candidates c on c.id = cl.candidate_id
+      join projects p on p.id = cl.project_id
+     where cl.id = ${clipId}
+       and p.user_id = ${userId}
+       and c.preview_status = 'ready'
+       and c.preview_r2_key is not null
+     limit 1`
+  if (!row) throw new ClipNotFoundError()
+  return { key: row.preview_r2_key as string }
 }
 
 export async function createClipFromCandidate(

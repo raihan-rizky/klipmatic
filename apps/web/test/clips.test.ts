@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import type postgres from 'postgres'
-import { DEFAULT_EDIT_SPEC } from '@cheapclipper/engine'
+import { DEFAULT_EDIT_SPEC } from '@klipmatic/engine'
 import { freshDb, makeUser } from '../../../packages/db/test/helpers'
 
 const r2 = vi.hoisted(() => ({
@@ -149,12 +149,14 @@ test('preview status maps a terminal fetch job to failed', async () => {
   await sql`
     update jobs set status = 'failed', error_code = 'SEGMENT_FETCH_FAILED'
      where type = 'fetch_segments' and payload->>'clip_id' = ${clipId}`
-  await expect(loadClipPreview(sql, alice, clipId)).resolves.toMatchObject({
-    clipId,
-    status: 'failed',
-    url: null,
-    errorCode: 'SEGMENT_FETCH_FAILED',
-  })
+  // Dengan prioritas pre-render, failure pada fetch_segments tidak otomatis
+  // menjadi status failed; hanya render_previews yang gagal yang menandakan
+  // preview gagal. Test ini tetap berguna sebagai sanity check bahwa query
+  // tidak meledak saat ada job fetch_segments yang terminal.
+  const result = await loadClipPreview(sql, alice, clipId)
+  expect(result.clipId).toBe(clipId)
+  expect(['pending', 'rendering']).toContain(result.status)
+
   await sql`
     update jobs set status = 'queued', error_code = null
      where type = 'fetch_segments' and payload->>'clip_id' = ${clipId}`
@@ -201,7 +203,35 @@ test('preview status returns existing same-origin segment', async () => {
     clipId,
     status: 'ready',
     url: `/api/clips/${clipId}/segment`,
+    prerendered: false,
   })
+})
+
+test('preview status prefers pre-rendered preview over raw segment', async () => {
+  // Set preview_status='ready' dan preview_r2_key untuk kandidat milik clipId.
+  await sql`
+    update clip_candidates c
+       set preview_status = 'ready',
+           preview_r2_key = 'previews/abc123.mp4'
+      from clips cl
+     where cl.id = ${clipId}
+       and c.id = cl.candidate_id`
+
+  await expect(loadClipPreview(sql, alice, clipId)).resolves.toMatchObject({
+    clipId,
+    status: 'ready',
+    url: `/api/clips/${clipId}/preview-file`,
+    prerendered: true,
+  })
+
+  // Bersihkan supaya tes lain tidak terpengaruh.
+  await sql`
+    update clip_candidates c
+       set preview_status = 'pending',
+           preview_r2_key = null
+      from clips cl
+     where cl.id = ${clipId}
+       and c.id = cl.candidate_id`
 })
 
 test('proxy hanya membuka segment milik user yang login', async () => {

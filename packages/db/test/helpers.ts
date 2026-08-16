@@ -10,7 +10,7 @@ import { expect } from 'vitest'
 const HERE = dirname(fileURLToPath(import.meta.url))
 
 export const TEST_DB_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:55432/cheapclipper'
+  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:55432/klipmatic'
 
 /**
  * Nama database khusus untuk berkas tes yang sedang berjalan.
@@ -62,6 +62,7 @@ export async function freshDb() {
   await sql.unsafe(readFileSync(join(HERE, '../migrations/0000_init.sql'), 'utf8'))
   await sql.unsafe(readFileSync(join(HERE, '../migrations/0001_media_assets.sql'), 'utf8'))
   await sql.unsafe(readFileSync(join(HERE, '../migrations/0002_candidate_previews.sql'), 'utf8'))
+  await sql.unsafe(readFileSync(join(HERE, '../migrations/0003_candidate_preview_renders.sql'), 'utf8'))
 
   await sql.unsafe(`
     grant select, insert, update, delete on all tables in schema public to authenticated;
