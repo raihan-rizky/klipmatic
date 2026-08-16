@@ -11,7 +11,7 @@ import {
   type TimelineContext,
   type TranscriptWord,
   type VisualTransform,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import { Button } from '@/components/ui/button'
 import type { ResolvedMediaAsset } from '@/lib/clipTypes'
 import {
@@ -189,11 +189,20 @@ export function TimelinePreview({
     })
     controllerRef.current = controller
     void controller.seek(playhead)
+    // Kalau controller dibuat ulang saat prop playing masih true (misalnya
+    // karena dependensi memo berubah identitas), transport harus mengikuti
+    // status yang sedang tampil; tanpa ini playback berhenti diam-diam.
+    if (playing) {
+      void controller.play().catch(() => undefined)
+    }
 
     return () => {
       controller.dispose()
       controllerRef.current = null
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `playing` sengaja
+    // dibaca saat controller dibuat ulang supaya transport tidak berhenti;
+    // perubahan playing ditangani efek terpisah di bawah.
   }, [spec, timelineContext, timelineWords])
 
   useEffect(() => {
@@ -254,13 +263,13 @@ export function TimelinePreview({
         <div
           className="relative inline-flex max-h-[56vh] max-w-full"
           onDragOver={(event) => {
-            if (event.dataTransfer.types.includes('application/x-cheapclipper-asset')) {
+            if (event.dataTransfer.types.includes('application/x-klipmatic-asset')) {
               event.preventDefault()
               event.dataTransfer.dropEffect = 'copy'
             }
           }}
           onDrop={(event) => {
-            const raw = event.dataTransfer.getData('application/x-cheapclipper-asset')
+            const raw = event.dataTransfer.getData('application/x-klipmatic-asset')
             if (!raw) return
             event.preventDefault()
             try {
@@ -281,7 +290,7 @@ export function TimelinePreview({
                 },
               })
             } catch {
-              // Ignore drag payloads from outside Cheapclipper.
+              // Ignore drag payloads from outside Klipmatic.
             }
           }}
         >
@@ -290,7 +299,7 @@ export function TimelinePreview({
             width={spec.output.width}
             height={spec.output.height}
             aria-label="Preview video vertikal"
-            className="max-h-[56vh] w-auto max-w-full rounded-xl bg-black shadow-2xl"
+            className="max-h-[56vh] w-auto max-w-full rounded-lg bg-black shadow-2xl"
             style={{ aspectRatio: '9 / 16' }}
           />
           <CanvasSelectionOverlay

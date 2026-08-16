@@ -13,7 +13,7 @@ import {
   type TimelineCommand,
   type TimelineContext,
   type VisualTransform,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import { StatePanel } from '@/components/StatePanel'
 import { Alert } from '@/components/ui/alert'
 import { CaptionControls } from '@/components/editor/CaptionControls'
@@ -435,14 +435,20 @@ function ReadyClipEditor({
   }
 
   const support = browserExportSupport(history.present)
-  const uploadedAssets = assets.filter(
-    (asset) => asset.id !== candidateAssetId && !asset.id.startsWith('builtin:'),
+  // Memoize supaya TimelinePreview tidak membuat ulang controller tiap kali
+  // playhead berubah; tanpa ini identitas array berubah setiap render.
+  const uploadedAssets = useMemo(
+    () => assets.filter((asset) => asset.id !== candidateAssetId && !asset.id.startsWith('builtin:')),
+    [assets, candidateAssetId],
   )
-  const previewAssets = assets.map((asset) =>
-    asset.id === candidateAssetId ? { ...asset, url: mediaUrl } : asset,
+  const previewAssets = useMemo(
+    () => assets.map((asset) =>
+      asset.id === candidateAssetId ? { ...asset, url: mediaUrl } : asset,
+    ),
+    [assets, candidateAssetId, mediaUrl],
   )
-  const expiringAssets = uploadedAssets.filter((asset) => asset.expiresSoon)
-  const expiredAssets = uploadedAssets.filter((asset) => asset.status === 'expired')
+  const expiringAssets = useMemo(() => uploadedAssets.filter((asset) => asset.expiresSoon), [uploadedAssets])
+  const expiredAssets = useMemo(() => uploadedAssets.filter((asset) => asset.status === 'expired'), [uploadedAssets])
   const showGeneralControls = !selected || selected.kind === 'track' || selected.kind === 'clip'
   const inspector = (
     <div className="divide-y divide-border">

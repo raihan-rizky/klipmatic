@@ -416,6 +416,47 @@ test('save errors are announced without relying on color', () => {
   ).toBeVisible()
 })
 
+test('playback survives a playhead re-render (no controller recreation)', async () => {
+  const payload = makeReadyPayload()
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+    const url = String(input)
+    if (url.endsWith('/segment')) {
+      return new Response(new Blob(['media'], { type: 'video/mp4' }))
+    }
+    if (url.endsWith('/api/clips/clip-1')) {
+      return Response.json(payload)
+    }
+    return Response.json({ ok: true })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  Object.assign(URL, {
+    createObjectURL: vi.fn(() => 'blob:clip-1'),
+    revokeObjectURL: vi.fn(),
+  })
+  const pauseSpy = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+
+  render(<ClipEditor clipId="clip-1" />)
+  await screen.findByLabelText('Preview video vertikal')
+
+  const playButton = screen.getByRole('button', { name: /Putar preview|Jeda preview/i })
+  await userEvent.click(playButton)
+  expect(playSpy).toHaveBeenCalled()
+  pauseSpy.mockClear()
+
+  // Simulate the playhead ticking forward: the controller reports time, the
+  // parent re-renders, TimelinePreview receives new props. With the bug, the
+  // new `assets` array identity rebuilds `timelineContext`, the controller
+  // effect disposes the running controller, and pause() is called mid-play.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  })
+
+  expect(pauseSpy).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: /Jeda preview/i })).toBeVisible()
+})
+
 function assetTransfer(assetId: string): DataTransfer {
   const payload = JSON.stringify({ assetId })
   return {
@@ -423,10 +464,10 @@ function assetTransfer(assetId: string): DataTransfer {
     dropEffect: 'copy',
     files: [] as unknown as FileList,
     items: [] as unknown as DataTransferItemList,
-    types: ['application/x-cheapclipper-asset'],
+    types: ['application/x-klipmatic-asset'],
     clearData: () => undefined,
     getData: (format: string) =>
-      format === 'application/x-cheapclipper-asset' ? payload : '',
+      format === 'application/x-klipmatic-asset' ? payload : '',
     setData: () => undefined,
     setDragImage: () => undefined,
   }
