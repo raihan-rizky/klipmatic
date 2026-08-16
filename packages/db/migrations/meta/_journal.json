@@ -22,6 +22,13 @@
       "when": 1786782462428,
       "tag": "0002_candidate_previews",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786877205962,
+      "tag": "0003_candidate_preview_renders",
+      "breakpoints": true
     }
   ]
 }

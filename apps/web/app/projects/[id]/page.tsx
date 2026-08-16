@@ -3,6 +3,7 @@ import { ArrowLeft, LogIn } from 'lucide-react'
 import { CandidateList } from '@/components/CandidateList'
 import { JobProgress } from '@/components/JobProgress'
 import { PageHeader } from '@/components/PageHeader'
+import { PreviewRenderRefresh } from '@/components/PreviewRenderRefresh'
 import { StatePanel } from '@/components/StatePanel'
 import { Button } from '@/components/ui/button'
 import { latestThumbnailJobStatus, listCandidates, projectViewState } from '@/lib/candidates'
@@ -95,6 +96,12 @@ export default async function ProjectPage({
             <h2 className="text-lg font-black tracking-normal">Hasil teratas</h2>
             <span className="text-sm text-muted">{candidates.length} kandidat</span>
           </div>
+          <PreviewRenderRefresh
+            projectId={id}
+            hasIncompletePreviews={candidates.some(
+              (candidate) => candidate.previewStatus === 'pending' || candidate.previewStatus === 'rendering',
+            )}
+          />
           <CandidateList candidates={candidates} />
         </div>
       )}

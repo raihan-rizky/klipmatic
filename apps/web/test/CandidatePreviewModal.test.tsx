@@ -188,6 +188,9 @@ test('pre-rendered candidate plays instantly without creating a clip', () => {
     'src',
     '/api/candidates/candidate-3/preview-file',
   )
+  expect(screen.getByTestId('candidate-preview-video')).toHaveAttribute('autoplay')
+  expect(screen.getByTestId('candidate-preview-video')).toHaveAttribute('playsinline')
+  expect(screen.getByTestId('candidate-preview-media')).toHaveClass('aspect-[9/16]')
   expect(screen.queryByRole('button', { name: /Putar preview/i })).toBeNull()
   expect(fetchMock).not.toHaveBeenCalled()
 })

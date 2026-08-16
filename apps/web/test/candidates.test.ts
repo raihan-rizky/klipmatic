@@ -21,6 +21,12 @@ vi.mock('@/lib/supabase/server', () => ({
     auth: { getUser: async () => ({ data: { user: infra.user } }) },
   }),
 }))
+// renderToStaticMarkup tidak menjalankan App Router client boundary. Leaf ini
+// hanya melakukan polling browser, jadi dimock agar test tetap fokus pada
+// perakitan server page.
+vi.mock('@/components/PreviewRenderRefresh', () => ({
+  PreviewRenderRefresh: () => null,
+}))
 
 import ProjectError from '../app/projects/[id]/error'
 import ProjectPage from '../app/projects/[id]/page'

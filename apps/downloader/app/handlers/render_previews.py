@@ -92,6 +92,12 @@ def handle_render_previews(
             cid = str(candidate_id)
             start, end = float(raw_start), float(raw_end)
             try:
+                conn.execute(
+                    "update clip_candidates set preview_status = 'rendering', preview_r2_key = null "
+                    "where id = %s and project_id = %s",
+                    (cid, project_id),
+                )
+                conn.commit()
                 seg_dir = root / f"{cid}_seg"
                 seg_dir.mkdir(exist_ok=True)
                 segment = seg_dir / "segment.mp4"

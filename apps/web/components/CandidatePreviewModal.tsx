@@ -246,7 +246,10 @@ export function CandidatePreviewModal({
           </DialogDescription>
         </header>
 
-        <div className="relative aspect-video w-full overflow-hidden bg-black">
+        <div
+          data-testid="candidate-preview-media"
+          className="relative mx-auto aspect-[9/16] w-full max-w-sm overflow-hidden bg-black"
+        >
           {state.kind === 'ready' ? (
             <video
               ref={videoRef}
@@ -255,7 +258,10 @@ export function CandidatePreviewModal({
               src={state.url}
               poster={poster}
               controls
-              preload="metadata"
+              autoPlay={Boolean(candidate.previewUrl)}
+              muted={Boolean(candidate.previewUrl)}
+              playsInline
+              preload="auto"
             />
           ) : (
             <>

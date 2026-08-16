@@ -162,6 +162,8 @@ export const clipCandidates = pgTable(
     transcriptSlice: text('transcript_slice').notNull(),
     thumbnailStatus: text('thumbnail_status').notNull().default('pending'),
     thumbnailR2Key: text('thumbnail_r2_key'),
+    previewStatus: text('preview_status').notNull().default('pending'),
+    previewR2Key: text('preview_r2_key'),
     createdAt: createdAt(),
   },
   (t) => [
@@ -169,6 +171,10 @@ export const clipCandidates = pgTable(
     check(
       'clip_candidates_thumbnail_status_chk',
       sql`${t.thumbnailStatus} in ('pending','ready','failed')`,
+    ),
+    check(
+      'clip_candidates_preview_status_chk',
+      sql`${t.previewStatus} in ('pending','rendering','ready','failed')`,
     ),
     index('clip_candidates_project_idx').on(t.projectId),
   ],
@@ -293,7 +299,7 @@ export const jobs = pgTable(
   (t) => [
     check(
       'jobs_type_chk',
-      sql`${t.type} in ('ingest','transcribe','analyze','prepare_thumbnails','fetch_segments','probe_asset')`,
+      sql`${t.type} in ('ingest','transcribe','analyze','prepare_thumbnails','fetch_segments','probe_asset','render_previews')`,
     ),
     check('jobs_status_chk', sql`${t.status} in ('queued','running','done','failed','dead')`),
     index('jobs_pick_idx').on(t.status, t.runAfter, t.priority),

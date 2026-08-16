@@ -85,6 +85,33 @@ def test_marks_candidates_ready_after_successful_render(conn, tmp_path):
     assert len(ids) == 2
 
 
+def test_marks_candidate_rendering_before_download(conn, tmp_path):
+    """Status rendering sudah terlihat sebelum I/O kandidat dimulai."""
+    uid, _sid, pid, ids = setup_project_with_candidates(conn, count=1)
+    seen_statuses: list[str] = []
+
+    def observe_then_download(_url, _start, _end, dest):
+        row = conn.execute(
+            "select preview_status from clip_candidates where id = %s", (ids[0],)
+        ).fetchone()
+        seen_statuses.append(str(row[0]))
+        dest.write_bytes(b"video")
+        return dest
+
+    render_previews.handle_render_previews(
+        conn,
+        render_job(conn, uid, pid),
+        storage=MagicMock(),
+        download=observe_then_download,
+        extract_frames=fake_extract_frames,
+        compute_focus=lambda _frames: 0.5,
+        crop=fake_crop,
+        workdir=tmp_path,
+    )
+
+    assert seen_statuses == ["rendering"]
+
+
 def test_failed_candidate_does_not_abort_batch(conn, tmp_path):
     uid, _sid, pid, ids = setup_project_with_candidates(conn, count=2)
     storage = MagicMock()
