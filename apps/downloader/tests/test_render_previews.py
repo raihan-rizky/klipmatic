@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -146,6 +147,32 @@ def test_failed_candidate_does_not_abort_batch(conn, tmp_path):
     assert by_id[ids[0]][1] is None
     assert by_id[ids[1]][0] == "ready"
     assert by_id[ids[1]][1] is not None
+
+
+def test_failed_candidate_emits_structured_safe_event(conn, tmp_path, caplog):
+    uid, _sid, pid, ids = setup_project_with_candidates(conn, count=1)
+    caplog.set_level(logging.INFO)
+
+    def failed_download(*_args):
+        raise RuntimeError("boom")
+
+    render_previews.handle_render_previews(
+        conn,
+        render_job(conn, uid, pid),
+        storage=MagicMock(),
+        download=failed_download,
+        workdir=tmp_path,
+    )
+
+    record = next(
+        record
+        for record in caplog.records
+        if getattr(record, "event_name", None) == "preview.failed"
+    )
+    assert record.event_fields["candidate_id"] == ids[0]
+    assert record.event_fields["error_code"] == "INTERNAL"
+    assert record.event_fields["error_class"] == "RuntimeError"
+    assert record.safe_trace
 
 
 def test_uploads_content_addressed_key(conn, tmp_path):

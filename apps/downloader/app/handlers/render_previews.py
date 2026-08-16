@@ -19,6 +19,7 @@ from app.errors import JobError
 from app.face_focus import compute_focus_x as _default_compute_focus_x
 from app.ffmpeg import crop_vertical as _default_crop_vertical
 from app.ffmpeg import sha256_file
+from app.observability import emit
 from app.queue import Job, heartbeat
 from app.storage import Storage, storage_from_env
 from app.ytdlp import download_section as _default_download_section
@@ -123,9 +124,14 @@ def handle_render_previews(
                 conn.commit()
             except Exception as exc:  # satu kandidat gagal tidak menghentikan batch
                 error_code = exc.code if isinstance(exc, JobError) else "INTERNAL"
-                log.exception(
-                    "preview render gagal untuk kandidat %s", cid,
-                    extra={"error_code": error_code},
+                emit(
+                    log,
+                    "preview.failed",
+                    level=logging.ERROR,
+                    exception=exc,
+                    candidate_id=cid,
+                    error_code=error_code,
+                    error_class=type(exc).__name__,
                 )
                 try:
                     conn.execute(
