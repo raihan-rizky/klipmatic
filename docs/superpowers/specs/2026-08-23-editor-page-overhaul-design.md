@@ -71,7 +71,8 @@ Masalah: klik joint hanya menyeleksi lalu menyuruh buka tab Transitions.
 
 Solusi: klik joint membuka **popover inline di titik potong** pada timeline:
 
-- Grid tombol 5 tipe transition (existing types dari engine).
+- Grid tombol 3 tipe transition (`fade`, `cross-dissolve`, `dip-to-black`
+  — dari `TRANSITION_TYPES` engine).
 - Slider durasi (clamp `joint.maxDuration`, step frame).
 - Tombol Add → dispatch `addTransition` + seleksi pindah ke transition baru.
 - Esc/klik luar menutup tanpa menambahkan.
