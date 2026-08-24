@@ -397,7 +397,7 @@ test('processing clip recovers from a transient polling error', async () => {
   expect(screen.getByLabelText('Preview video vertikal')).toBeVisible()
 })
 
-test('save errors are announced without relying on color', () => {
+test('header menampilkan status simpan berwarna dan kontrol ekspor', () => {
   render(
     <EditorHeader
       title="Klip fixture"
@@ -405,13 +405,59 @@ test('save errors are announced without relying on color', () => {
       timingPrecision="word"
       saveStatus="error"
       onRetry={vi.fn()}
+      exporting={false}
+      exportProgress={0}
+      exportSupported
+      exportReason={null}
+      onExport={vi.fn()}
     />,
   )
 
-  expect(screen.getByRole('status')).toHaveTextContent('Gagal menyimpan')
-  expect(
-    screen.getByRole('button', { name: 'Coba simpan lagi' }),
-  ).toBeVisible()
+  expect(screen.getByRole('status')).toHaveClass('text-danger')
+  expect(screen.getByText('Gagal menyimpan')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Coba simpan lagi' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Ekspor MP4' })).toBeEnabled()
+})
+
+test('saat mengekspor label tombol memuat persentase', () => {
+  render(
+    <EditorHeader
+      title="Klip fixture"
+      duration={30}
+      timingPrecision="word"
+      saveStatus="saved"
+      onRetry={vi.fn()}
+      exporting
+      exportProgress={0.42}
+      exportSupported
+      exportReason={null}
+      onExport={vi.fn()}
+    />,
+  )
+
+  expect(screen.getByRole('button', { name: /Mengekspor… 42%/ })).toBeDisabled()
+  expect(screen.getByRole('progressbar', { name: 'Progress ekspor' })).toBeVisible()
+})
+
+test('ekspor tidak didukung memunculkan badge dengan alasan di tooltip', async () => {
+  const userEvent = (await import('@testing-library/user-event')).default
+  render(
+    <EditorHeader
+      title="Klip fixture"
+      duration={30}
+      timingPrecision="word"
+      saveStatus="saved"
+      onRetry={vi.fn()}
+      exporting={false}
+      exportProgress={0}
+      exportSupported={false}
+      exportReason="Browser tidak mendukung WebCodecs."
+      onExport={vi.fn()}
+    />,
+  )
+
+  await userEvent.hover(screen.getByText('Ekspor tidak didukung'))
+  expect(await screen.findByText('Browser tidak mendukung WebCodecs.')).toBeVisible()
 })
 
 test('playback survives a playhead re-render (no controller recreation)', async () => {

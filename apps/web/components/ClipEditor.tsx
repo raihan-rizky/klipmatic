@@ -18,7 +18,6 @@ import { StatePanel } from '@/components/StatePanel'
 import { Alert } from '@/components/ui/alert'
 import { CaptionControls } from '@/components/editor/CaptionControls'
 import { CropControls } from '@/components/editor/CropControls'
-import { EditorActionBar } from '@/components/editor/EditorActionBar'
 import { EditorHeader } from '@/components/editor/EditorHeader'
 import { EditorWorkspace } from '@/components/editor/EditorWorkspace'
 import {
@@ -433,18 +432,6 @@ function ReadyClipEditor({
     if (!response.ok) throw new Error('Status ekspor gagal disimpan.')
   }
 
-  async function saveNow(): Promise<void> {
-    setError(null)
-    try {
-      await autosave.flush()
-      setNotice('Perubahan tersimpan.')
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Perubahan gagal disimpan.',
-      )
-    }
-  }
-
   async function runExport(): Promise<void> {
     setExporting(true)
     setProgress(0)
@@ -520,6 +507,11 @@ function ReadyClipEditor({
             timingPrecision={payload.clip.timingPrecision}
             saveStatus={autosave.status}
             onRetry={() => void autosave.retry().catch(() => undefined)}
+            exporting={exporting}
+            exportProgress={progress}
+            exportSupported={support.supported}
+            exportReason={support.reason}
+            onExport={() => void runExport()}
           />
         }
         preview={
@@ -635,16 +627,6 @@ function ReadyClipEditor({
           )}
         </div>
       )}
-
-      <EditorActionBar
-        saving={autosave.status === 'saving'}
-        exporting={exporting}
-        exportProgress={progress}
-        exportSupported={support.supported}
-        exportReason={support.reason}
-        onSave={() => void saveNow()}
-        onExport={() => void runExport()}
-      />
     </>
   )
 }

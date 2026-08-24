@@ -17,7 +17,6 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { CaptionControls } from './CaptionControls'
 import { CropControls } from './CropControls'
-import { EditorActionBar } from './EditorActionBar'
 import { EditorHeader } from './EditorHeader'
 import { EditorWorkspace } from './EditorWorkspace'
 import {
@@ -139,6 +138,11 @@ export function EditorFixture() {
             timingPrecision="word"
             saveStatus={saveStatus}
             onRetry={() => setSaveStatus('saved')}
+            exporting={exporting}
+            exportProgress={exportProgress}
+            exportSupported
+            exportReason={null}
+            onExport={() => void simulateExport()}
           />
         }
         preview={
@@ -201,14 +205,6 @@ export function EditorFixture() {
       <Alert tone="neutral" role="status" className="mt-4">
         {notice}
       </Alert>
-      <EditorActionBar
-        saving={saveStatus === 'saving'}
-        exporting={exporting}
-        exportProgress={exportProgress}
-        exportSupported
-        onSave={() => setSaveStatus('saved')}
-        onExport={() => void simulateExport()}
-      />
     </>
   )
 }
