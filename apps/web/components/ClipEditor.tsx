@@ -35,8 +35,11 @@ import type {
 import {
   TimelineEditor,
   type TimelineSelection,
+  type TimelineTransport,
 } from '@/components/editor/TimelineEditor'
 import { TimelinePreview } from '@/components/editor/TimelinePreview'
+import { ShortcutHelpDialog } from '@/components/editor/ShortcutHelpDialog'
+import { useGlobalShortcuts } from '@/components/editor/useGlobalShortcuts'
 import { useEditorAutosave } from '@/components/editor/useEditorAutosave'
 import type { ClipEditorPayload } from '@/lib/clipTypes'
 import { BUILTIN_MEDIA, getBuiltInAsset } from '@/lib/builtinMedia'
@@ -213,6 +216,8 @@ function ReadyClipEditor({
   const [exporting, setExporting] = useState(false)
   const [progress, setProgress] = useState(0)
   const [transitionDragActive, setTransitionDragActive] = useState(false)
+  const transportRef = useRef<TimelineTransport | null>(null)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const primaryVideoRef = useRef<HTMLVideoElement | null>(null)
   const candidateAssetId = payload.clip.editSpec.timeline.tracks
     .find((track) => track.id === payload.clip.editSpec.timeline.primaryTrackId)
@@ -264,6 +269,25 @@ function ReadyClipEditor({
     },
     [history.present, selected, timelineContext],
   )
+
+  const frameRate = history.present.output.frameRate
+  const timelineDuration = history.present.timeline.duration
+  const shortcuts = useMemo(() => ({
+    onTogglePlay: () => setPlaying((value) => !value),
+    onSplit: () => transportRef.current?.split(),
+    onDeleteSelected: () => transportRef.current?.remove(),
+    onUndo: () => historyDispatch({ type: 'undo' }),
+    onRedo: () => historyDispatch({ type: 'redo' }),
+    onStepFrame: (direction: -1 | 1, coarse: boolean) =>
+      setPlayhead((value) => Math.min(
+        Math.max(value + direction * (coarse ? 1 : 1 / frameRate), 0),
+        timelineDuration,
+      )),
+    onJumpToStart: () => setPlayhead(0),
+    onJumpToEnd: () => setPlayhead(timelineDuration),
+    onShowShortcuts: () => setShortcutsOpen(true),
+  }), [frameRate, timelineDuration])
+  useGlobalShortcuts(shortcuts)
 
   const insertAsset = useCallback((
     assetId: string,
@@ -472,6 +496,7 @@ function ReadyClipEditor({
 
   return (
     <>
+      <ShortcutHelpDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <EditorWorkspace
         header={
           <EditorHeader
@@ -558,6 +583,8 @@ function ReadyClipEditor({
             onTogglePlay={() => setPlaying((value) => !value)}
             onAssetDrop={insertAsset}
             transitionDragActive={transitionDragActive}
+            onShowShortcuts={() => setShortcutsOpen(true)}
+            transportRef={transportRef}
           />
         }
       />

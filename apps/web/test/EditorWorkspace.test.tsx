@@ -138,10 +138,8 @@ test('split then add transition autosaves the joint reference', async () => {
   await screen.findByLabelText('Preview video vertikal')
   await userEvent.click(screen.getByRole('button', { name: 'Split' }))
   await userEvent.click(await screen.findByRole('button', { name: /Sambungan/ }))
-  await userEvent.click(screen.getByRole('tab', { name: 'Transitions' }))
-  await userEvent.click(
-    screen.getByRole('button', { name: 'Add Cross Dissolve to selected cut' }),
-  )
+  await userEvent.click(screen.getByRole('button', { name: 'Cross Dissolve' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Tambahkan transition' }))
 
   await waitFor(() => {
     const savedTransitions = fetchMock.mock.calls

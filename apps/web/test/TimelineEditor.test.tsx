@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
-import { applyTimelineCommand, type EditSpecV3 } from '@cheapclipper/engine'
+import { applyTimelineCommand, type EditSpecV3 } from '@klipmatic/engine'
 import { TimelineEditor } from '@/components/editor/TimelineEditor'
 import { editorContext, makeEditorSpec } from './editorFixtures'
 
@@ -31,6 +31,7 @@ function propsFor(spec: EditSpecV3) {
     playing: false,
     onTogglePlay: vi.fn(),
     onAssetDrop: vi.fn(),
+    onShowShortcuts: vi.fn(),
   }
 }
 
@@ -41,10 +42,10 @@ function assetTransfer(assetId: string): DataTransfer {
     dropEffect: 'copy',
     files: [] as unknown as FileList,
     items: [] as unknown as DataTransferItemList,
-    types: ['application/x-cheapclipper-asset'],
+    types: ['application/x-klipmatic-asset'],
     clearData: () => undefined,
     getData: (format: string) =>
-      format === 'application/x-cheapclipper-asset' ? payload : '',
+      format === 'application/x-klipmatic-asset' ? payload : '',
     setData: () => undefined,
     setDragImage: () => undefined,
   }
@@ -57,10 +58,10 @@ function transitionTransfer(type: 'fade' | 'cross-dissolve' | 'dip-to-black'): D
     dropEffect: 'copy',
     files: [] as unknown as FileList,
     items: [] as unknown as DataTransferItemList,
-    types: ['application/x-cheapclipper-transition'],
+    types: ['application/x-klipmatic-transition'],
     clearData: () => undefined,
     getData: (format: string) =>
-      format === 'application/x-cheapclipper-transition' ? payload : '',
+      format === 'application/x-klipmatic-transition' ? payload : '',
     setData: () => undefined,
     setDragImage: () => undefined,
   }
@@ -110,17 +111,6 @@ test('split dispatches selected clip at the current playhead', async () => {
     clipId: props.selected.clipId,
     outputTime: 10,
   })
-})
-
-test('keyboard shortcut toggles playback without requiring hover', async () => {
-  const props = propsFor(makeEditorSpec())
-  render(<TimelineEditor {...props} />)
-
-  const timeline = screen.getByRole('region', { name: 'Timeline editor' })
-  timeline.focus()
-  await userEvent.keyboard(' ')
-
-  expect(props.onTogglePlay).toHaveBeenCalledOnce()
 })
 
 test('all gesture actions have named button or range alternatives', () => {
@@ -278,4 +268,54 @@ test('dropping on a split joint adds transition and persisted icon is centered',
 
   expect(screen.getByRole('button', { name: 'Cross Dissolve, 0.5 detik' }))
     .toHaveStyle({ left: `${12 * 36}px` })
+})
+
+test('klik joint membuka popover transition di posisi cut', async () => {
+  const source = makeEditorSpec()
+  const primary = source.timeline.tracks[0]!
+  const split = applyTimelineCommand(source, {
+    type: 'splitClip',
+    trackId: primary.id,
+    clipId: primary.clips[0]!.id,
+    outputTime: 12,
+  }, editorContext)
+  const props = propsFor(split)
+  render(<TimelineEditor {...props} />)
+
+  await userEvent.click(screen.getByRole('button', { name: /Sambungan/ }))
+
+  expect(props.onSelectionChange).toHaveBeenCalledWith(
+    expect.objectContaining({ kind: 'joint' }),
+  )
+  expect(
+    screen.getByRole('dialog', { name: 'Tambahkan transition di cut point' }),
+  ).toBeVisible()
+})
+
+test('popover Add mengirim addTransition dan menutup popover', async () => {
+  const source = makeEditorSpec()
+  const primary = source.timeline.tracks[0]!
+  const split = applyTimelineCommand(source, {
+    type: 'splitClip',
+    trackId: primary.id,
+    clipId: primary.clips[0]!.id,
+    outputTime: 12,
+  }, editorContext)
+  const props = propsFor(split)
+  render(<TimelineEditor {...props} />)
+  await userEvent.click(screen.getByRole('button', { name: /Sambungan/ }))
+
+  await userEvent.click(screen.getByRole('button', { name: 'Tambahkan transition' }))
+
+  expect(props.onCommand).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'addTransition',
+    transition: expect.objectContaining({
+      type: 'fade',
+      duration: 0.5,
+      target: expect.objectContaining({ kind: 'between-clips' }),
+    }),
+  }))
+  expect(
+    screen.queryByRole('dialog', { name: 'Tambahkan transition di cut point' }),
+  ).not.toBeInTheDocument()
 })

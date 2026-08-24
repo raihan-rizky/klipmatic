@@ -12,7 +12,7 @@ import {
   applyTimelineCommand,
   createDefaultEditSpecV3,
   type TimelineCommand,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { CaptionControls } from './CaptionControls'
@@ -194,6 +194,7 @@ export function EditorFixture() {
             playing={playing}
             onTogglePlay={() => setPlaying((value) => !value)}
             transitionDragActive={transitionDragActive}
+            onShowShortcuts={() => {}}
           />
         }
       />
@@ -258,7 +259,7 @@ function FixturePreview({
           width={1080}
           height={1920}
           aria-label="Preview video vertikal"
-          className="max-h-[56vh] w-auto max-w-full rounded-xl bg-black shadow-2xl"
+          className="max-h-[56vh] w-auto max-w-full rounded-lg bg-black shadow-2xl"
           style={{ aspectRatio: '9 / 16' }}
         />
       </div>

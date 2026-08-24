@@ -7,10 +7,11 @@ import type {
   TimelineTrack as TimelineTrackType,
   TransitionJoint,
   VisualTransform,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import { Button } from '@/components/ui/button'
 import { TimelineClip } from './TimelineClip'
 import type { TimelineSelection } from './TimelineEditor'
+import { JointTransitionPopover } from './JointTransitionPopover'
 import { TRANSITION_MIME } from './TransitionLibrary'
 import { TimelineTransitionIcon } from './TimelineTransitionIcon'
 import { TimelineTransitionTarget } from './TimelineTransitionTarget'
@@ -28,6 +29,10 @@ export function TimelineTrack({
   primary,
   joints,
   transitions,
+  frameRate,
+  popoverJoint,
+  onOpenPopover,
+  onClosePopover,
   transitionDragActive,
   onAddTransition,
   onInvalidTransitionDrop,
@@ -47,6 +52,10 @@ export function TimelineTrack({
   primary: boolean
   joints: TransitionJoint[]
   transitions: TimelineTransition[]
+  frameRate: number
+  popoverJoint: TransitionJoint | null
+  onOpenPopover: (joint: TransitionJoint) => void
+  onClosePopover: () => void
   transitionDragActive: boolean
   onAddTransition: (
     target: TimelineTransition['target'],
@@ -96,7 +105,7 @@ export function TimelineTrack({
         aria-label={`${track.name} timeline drop area`}
         style={{ minWidth: Math.max(480, timelineDuration * pixelsPerSecond) }}
         onDragOver={(event) => {
-          if (event.dataTransfer.types.includes('application/x-cheapclipper-asset')) {
+          if (event.dataTransfer.types.includes('application/x-klipmatic-asset')) {
             event.preventDefault()
             event.dataTransfer.dropEffect = 'copy'
           } else if (event.dataTransfer.types.includes(TRANSITION_MIME)) {
@@ -110,7 +119,7 @@ export function TimelineTrack({
             onInvalidTransitionDrop()
             return
           }
-          const raw = event.dataTransfer.getData('application/x-cheapclipper-asset')
+          const raw = event.dataTransfer.getData('application/x-klipmatic-asset')
           if (!raw) return
           event.preventDefault()
           try {
@@ -124,7 +133,7 @@ export function TimelineTrack({
             )
             onAssetDrop?.(assetId, { timelineStart })
           } catch {
-            // Ignore drag payloads from outside Cheapclipper.
+            // Ignore drag payloads from outside Klipmatic.
           }
         }}
       >
@@ -151,7 +160,10 @@ export function TimelineTrack({
             key={`${joint.fromClipId}:${joint.toClipId}`}
             left={joint.outputTime * pixelsPerSecond}
             ariaLabel={`Sambungan ${joint.fromClipId} ke ${joint.toClipId}`}
-            onSelect={() => onSelectionChange({ kind: 'joint', joint })}
+            onSelect={() => {
+              onSelectionChange({ kind: 'joint', joint })
+              onOpenPopover(joint)
+            }}
             onAdd={(type, duration) => onAddTransition({
               kind: 'between-clips',
               trackId: joint.trackId,
@@ -160,6 +172,23 @@ export function TimelineTrack({
             }, type, Math.min(duration, joint.maxDuration))}
           />
         )) : null}
+        {popoverJoint ? (
+          <JointTransitionPopover
+            joint={popoverJoint}
+            left={popoverJoint.outputTime * pixelsPerSecond}
+            frameRate={frameRate}
+            onAdd={(type, duration) => {
+              onClosePopover()
+              onAddTransition({
+                kind: 'between-clips',
+                trackId: popoverJoint.trackId,
+                fromClipId: popoverJoint.fromClipId,
+                toClipId: popoverJoint.toClipId,
+              }, type, duration)
+            }}
+            onClose={onClosePopover}
+          />
+        ) : null}
         {!primary && track.type === 'video' ? track.clips.flatMap((clip) => {
           const clipSelected = selected?.kind === 'clip' &&
             selected.trackId === track.id && selected.clipId === clip.id

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type MutableRefObject } from 'react'
 import {
   findTransitionJoints,
   type TransitionJoint,
@@ -8,7 +8,7 @@ import {
   TimelineCommand,
   TimelineTransition,
   VisualTransform,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import { TimelineToolbar } from './TimelineToolbar'
 import { TimelineTrack } from './TimelineTrack'
 
@@ -17,6 +17,11 @@ export type TimelineSelection =
   | { kind: 'clip'; trackId: string; clipId: string }
   | { kind: 'joint'; joint: TransitionJoint }
   | { kind: 'transition'; transitionId: string }
+
+export interface TimelineTransport {
+  split(): void
+  remove(): void
+}
 
 export interface TimelineEditorProps {
   spec: EditSpecV3
@@ -37,6 +42,8 @@ export interface TimelineEditorProps {
     placement: { timelineStart?: number; transform?: VisualTransform },
   ) => void
   transitionDragActive?: boolean
+  onShowShortcuts: () => void
+  transportRef?: MutableRefObject<TimelineTransport | null>
 }
 
 export function TimelineEditor(props: TimelineEditorProps) {
@@ -70,6 +77,17 @@ export function TimelineEditor(props: TimelineEditorProps) {
       clipId: selectedClipId,
     })
   }
+  const [popoverJoint, setPopoverJoint] = useState<TransitionJoint | null>(null)
+
+  useEffect(() => {
+    const transportRef = props.transportRef
+    if (!transportRef) return
+    transportRef.current = { split, remove }
+    return () => {
+      transportRef.current = null
+    }
+  })
+
   const addTransition = (
     target: TimelineTransition['target'],
     type: TimelineTransition['type'],
@@ -88,24 +106,7 @@ export function TimelineEditor(props: TimelineEditorProps) {
     <section
       role="region"
       aria-label="Timeline editor"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        const modifier = event.ctrlKey || event.metaKey
-        if (event.key === ' ') {
-          event.preventDefault()
-          props.onTogglePlay()
-        } else if (event.key.toLowerCase() === 's' && !modifier) {
-          event.preventDefault()
-          split()
-        } else if (event.key === 'Delete' || event.key === 'Backspace') {
-          event.preventDefault()
-          remove()
-        } else if (modifier && event.key.toLowerCase() === 'z') {
-          event.preventDefault()
-          event.shiftKey ? props.onRedo() : props.onUndo()
-        }
-      }}
-      className="overflow-hidden border-y border-border bg-surface outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+      className="overflow-hidden border-y border-border bg-surface"
     >
       <TimelineToolbar
         playing={props.playing}
@@ -119,6 +120,7 @@ export function TimelineEditor(props: TimelineEditorProps) {
         onRedo={props.onRedo}
         onZoomIn={() => setPixelsPerSecond((value) => Math.min(160, value + 12))}
         onZoomOut={() => setPixelsPerSecond((value) => Math.max(16, value - 12))}
+        onShowShortcuts={props.onShowShortcuts}
       />
       <div className="timeline-scroll max-h-[38vh] overflow-auto">
         <div className="relative min-w-max">
@@ -147,6 +149,12 @@ export function TimelineEditor(props: TimelineEditorProps) {
               onInvalidTransitionDrop={() => {
                 setStatus('Split clip terlebih dahulu untuk menambahkan transition.')
               }}
+              frameRate={props.spec.output.frameRate}
+              popoverJoint={
+                popoverJoint && popoverJoint.trackId === track.id ? popoverJoint : null
+              }
+              onOpenPopover={setPopoverJoint}
+              onClosePopover={() => setPopoverJoint(null)}
             />
           ))}
         </div>
