@@ -1,7 +1,7 @@
 'use client'
 
 import { Blend } from 'lucide-react'
-import type { TimelineTransition } from '@cheapclipper/engine'
+import type { TimelineTransition } from '@klipmatic/engine'
 import { TRANSITION_LABELS } from './TransitionLibrary'
 
 export function TimelineTransitionIcon({

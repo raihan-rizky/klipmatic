@@ -3,7 +3,7 @@
 ## Context
 
 The project results page currently renders ranked candidate metadata only. A
-user must click **Edit klip** before CheapClipper downloads the candidate video
+user must click **Edit klip** before Klipmatic downloads the candidate video
 segment, so the user cannot visually compare candidates before committing to
 the editor. The source thumbnail already exists in `sources.thumbnail_url`, but
 it is shared by every candidate and therefore does not help distinguish the

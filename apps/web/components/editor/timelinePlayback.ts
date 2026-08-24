@@ -3,7 +3,7 @@ import {
   type ActiveTimelineItem,
   type EditSpecV3,
   type TimelineContext,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 
 export interface PlaybackMedia {
   currentTime: number

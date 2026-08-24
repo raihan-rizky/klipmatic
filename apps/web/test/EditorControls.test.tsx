@@ -252,6 +252,43 @@ test('errorBanner dirender di atas transport', () => {
   expect(screen.getByRole('alert')).toHaveTextContent('Ekspor gagal: codec hilang.')
 })
 
+test('identity churn pada assets saat playing tidak mem-pause media', async () => {
+  const pauseSpy = vi
+    .spyOn(HTMLMediaElement.prototype, 'pause')
+    .mockImplementation(() => undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+
+  const shared = {
+    spec: makeEditorSpec(),
+    words: [] as never[],
+    playhead: 0,
+    onPlayheadChange: vi.fn(),
+    onStall: vi.fn(),
+  }
+  const { rerender } = render(
+    <TimelinePreview
+      {...shared}
+      assets={[candidateVideo]}
+      playing={false}
+      onPlayingChange={vi.fn()}
+    />,
+  )
+  pauseSpy.mockClear()
+
+  rerender(
+    <TimelinePreview
+      {...shared}
+      assets={[{ ...candidateVideo }]}
+      playing={false}
+      onPlayingChange={vi.fn()}
+    />,
+  )
+  await new Promise((resolve) => setTimeout(resolve, 80))
+
+  expect(pauseSpy).not.toHaveBeenCalled()
+})
+
 const candidateVideo: ResolvedMediaAsset = {
   id: 'asset-candidate',
   name: 'Candidate.mp4',

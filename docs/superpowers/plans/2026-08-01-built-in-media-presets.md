@@ -6,7 +6,7 @@
 
 **Architecture:** A checked-in, typed manifest is the global read-only built-in catalog. Static same-origin assets are served from `apps/web/public/presets`, merged into the existing Asset Catalog resolver, and referenced by stable `builtin:*` asset IDs in EditSpecV3. The existing insert, canvas, timeline, preview, and export paths handle built-ins exactly like uploaded assets.
 
-**Tech Stack:** TypeScript 5.7, React 19, Next.js 15 static assets, SVG/WebP/WAV, HTML Audio, Vitest, Testing Library, existing CheapClipper engine and Asset Catalog.
+**Tech Stack:** TypeScript 5.7, React 19, Next.js 15 static assets, SVG/WebP/WAV, HTML Audio, Vitest, Testing Library, existing Klipmatic engine and Asset Catalog.
 
 ## Global Constraints
 
@@ -98,7 +98,7 @@ export interface BuiltInMediaAsset extends ResolvedMediaAsset {
   category: BuiltInCategory
   thumbnailUrl: string
   license: {
-    name: 'CheapClipper Original' | 'OpenAI Generated'
+    name: 'Klipmatic Original' | 'OpenAI Generated'
     source: 'project' | 'openai-imagegen'
     commercialUse: true
   }

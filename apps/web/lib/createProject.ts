@@ -1,5 +1,5 @@
 import type { Sql } from 'postgres'
-import { normalizeSourceUrl } from '@cheapclipper/shared'
+import { normalizeSourceUrl } from '@klipmatic/shared'
 
 export interface CreateProjectResult {
   projectId: string

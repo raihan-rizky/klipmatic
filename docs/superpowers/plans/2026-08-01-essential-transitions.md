@@ -6,7 +6,7 @@
 
 **Architecture:** Transitions are normalized EditSpecV3 timeline objects that reference either one visual clip edge or one adjacent primary-video clip pair. Pure engine validation owns joint eligibility, command mutation, invalid-joint cleanup, timing windows, source-handle mapping, and opacity/black envelopes. Timeline UI renders engine-derived drop targets and icons; preview and export consume the same transition evaluator.
 
-**Tech Stack:** TypeScript 5.7, CheapClipper timeline engine, React 19, Pointer/HTML drag events, HTML Canvas 2D, Mediabunny, Vitest, Testing Library, Playwright CLI.
+**Tech Stack:** TypeScript 5.7, Klipmatic timeline engine, React 19, Pointer/HTML drag events, HTML Canvas 2D, Mediabunny, Vitest, Testing Library, Playwright CLI.
 
 ## Global Constraints
 
@@ -510,7 +510,7 @@ git commit -m "feat(editor): preview essential transitions"
 
 **Interfaces:**
 - Consumes: engine `findTransitionJoints` and transition commands.
-- Produces: drag payload `application/x-cheapclipper-transition`, selectable joints, centered icons, and `Add to selected cut`.
+- Produces: drag payload `application/x-klipmatic-transition`, selectable joints, centered icons, and `Add to selected cut`.
 
 - [ ] **Step 1: Write failing split/drop/icon/accessibility tests**
 
@@ -546,7 +546,7 @@ Define the jsdom drag payload helper in `TransitionLibrary.test.tsx`:
 function transitionTransfer(type: TransitionDragPayload['type']): DataTransfer {
   const values = new Map<string, string>()
   values.set(
-    'application/x-cheapclipper-transition',
+    'application/x-klipmatic-transition',
     JSON.stringify({ type, duration: 0.5 }),
   )
   return {

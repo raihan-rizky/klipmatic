@@ -67,7 +67,7 @@ test('ready media exposes timeline drag data', () => {
   })
 
   expect(setData).toHaveBeenCalledWith(
-    'application/x-cheapclipper-asset',
+    'application/x-klipmatic-asset',
     JSON.stringify({ assetId: 'asset-image' }),
   )
 })

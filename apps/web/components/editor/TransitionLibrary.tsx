@@ -6,10 +6,10 @@ import {
   TRANSITION_TYPES,
   type TimelineTransition,
   type TransitionJoint,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import { Button } from '@/components/ui/button'
 
-export const TRANSITION_MIME = 'application/x-cheapclipper-transition'
+export const TRANSITION_MIME = 'application/x-klipmatic-transition'
 
 export type TransitionDragPayload = Pick<TimelineTransition, 'type' | 'duration'>
 
@@ -59,7 +59,7 @@ export function TransitionLibrary({
         {TRANSITIONS.map(({ type, icon: Icon }) => {
           const label = TRANSITION_LABELS[type]
           return (
-            <li key={type} className="rounded-xl border border-border bg-surface-raised p-2">
+            <li key={type} className="rounded-lg border border-border bg-surface-raised p-2">
               <button
                 type="button"
                 draggable

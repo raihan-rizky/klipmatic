@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { ERROR_CODES } from '@cheapclipper/shared'
+import { ERROR_CODES } from '@klipmatic/shared'
 import { messageFor } from '../lib/errorMessages'
 
 test('setiap kode error punya kalimat Indonesia', () => {

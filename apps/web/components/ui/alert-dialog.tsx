@@ -31,7 +31,7 @@ export const AlertDialogContent = React.forwardRef<
     <AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 rounded-2xl border border-border bg-surface-raised p-6 shadow-2xl outline-none',
+        'fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 rounded-lg border border-border bg-surface-raised p-6 shadow-2xl outline-none',
         className,
       )}
       {...props}
@@ -59,7 +59,7 @@ export const AlertDialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Title
     ref={ref}
-    className={cn('text-xl font-black tracking-[-0.025em]', className)}
+    className={cn('text-xl font-black tracking-normal', className)}
     {...props}
   />
 ))

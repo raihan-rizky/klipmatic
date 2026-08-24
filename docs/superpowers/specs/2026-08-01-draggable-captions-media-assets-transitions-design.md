@@ -1,4 +1,4 @@
-# CheapClipper — Draggable Captions, Media Assets, Presets, and Transitions
+# Klipmatic — Draggable Captions, Media Assets, Presets, and Transitions
 
 **Tanggal:** 2026-08-01
 
@@ -86,7 +86,7 @@ type MediaAsset = {
 ```
 
 Uploaded dan candidate asset wajib terikat ke owner/project. Candidate asset
-merepresentasikan media segment CheapClipper yang sudah ada dan tidak dihitung
+merepresentasikan media segment Klipmatic yang sudah ada dan tidak dihitung
 ke upload quota atau retention baru. Built-in asset mempunyai `source:
 'builtin'`, tidak mempunyai owner/project, tidak expired, dan tidak dihitung ke
 quota user.

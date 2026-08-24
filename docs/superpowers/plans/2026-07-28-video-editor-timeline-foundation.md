@@ -4,7 +4,7 @@
 
 **Goal:** Mengubah editor clip menjadi workspace video editor multi-track dengan trim, split, auto-ripple, undo/redo, autosave, playback sinkron, dan export timeline-aware.
 
-**Architecture:** `EditSpecV2` menjadi source of truth tunggal. Pure functions di `@cheapclipper/engine` menangani migrasi, normalization, command, ripple, dan time mapping; React hanya mengelola interaction/history/autosave, sedangkan preview dan export mengonsumsi mapping engine yang sama.
+**Architecture:** `EditSpecV2` menjadi source of truth tunggal. Pure functions di `@klipmatic/engine` menangani migrasi, normalization, command, ripple, dan time mapping; React hanya mengelola interaction/history/autosave, sedangkan preview dan export mengonsumsi mapping engine yang sama.
 
 **Tech Stack:** TypeScript 5.7, React 19, Next.js 15, Vitest 2, Testing Library, Tailwind CSS 4, Radix Dialog, Mediabunny 1.51, WebCodecs, Web Audio API.
 

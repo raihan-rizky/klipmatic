@@ -1,8 +1,8 @@
-# CheapClipper P2 — Engine Browser + Editor A
+# Klipmatic P2 — Engine Browser + Editor A
 
 ## Task 1: Kontrak engine
 
-- Tambah workspace `@cheapclipper/engine`.
+- Tambah workspace `@klipmatic/engine`.
 - Definisikan dan validasi `EditSpecV1`.
 - Implementasikan geometri crop, caption grouping, dan canvas compositor.
 - Tambah unit test deterministik.

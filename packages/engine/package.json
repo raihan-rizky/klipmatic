@@ -1,5 +1,5 @@
 {
-  "name": "@cheapclipper/engine",
+  "name": "@klipmatic/engine",
   "version": "0.0.0",
   "private": true,
   "type": "module",

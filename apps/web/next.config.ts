@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  transpilePackages: ['@cheapclipper/shared', '@cheapclipper/db'],
+  transpilePackages: ['@klipmatic/shared', '@klipmatic/db'],
 }
 
 export default config

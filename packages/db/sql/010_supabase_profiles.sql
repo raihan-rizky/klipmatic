@@ -1,4 +1,4 @@
--- Menjembatani Supabase Auth dengan tabel domain CheapClipper.
+-- Menjembatani Supabase Auth dengan tabel domain Klipmatic.
 --
 -- API memakai auth.users.id sebagai user_id. Setiap user baru harus langsung
 -- mempunyai profiles agar foreign key projects/jobs/api_keys dapat dipenuhi.

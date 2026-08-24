@@ -1,3 +1,3 @@
-export const PACKAGE_NAME = '@cheapclipper/shared'
+export const PACKAGE_NAME = '@klipmatic/shared'
 export * from './url'
 export * from './errorCodes'

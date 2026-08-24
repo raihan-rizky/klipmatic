@@ -19,6 +19,12 @@ import {
   type TimelinePlaybackController,
 } from './timelinePlayback'
 import {
+  createFrameThrottle,
+  createRafSink,
+  type FrameThrottle,
+  type RafSink,
+} from './frameScheduler'
+import {
   CanvasSelectionOverlay,
   type CanvasSelection,
   type CanvasSelectionCommit,
@@ -85,6 +91,36 @@ export function TimelinePreview({
     onPrimaryVideoChange,
   }
 
+  const playingRef = useRef(playing)
+  playingRef.current = playing
+  const assetsRef = useRef(assets)
+  assetsRef.current = assets
+  const lastActiveRef = useRef<ActiveTimelineItem[]>([])
+  const drawFrameRef = useRef<
+    ((active: ActiveTimelineItem[], outputTime: number) => void) | null
+  >(null)
+
+  const sinkRef = useRef<RafSink | null>(null)
+  if (sinkRef.current === null) {
+    sinkRef.current = createRafSink((time) =>
+      callbacksRef.current.onPlayheadChange(time),
+    )
+  }
+  useEffect(() => () => sinkRef.current?.dispose(), [])
+
+  const gateRef = useRef<FrameThrottle | null>(null)
+  if (gateRef.current === null) {
+    gateRef.current = createFrameThrottle(() => {
+      drawFrameRef.current?.(lastActiveRef.current, reportedTimeRef.current)
+    }, { minIntervalMs: 33 })
+  }
+  useEffect(() => () => gateRef.current?.cancel(), [])
+
+  const transitionCacheRef = useRef<{
+    spec: EditSpecV3 | null
+    buckets: Map<number, ReturnType<typeof evaluateTransitions>>
+  }>({ spec: null, buckets: new Map() })
+
   const mediaEntries = useMemo(() => {
     const byId = new Map(assets.map((asset) => [asset.id, asset]))
     return spec.timeline.tracks.flatMap((track) =>
@@ -109,18 +145,28 @@ export function TimelinePreview({
     () => mapWordsToTimeline(words, spec),
     [spec, words],
   )
+  const assetContextKey = useMemo(
+    () => assets
+      .map((asset) =>
+        `${asset.id}:${asset.mediaType}:${asset.duration}:${asset.width}:${asset.height}:${asset.hasAudio}`,
+      )
+      .sort()
+      .join('|'),
+    [assets],
+  )
   const timelineContext = useMemo<TimelineContext>(() => {
+    const currentAssets = assetsRef.current
     const primary = spec.timeline.tracks.find(
       (track) => track.id === spec.timeline.primaryTrackId,
     )
-    const candidateAssetId = primary?.clips[0]?.assetId ?? assets[0]?.id ?? 'candidate'
+    const candidateAssetId = primary?.clips[0]?.assetId ?? currentAssets[0]?.id ?? 'candidate'
     return {
       sourceId: 'preview',
       candidateAssetId,
       candidateDuration:
-        assets.find((asset) => asset.id === candidateAssetId)?.duration ??
+        currentAssets.find((asset) => asset.id === candidateAssetId)?.duration ??
         spec.timeline.duration,
-      assets: Object.fromEntries(assets.map((asset) => [asset.id, {
+      assets: Object.fromEntries(currentAssets.map((asset) => [asset.id, {
         id: asset.id,
         mediaType: asset.mediaType,
         duration: asset.duration,
@@ -129,10 +175,28 @@ export function TimelinePreview({
         hasAudio: asset.hasAudio,
       }])),
     }
-  }, [assets, spec.timeline.duration, spec.timeline.primaryTrackId, spec.timeline.tracks])
+  }, [assetContextKey, spec.timeline.duration, spec.timeline.primaryTrackId, spec.timeline.tracks])
+
+  function transitionsAt(outputTime: number) {
+    const cache = transitionCacheRef.current
+    if (cache.spec !== spec) {
+      cache.spec = spec
+      cache.buckets = new Map()
+    }
+    const bucket = Math.floor(outputTime * spec.output.frameRate)
+    let value = cache.buckets.get(bucket)
+    if (value === undefined) {
+      if (cache.buckets.size > 600) cache.buckets.clear()
+      value = evaluateTransitions(spec, bucket / spec.output.frameRate)
+      cache.buckets.set(bucket, value)
+    }
+    return value
+  }
 
   useEffect(() => {
-    function drawFrame(active: ActiveTimelineItem[], outputTime: number): void {
+    // Harus terisi sebelum controller dibuat: seek awal bisa memicu onFrame
+    // secara sinkron saat paused sehingga frame pertama tidak hilang.
+    drawFrameRef.current = (active, outputTime) => {
       const canvas = canvasRef.current
       if (!canvas) return
       const layers = active
@@ -161,7 +225,7 @@ export function TimelinePreview({
       if (layers.length === 0) return
       const context = canvas.getContext('2d')
       if (!context) return
-      const transitionState = evaluateTransitions(spec, outputTime)
+      const transitionState = transitionsAt(outputTime)
       drawTimelineComposite(
         context,
         layers,
@@ -181,10 +245,17 @@ export function TimelinePreview({
       },
       onTime: (outputTime) => {
         reportedTimeRef.current = outputTime
-        callbacksRef.current.onPlayheadChange(outputTime)
+        sinkRef.current?.push(outputTime)
       },
-      onFrame: (active) =>
-        drawFrame(active, active[0]?.outputTime ?? reportedTimeRef.current),
+      onFrame: (active) => {
+        lastActiveRef.current = active
+        const outputTime = active[0]?.outputTime ?? reportedTimeRef.current
+        if (playingRef.current) {
+          drawFrameRef.current?.(active, outputTime)
+        } else {
+          gateRef.current?.request()
+        }
+      },
       onStall: (message) => {
         setStalled(true)
         callbacksRef.current.onPlayingChange(false)
@@ -272,6 +343,7 @@ export function TimelinePreview({
   }
 
   function redrawLoadedFrame(): void {
+    gateRef.current?.force()
     void controllerRef.current?.seek(playhead).catch(() => undefined)
   }
 
@@ -379,9 +451,15 @@ export function TimelinePreview({
           max={spec.timeline.duration}
           step={1 / spec.output.frameRate}
           value={Math.min(playhead, spec.timeline.duration)}
-          onChange={(event) =>
-            onPlayheadChange(Number(event.currentTarget.value))
-          }
+          onChange={(event) => {
+            const next = Number(event.currentTarget.value)
+            const controller = controllerRef.current
+            if (controller) {
+              void controller.seek(next).catch(() => undefined)
+            } else {
+              callbacksRef.current.onPlayheadChange(next)
+            }
+          }}
           className="min-w-0 flex-1 accent-primary"
         />
       </div>

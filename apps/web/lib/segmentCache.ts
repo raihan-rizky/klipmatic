@@ -1,13 +1,13 @@
 'use client'
 
-const CACHE_NAME = 'cheapclipper-segments-v1'
+const CACHE_NAME = 'klipmatic-segments-v1'
 
 export async function loadSegmentObjectUrl(
   clipId: string,
   signedUrl: string,
 ): Promise<string> {
   const cacheKey = new Request(
-    `${window.location.origin}/__cheapclipper_cache__/segments/${encodeURIComponent(clipId)}`,
+    `${window.location.origin}/__klipmatic_cache__/segments/${encodeURIComponent(clipId)}`,
   )
   let response: Response | undefined
   if ('caches' in window) {

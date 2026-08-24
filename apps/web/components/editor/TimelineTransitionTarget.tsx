@@ -1,6 +1,6 @@
 'use client'
 
-import type { TimelineTransition } from '@cheapclipper/engine'
+import type { TimelineTransition } from '@klipmatic/engine'
 import {
   parseTransitionDragPayload,
   TRANSITION_MIME,

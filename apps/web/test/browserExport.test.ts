@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest'
-import { applyTimelineCommand, type EditSpecV3, type TranscriptWord } from '@cheapclipper/engine'
+import { applyTimelineCommand, type EditSpecV3, type TranscriptWord } from '@klipmatic/engine'
 import {
   createTimelineExporter,
   type TimelineExportRuntime,

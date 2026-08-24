@@ -1,8 +1,8 @@
-# CheapClipper P1 — Pipeline AI: Implementation Plan
+# Klipmatic P1 — Pipeline AI: Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Prasyarat:** P0 selesai (`docs/superpowers/plans/2026-07-27-cheapclipper-p0-fondasi-ingest.md`). Rencana ini mengasumsikan tabel, antrian job, worker loop, storage R2, dan handler ingest sudah berjalan dan teruji.
+**Prasyarat:** P0 selesai (`docs/superpowers/plans/2026-07-27-klipmatic-p0-fondasi-ingest.md`). Rencana ini mengasumsikan tabel, antrian job, worker loop, storage R2, dan handler ingest sudah berjalan dan teruji.
 
 **Goal:** Dari audio yang sudah ada di R2, hasilkan sepuluh kandidat klip berskor lengkap dengan hook — memakai transkripsi berbiaya sangat rendah dan LLM milik user sendiri — lalu tampilkan di web.
 
@@ -10,7 +10,7 @@
 
 **Tech Stack:** Tambahan atas P0 — `httpx` untuk panggilan HTTP, `cryptography` untuk membuka kredensial BYOK yang disegel TypeScript, DeepInfra dan Groq untuk transkripsi, Gemini / OpenAI-compatible / Anthropic-compatible untuk analisis.
 
-**Spec:** `docs/superpowers/specs/2026-07-27-cheapclipper-p0-p1-design.md`
+**Spec:** `docs/superpowers/specs/2026-07-27-klipmatic-p0-p1-design.md`
 
 ---
 
@@ -2331,7 +2331,7 @@ git commit -m "feat(worker): ranged segment fetching with per-range cache"
 - Test: `apps/web/test/apiKeys.test.ts`
 
 **Interfaces:**
-- Consumes: `sealApiKey` dari `@cheapclipper/db`
+- Consumes: `sealApiKey` dari `@klipmatic/db`
 - Produces:
   - `async function saveApiKey(sql, userId, input): Promise<{ id: string }>`
   - `async function listApiKeys(sql, userId): Promise<PublicApiKey[]>` — `PublicApiKey` tidak pernah memuat medan kredensial
@@ -2433,7 +2433,7 @@ Expected: FAIL — `lib/apiKeys` belum ada.
 `apps/web/lib/apiKeys.ts`:
 ```ts
 import type { Sql } from 'postgres'
-import { sealApiKey } from '@cheapclipper/db'
+import { sealApiKey } from '@klipmatic/db'
 
 export const PROVIDERS = ['gemini', 'openai_compat', 'anthropic_compat'] as const
 export type Provider = (typeof PROVIDERS)[number]
@@ -2677,7 +2677,7 @@ export default async function KeysPage() {
     <main>
       <h1>API Key</h1>
       <p>
-        CheapClipper memakai API key milikmu sendiri untuk memilih klip menarik,
+        Klipmatic memakai API key milikmu sendiri untuk memilih klip menarik,
         sehingga biaya AI-nya kamu yang tentukan.
       </p>
 
@@ -3140,7 +3140,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: cheapclipper
+          POSTGRES_DB: klipmatic
         ports: ["55432:5432"]
         options: >-
           --health-cmd pg_isready --health-interval 2s --health-retries 15
@@ -3159,7 +3159,7 @@ jobs:
       - run: uv run pytest -v
         working-directory: apps/downloader
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:55432/cheapclipper
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:55432/klipmatic
 ```
 
 Tes storage otomatis dilewati di CI karena `R2_ENDPOINT` tidak diset, sesuai penjaga `pytest.mark.skipif` di P0 Task 9.

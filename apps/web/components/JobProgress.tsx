@@ -125,7 +125,7 @@ export function JobProgress({ projectId }: { projectId: string }) {
               <li
                 key={label}
                 className={cn(
-                  'flex min-h-16 items-center gap-3 rounded-xl border border-border bg-background/40 px-3 py-3 text-sm font-bold text-muted',
+                  'flex min-h-16 items-center gap-3 rounded-lg border border-border bg-background/40 px-3 py-3 text-sm font-bold text-muted',
                   (active || complete) && 'border-primary/20 text-foreground',
                   stageFailed && 'border-danger/30 text-danger',
                 )}

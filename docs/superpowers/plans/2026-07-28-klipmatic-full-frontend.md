@@ -1,8 +1,8 @@
-# CheapClipper Full Frontend Implementation Plan
+# Klipmatic Full Frontend Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a polished Creator Studio frontend for every CheapClipper P2 route without changing existing backend contracts or feature behavior.
+**Goal:** Build a polished Creator Studio frontend for every Klipmatic P2 route without changing existing backend contracts or feature behavior.
 
 **Architecture:** Tailwind CSS supplies tokens, layout, responsive styling, and state variants. Locally owned shadcn-style components wrap Radix UI primitives for accessible interactions, while feature components retain their current data ownership and API calls. Large editor and settings components are split by responsibility so presentation can be tested independently from orchestration.
 
@@ -284,7 +284,7 @@ import { AppShell } from '@/components/AppShell'
 
 test('app shell exposes brand, primary navigation, and content landmark', () => {
   render(<AppShell><h1>Konten</h1></AppShell>)
-  expect(screen.getByRole('link', { name: /CheapClipper/i })).toHaveAttribute('href', '/')
+  expect(screen.getByRole('link', { name: /Klipmatic/i })).toHaveAttribute('href', '/')
   expect(screen.getByRole('navigation', { name: 'Navigasi utama' })).toBeVisible()
   expect(screen.getByRole('link', { name: 'Buat klip' })).toHaveAttribute('href', '/')
   expect(screen.getByRole('link', { name: 'API Key' })).toHaveAttribute('href', '/settings/keys')
@@ -338,7 +338,7 @@ import './globals.css'
 import { AppShell } from '@/components/AppShell'
 
 export const metadata = {
-  title: { default: 'CheapClipper', template: '%s · CheapClipper' },
+  title: { default: 'Klipmatic', template: '%s · Klipmatic' },
   description: 'Ubah video panjang menjadi klip pendek siap posting.',
 }
 
@@ -787,7 +787,7 @@ import '@testing-library/jest-dom/vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
-import { normalizeEditSpec } from '@cheapclipper/engine'
+import { normalizeEditSpec } from '@klipmatic/engine'
 import { CropControls } from '@/components/editor/CropControls'
 import { CaptionControls } from '@/components/editor/CaptionControls'
 

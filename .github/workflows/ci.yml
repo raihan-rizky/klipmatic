@@ -26,7 +26,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: cheapclipper
+          POSTGRES_DB: klipmatic
         # Di runner Linux port 5432 bebas dipakai. Angka 55432 di
         # docker-compose.dev.yml hanya menghindari rentang yang dicadangkan
         # Windows, jadi tidak relevan di sini — asalkan TEST_DATABASE_URL
@@ -37,12 +37,12 @@ jobs:
 
     env:
       # Yang sungguh dibaca tes: helper di packages/db membaca ini.
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cheapclipper
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/klipmatic
       # Belum ada satu tes pun yang membacanya. Tetap diset karena
       # apps/web/lib/db.ts memanggil postgres(DATABASE_URL) saat modul dimuat,
       # sehingga tes pertama yang mengimpor route handler akan meledak di impor
       # — bukan di assertion — kalau variabel ini hilang.
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cheapclipper
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/klipmatic
 
     steps:
       - uses: actions/checkout@v4

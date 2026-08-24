@@ -55,7 +55,7 @@ export default async function KeysPage() {
       <div>
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-black tracking-[-0.03em]">Key tersimpan</h2>
+            <h2 className="text-xl font-black tracking-normal">Key tersimpan</h2>
             <p className="mt-1 text-sm text-muted">Secret tidak pernah ditampilkan kembali.</p>
           </div>
           <Badge variant="muted">{keys.length} key</Badge>
@@ -63,7 +63,7 @@ export default async function KeysPage() {
         {keys.length === 0 ? (
           <StatePanel
             title="Belum ada API key"
-            description="Tambahkan satu provider agar CheapClipper bisa mencari highlight video."
+            description="Tambahkan satu provider agar Klipmatic bisa mencari highlight video."
           />
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
@@ -74,11 +74,11 @@ export default async function KeysPage() {
 
       <div>
         <div className="mb-4 flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <KeyRound className="size-5" aria-hidden="true" />
           </span>
           <div>
-            <h2 className="text-xl font-black tracking-[-0.03em]">Tambah key</h2>
+            <h2 className="text-xl font-black tracking-normal">Tambah key</h2>
             <p className="mt-1 text-sm text-muted">Pilih preset atau masukkan provider kompatibel.</p>
           </div>
         </div>

@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { ArrowRight, LoaderCircle } from 'lucide-react'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 
 export function UrlForm() {
@@ -33,43 +32,39 @@ export function UrlForm() {
   }
 
   return (
-    <Card className="border-primary/20 bg-surface-raised/95 p-2 shadow-2xl shadow-black/30">
-      <CardContent className="p-0">
-        <form onSubmit={submit} className="flex flex-col gap-3">
-          <label htmlFor="url" className="sr-only">
-            Link video
-          </label>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              id="url"
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://youtube.com/watch?v=..."
-              required
-              className="min-h-14 flex-1 border-transparent bg-background px-5 text-base focus-visible:border-primary"
-            />
-            <Button type="submit" disabled={busy} className="min-h-14 shrink-0 px-6">
-              {busy ? (
-                <>
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                  Menganalisis video…
-                </>
-              ) : (
-                <>
-                  Cari klip terbaik
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </>
-              )}
-            </Button>
-          </div>
-          {error && (
-            <Alert tone="danger" role="alert" className="text-left">
-              {error}
-            </Alert>
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <label htmlFor="url" className="text-xs font-black uppercase text-muted">
+        Link video
+      </label>
+      <div className="flex flex-col gap-2">
+        <Input
+          id="url"
+          type="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://youtube.com/watch?v=..."
+          required
+          className="min-h-14 flex-1 border-border bg-background px-4 text-base focus-visible:border-primary"
+        />
+        <Button type="submit" disabled={busy} className="motion-cta min-h-14 w-full justify-between px-4">
+          {busy ? (
+            <>
+              Menganalisis video...
+              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+            </>
+          ) : (
+            <>
+              Cari klip terbaik
+              <ArrowRight className="motion-cta-arrow size-4" aria-hidden="true" />
+            </>
           )}
-        </form>
-      </CardContent>
-    </Card>
+        </Button>
+      </div>
+      {error && (
+        <Alert tone="danger" role="alert" className="text-left">
+          {error}
+        </Alert>
+      )}
+    </form>
   )
 }

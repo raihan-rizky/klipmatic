@@ -78,11 +78,11 @@ export function ApiKeyForm() {
       <Card>
         <CardContent className="pt-5 sm:pt-6">
           <div className="mb-5 flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <ServerCog className="size-5" aria-hidden="true" />
             </span>
             <div>
-              <h3 className="font-black tracking-[-0.02em]">Pilih penyedia</h3>
+              <h3 className="font-black tracking-normal">Pilih penyedia</h3>
               <p className="mt-1 text-sm leading-6 text-muted">
                 Mulai dari preset atau isi endpoint kompatibel secara manual.
               </p>
@@ -125,11 +125,11 @@ export function ApiKeyForm() {
       <Card>
         <CardContent className="pt-5 sm:pt-6">
           <div className="mb-5 flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <LockKeyhole className="size-5" aria-hidden="true" />
             </span>
             <div>
-              <h3 className="font-black tracking-[-0.02em]">Detail kredensial</h3>
+              <h3 className="font-black tracking-normal">Detail kredensial</h3>
               <p className="mt-1 text-sm leading-6 text-muted">
                 Secret dienkripsi sebelum disimpan dan tidak pernah ditampilkan lagi.
               </p>

@@ -26,6 +26,10 @@ test('submits the source URL and opens the created project', async () => {
   fireEvent.change(screen.getByLabelText('Link video'), {
     target: { value: 'https://youtu.be/dQw4w9WgXcQ' },
   })
+  expect(screen.getByRole('button', { name: 'Cari klip terbaik' })).toHaveClass('motion-cta')
+  expect(screen.getByRole('button', { name: 'Cari klip terbaik' }).querySelector('svg')).toHaveClass(
+    'motion-cta-arrow',
+  )
   fireEvent.click(screen.getByRole('button', { name: 'Cari klip terbaik' }))
 
   expect(fetchMock).toHaveBeenCalledWith(

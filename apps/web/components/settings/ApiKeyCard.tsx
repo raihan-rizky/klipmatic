@@ -15,12 +15,12 @@ export function ApiKeyCard({ apiKey }: { apiKey: PublicApiKey }) {
   return (
     <Card>
       <CardContent className="flex gap-4 pt-5 sm:items-start sm:pt-6">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <KeyRound className="size-5" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate font-black tracking-[-0.02em]">{apiKey.label}</h3>
+            <h3 className="truncate font-black tracking-normal">{apiKey.label}</h3>
             <Badge>
               <LockKeyhole className="mr-1 size-3" aria-hidden="true" />
               Terenkripsi

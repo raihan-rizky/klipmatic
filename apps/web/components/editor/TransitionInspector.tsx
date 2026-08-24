@@ -8,7 +8,7 @@ import {
   type EditSpecV3,
   type TimelineCommand,
   type TimelineTransition,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import { Button } from '@/components/ui/button'
 import { TRANSITION_LABELS } from './TransitionLibrary'
 
@@ -65,7 +65,7 @@ export function TransitionInspector({
         <select
           aria-label="Tipe transition"
           value={transition.type}
-          className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3"
+          className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3"
           onChange={(event) => update({
             type: event.currentTarget.value as TimelineTransition['type'],
           })}
@@ -98,7 +98,7 @@ export function TransitionInspector({
             max={maxDuration}
             step={0.1}
             value={transition.duration}
-            className="min-h-11 rounded-xl border border-border bg-background px-2"
+            className="min-h-11 rounded-lg border border-border bg-background px-2"
             onChange={(event) => {
               const duration = Number(event.currentTarget.value)
               if (Number.isFinite(duration) && duration > 0) update({ duration })

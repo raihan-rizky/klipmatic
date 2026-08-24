@@ -1,4 +1,4 @@
-import type { ErrorCode } from '@cheapclipper/shared'
+import type { ErrorCode } from '@klipmatic/shared'
 import { messageFor } from '@/lib/errorMessages'
 
 export interface JobState {

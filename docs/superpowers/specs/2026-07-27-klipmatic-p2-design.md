@@ -1,4 +1,4 @@
-# CheapClipper — Desain P2: Engine Browser + Editor A
+# Klipmatic — Desain P2: Engine Browser + Editor A
 
 **Tanggal:** 2026-07-27  
 **Status:** Disetujui untuk implementasi  

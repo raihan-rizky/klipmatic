@@ -1,4 +1,4 @@
-import type { ErrorCode } from '@cheapclipper/shared'
+import type { ErrorCode } from '@klipmatic/shared'
 
 const MESSAGES: Record<ErrorCode, string> = {
   SOURCE_UNSUPPORTED:

@@ -24,7 +24,7 @@ export function PresetCard({
   const startDrag = (event: React.DragEvent<HTMLElement>) => {
     event.dataTransfer.effectAllowed = 'copy'
     event.dataTransfer.setData(
-      'application/x-cheapclipper-asset',
+      'application/x-klipmatic-asset',
       JSON.stringify({ assetId: asset.id }),
     )
   }
@@ -34,7 +34,7 @@ export function PresetCard({
       <article
         draggable
         onDragStart={startDrag}
-        className="space-y-3 rounded-xl border border-border bg-surface-raised p-3"
+        className="space-y-3 rounded-lg border border-border bg-surface-raised p-3"
       >
         <div className="flex items-center gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -78,7 +78,7 @@ export function PresetCard({
     <article
       draggable
       onDragStart={startDrag}
-      className="group overflow-hidden rounded-xl border border-border bg-surface-raised"
+      className="group overflow-hidden rounded-lg border border-border bg-surface-raised"
     >
       <div className="aspect-[4/5] overflow-hidden bg-surface-soft">
         <img

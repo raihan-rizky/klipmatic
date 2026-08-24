@@ -1,5 +1,5 @@
 {
-  "name": "@cheapclipper/db",
+  "name": "@klipmatic/db",
   "version": "0.0.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -10,7 +10,7 @@
     "gen:crypto-fixture": "bun run scripts/genCryptoFixture.ts"
   },
   "dependencies": {
-    "@cheapclipper/shared": "workspace:*",
+    "@klipmatic/shared": "workspace:*",
     "drizzle-orm": "^0.38.0",
     "postgres": "^3.4.5"
   },

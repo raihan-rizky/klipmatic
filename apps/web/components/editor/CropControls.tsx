@@ -1,7 +1,7 @@
 'use client'
 
 import { ScanFace } from 'lucide-react'
-import type { EditSpecV3, TimelineCommand } from '@cheapclipper/engine'
+import type { EditSpecV3, TimelineCommand } from '@klipmatic/engine'
 import { Button } from '@/components/ui/button'
 
 type CropControlsProps = {
@@ -16,7 +16,7 @@ const RANGE_CLASS =
 export function CropControls({ spec, onCommand, onAutoFocus }: CropControlsProps) {
   return (
     <fieldset className="space-y-5">
-      <legend className="text-lg font-black tracking-[-0.025em]">Crop 9:16</legend>
+      <legend className="text-lg font-black tracking-normal">Crop 9:16</legend>
       <p className="text-sm leading-6 text-muted">
         Atur titik fokus agar subjek tetap masuk frame vertikal.
       </p>

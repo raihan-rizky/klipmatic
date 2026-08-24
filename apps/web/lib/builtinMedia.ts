@@ -1,4 +1,4 @@
-import type { VisualTransform } from '@cheapclipper/engine'
+import type { VisualTransform } from '@klipmatic/engine'
 import type { ResolvedMediaAsset } from './clipTypes'
 
 export type BuiltInCategory = 'sfx' | 'sticker' | 'photo' | 'background'
@@ -13,7 +13,7 @@ export interface BuiltInMediaAsset extends ResolvedMediaAsset {
   expiresSoon: false
   thumbnailUrl: string
   license: {
-    name: 'CheapClipper Original' | 'OpenAI Generated'
+    name: 'Klipmatic Original' | 'OpenAI Generated'
     source: 'project' | 'openai-imagegen'
     commercialUse: true
   }
@@ -27,7 +27,7 @@ const visualDefaults: Record<Exclude<BuiltInCategory, 'sfx'>, VisualTransform> =
 }
 
 const projectLicense = {
-  name: 'CheapClipper Original',
+  name: 'Klipmatic Original',
   source: 'project',
   commercialUse: true,
 } as const

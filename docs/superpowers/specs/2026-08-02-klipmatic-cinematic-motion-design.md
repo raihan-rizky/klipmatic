@@ -1,4 +1,4 @@
-# CheapClipper — Cinematic Controlled Motion
+# Klipmatic — Cinematic Controlled Motion
 
 **Tanggal:** 2026-08-02
 **Status:** Disetujui untuk perencanaan implementasi
@@ -6,7 +6,7 @@
 
 ## Outcome
 
-CheapClipper terasa hidup seperti editing workstation yang sedang aktif tanpa
+Klipmatic terasa hidup seperti editing workstation yang sedang aktif tanpa
 mengganggu tugas utama user. Motion memperjelas alur `Ingest → Cut → Export`,
 memberi feedback pada interaction, dan memperkuat identitas visual industrial
 creator desk.

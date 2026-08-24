@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { EditSpecV3 } from '@cheapclipper/engine'
+import type { EditSpecV3 } from '@klipmatic/engine'
 
 export type AutosaveStatus = 'saved' | 'unsaved' | 'saving' | 'error'
 

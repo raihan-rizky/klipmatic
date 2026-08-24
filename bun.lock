@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "cheapclipper",
+      "name": "klipmatic",
       "devDependencies": {
         "@types/node": "^26.1.1",
         "turbo": "^2.3.0",
@@ -12,14 +12,14 @@
       },
     },
     "apps/web": {
-      "name": "@cheapclipper/web",
+      "name": "@klipmatic/web",
       "version": "0.0.0",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1095.0",
         "@aws-sdk/s3-request-presigner": "^3.1095.0",
-        "@cheapclipper/db": "workspace:*",
-        "@cheapclipper/engine": "workspace:*",
-        "@cheapclipper/shared": "workspace:*",
+        "@klipmatic/db": "workspace:*",
+        "@klipmatic/engine": "workspace:*",
+        "@klipmatic/shared": "workspace:*",
         "@mediapipe/tasks-vision": "^0.10.35",
         "@radix-ui/react-accordion": "^1.2.20",
         "@radix-ui/react-alert-dialog": "^1.1.23",
@@ -54,10 +54,10 @@
       },
     },
     "packages/db": {
-      "name": "@cheapclipper/db",
+      "name": "@klipmatic/db",
       "version": "0.0.0",
       "dependencies": {
-        "@cheapclipper/shared": "workspace:*",
+        "@klipmatic/shared": "workspace:*",
         "drizzle-orm": "^0.38.0",
         "postgres": "^3.4.5",
       },
@@ -66,7 +66,7 @@
       },
     },
     "packages/engine": {
-      "name": "@cheapclipper/engine",
+      "name": "@klipmatic/engine",
       "version": "0.0.0",
       "devDependencies": {
         "typescript": "^5.7.0",
@@ -74,7 +74,7 @@
       },
     },
     "packages/shared": {
-      "name": "@cheapclipper/shared",
+      "name": "@klipmatic/shared",
       "version": "0.0.0",
     },
   },
@@ -133,13 +133,13 @@
 
     "@bramus/specificity": ["@bramus/specificity@2.4.2", "", { "dependencies": { "css-tree": "^3.0.0" }, "bin": { "specificity": "bin/cli.js" } }, "sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw=="],
 
-    "@cheapclipper/db": ["@cheapclipper/db@workspace:packages/db"],
+    "@klipmatic/db": ["@klipmatic/db@workspace:packages/db"],
 
-    "@cheapclipper/engine": ["@cheapclipper/engine@workspace:packages/engine"],
+    "@klipmatic/engine": ["@klipmatic/engine@workspace:packages/engine"],
 
-    "@cheapclipper/shared": ["@cheapclipper/shared@workspace:packages/shared"],
+    "@klipmatic/shared": ["@klipmatic/shared@workspace:packages/shared"],
 
-    "@cheapclipper/web": ["@cheapclipper/web@workspace:apps/web"],
+    "@klipmatic/web": ["@klipmatic/web@workspace:apps/web"],
 
     "@csstools/color-helpers": ["@csstools/color-helpers@6.1.0", "", {}, "sha512-064IFJdjTfUqnjpCVpMOdbr8FLQBhinbZj6yRv2An2E41O/pLEXqfFRWqGq/SxlE5PEUYTlvWsG2r8MswAVvkg=="],
 

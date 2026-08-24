@@ -10,7 +10,7 @@ import {
   type EditSpecV3,
   type TimelineContext,
   type TranscriptWord,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import type { ResolvedMediaAsset } from './clipTypes'
 
 type ExportArgs = {

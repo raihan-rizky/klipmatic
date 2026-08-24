@@ -3,6 +3,8 @@ import { Clapperboard, KeyRound, Plus, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
+const STUDIO_RAIL = ['Ingest', 'Cut', 'Export']
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider delayDuration={250}>
@@ -12,22 +14,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         Langsung ke konten
       </a>
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+      <header className="motion-shell-enter sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-16 max-w-[1440px] flex-wrap items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
           <Link
             href="/"
-            aria-label="CheapClipper — Beranda"
-            className="flex min-h-11 items-center gap-2 rounded-xl font-black tracking-[-0.04em] outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Klipmatic - Beranda"
+            className="flex min-h-11 items-center gap-2 rounded-lg font-black tracking-normal outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Clapperboard className="size-5" aria-hidden="true" />
             </span>
-            <span className="hidden text-lg min-[420px]:inline">CheapClipper</span>
+            <span className="hidden text-lg min-[420px]:inline">Klipmatic</span>
           </Link>
+
+          <div
+            aria-label="Studio rail"
+            className="studio-rail order-last grid w-full grid-cols-3 border border-border bg-surface/70 text-[0.68rem] font-black uppercase text-muted sm:order-none sm:ml-3 sm:w-auto"
+          >
+            <span className="sr-only">Studio rail</span>
+            <span aria-hidden="true" className="studio-rail-signal" />
+            {STUDIO_RAIL.map((item, index) => (
+              <span
+                key={item}
+                className="studio-rail-step flex min-h-8 items-center justify-center border-r border-border px-3 last:border-r-0"
+              >
+                <span className="mr-2 font-mono text-primary">0{index + 1}</span>
+                {item}
+              </span>
+            ))}
+          </div>
 
           <nav
             aria-label="Navigasi utama"
-            className="ml-auto flex items-center gap-1 sm:gap-2"
+            className="relative z-10 ml-auto flex pointer-events-auto items-center gap-1 sm:gap-2"
           >
             <Button asChild variant="ghost" size="sm">
               <Link href="/" aria-label="Buat klip">

@@ -1,9 +1,9 @@
 'use client'
 
-import type { TimelineClip, TimelineCommand, VisualTransform } from '@cheapclipper/engine'
+import type { TimelineClip, TimelineCommand, VisualTransform } from '@klipmatic/engine'
 
 const INPUT_CLASS =
-  'mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm tabular-nums'
+  'mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm tabular-nums'
 
 export function AssetInspector({
   trackId,
@@ -57,7 +57,7 @@ export function AssetInspector({
           ))}
         </div>
       ) : null}
-      <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border px-3 text-sm font-bold">
+      <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3 text-sm font-bold">
         Bisukan clip
         <input
           type="checkbox"

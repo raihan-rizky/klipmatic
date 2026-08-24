@@ -4,7 +4,7 @@ import {
   type EditSpecV3,
   type TimelineContext,
   type TimelineTransition,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import type { ClipEditorPayload } from '@/lib/clipTypes'
 
 export const editorContext: TimelineContext = {

@@ -3,8 +3,8 @@ import { AppShell } from '@/components/AppShell'
 
 export const metadata = {
   title: {
-    default: 'CheapClipper',
-    template: '%s · CheapClipper',
+    default: 'Klipmatic',
+    template: '%s · Klipmatic',
   },
   description: 'Ubah video panjang menjadi klip pendek siap posting.',
 }

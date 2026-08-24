@@ -30,8 +30,18 @@ describe('UI primitives', () => {
 
     expect(screen.getByRole('button', { name: 'Mulai' })).toHaveClass(
       'min-h-11',
+      'rounded-lg',
+      'motion-control',
       'focus-visible:ring-2',
     )
+  })
+
+  test('cards use the tighter production tool radius', async () => {
+    const { Card } = await import('@/components/ui/card')
+
+    render(<Card>Surface</Card>)
+
+    expect(screen.getByText('Surface')).toHaveClass('rounded-lg')
   })
 
   test('alert dialog requires an explicit destructive confirmation', () => {

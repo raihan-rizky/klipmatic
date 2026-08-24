@@ -5,7 +5,7 @@ import type {
   TimelineClip as TimelineClipType,
   TimelineCommand,
   TimelineTrack,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import { cn } from '@/lib/utils'
 
 export function TimelineClip({

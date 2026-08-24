@@ -42,7 +42,7 @@ export const PRESETS: ProviderPreset[] = [
     provider: 'openai_compat',
     baseUrl: 'https://api.tokenfactory.nebius.com/v1',
     models: ['meta-llama/Llama-3.3-70B-Instruct'],
-    hint: 'Default sementara CheapClipper; API OpenAI-compatible.',
+    hint: 'Default sementara Klipmatic; API OpenAI-compatible.',
   },
   {
     id: 'openrouter',

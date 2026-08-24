@@ -1,5 +1,5 @@
 import type { Sql } from 'postgres'
-import { sealApiKey } from '@cheapclipper/db'
+import { sealApiKey } from '@klipmatic/db'
 import {
   PROVIDERS,
   type Provider,

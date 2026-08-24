@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest'
-import type { EditSpecV3 } from '@cheapclipper/engine'
+import type { EditSpecV3 } from '@klipmatic/engine'
 import {
   createTimelinePlaybackController,
   type PlaybackMedia,

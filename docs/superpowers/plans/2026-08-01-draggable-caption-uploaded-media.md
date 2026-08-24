@@ -1021,7 +1021,7 @@ export type InsertMediaAsset = (
 
 The library groups uploads by `ready`, `uploading`, `failed`, and `expired` and
 shows `usage.usedBytes / usage.limitBytes`. Ready items support click/tap insert
-and `application/x-cheapclipper-asset` drag data. Expired items expose Replace:
+and `application/x-klipmatic-asset` drag data. Expired items expose Replace:
 upload the selected file as a new asset, wait for `ready`, then dispatch one
 `replaceAsset` command from the expired ID to the new ID. Failed upload Retry
 creates a fresh upload record but never inserts either record into the timeline
@@ -1165,10 +1165,10 @@ function assetTransfer(assetId: string): DataTransfer {
     dropEffect: 'copy',
     files: [] as unknown as FileList,
     items: [] as unknown as DataTransferItemList,
-    types: ['application/x-cheapclipper-asset'],
+    types: ['application/x-klipmatic-asset'],
     clearData: () => undefined,
     getData: (format: string) =>
-      format === 'application/x-cheapclipper-asset' ? payload : '',
+      format === 'application/x-klipmatic-asset' ? payload : '',
     setData: () => undefined,
     setDragImage: () => undefined,
   }
@@ -1248,7 +1248,7 @@ Add `mediaLibrary: ReactNode` to `EditorWorkspaceProps`. Desktop grid becomes `1
 Map inserted assets to deterministic client IDs with `crypto.randomUUID()`.
 Use a dedicated overlay video/image track and audio track when suitable; pass
 exact IDs and optional initial transform through `insertAsset`. Add
-`application/x-cheapclipper-asset` drop handling to the preview stage and
+`application/x-klipmatic-asset` drop handling to the preview stage and
 timeline track bodies. Canvas drop converts the pointer to normalized X/Y and
 centers the asset's default box at that point. Timeline drop converts pointer X
 through `pixelsPerSecond` and snapping. Audio dropped on the canvas uses the

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import type { VisualTransform } from '@cheapclipper/engine'
+import type { VisualTransform } from '@klipmatic/engine'
 import { moveTransform, resizeTransform, type ResizeCorner } from './canvasGeometry'
 
 type Bounds = { width: number; height: number }
@@ -140,7 +140,7 @@ export function CanvasSelectionOverlay({
         <button
           type="button"
           aria-label="Pindahkan caption"
-          className="pointer-events-auto absolute h-20 w-4/5 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-xl border-2 border-dashed border-primary bg-primary/10 touch-none"
+          className="pointer-events-auto absolute h-20 w-4/5 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-lg border-2 border-dashed border-primary bg-primary/10 touch-none"
           style={{ left: `${display.positionX * 100}%`, top: `${display.positionY * 100}%` }}
           onPointerDown={(event) => beginGesture(event, 'move')}
         />

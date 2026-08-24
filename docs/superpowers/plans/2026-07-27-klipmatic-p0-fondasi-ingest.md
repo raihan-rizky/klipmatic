@@ -1,4 +1,4 @@
-# CheapClipper P0 — Fondasi & Ingest: Implementation Plan
+# Klipmatic P0 — Fondasi & Ingest: Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Turborepo, Bun (package manager), Next.js 15 (App Router, runtime Node), TypeScript, Drizzle ORM, Supabase (Postgres + Auth + Realtime), Cloudflare R2, FastAPI, uv, yt-dlp, ffmpeg, Vitest, pytest, Docker Compose (Postgres + MinIO untuk tes).
 
-**Spec:** `docs/superpowers/specs/2026-07-27-cheapclipper-p0-p1-design.md`
+**Spec:** `docs/superpowers/specs/2026-07-27-klipmatic-p0-p1-design.md`
 
 ---
 
@@ -32,7 +32,7 @@ Setiap task secara implisit tunduk pada daftar ini.
 ## Struktur File
 
 ```
-cheapclipper/
+klipmatic/
 ├── package.json                      # workspaces + script turbo
 ├── turbo.json
 ├── tsconfig.base.json
@@ -115,7 +115,7 @@ cheapclipper/
 `package.json`:
 ```json
 {
-  "name": "cheapclipper",
+  "name": "klipmatic",
   "private": true,
   "packageManager": "bun@1.2.0",
   "workspaces": ["apps/*", "packages/*"],
@@ -192,7 +192,7 @@ services:
     image: postgres:16
     environment:
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: cheapclipper
+      POSTGRES_DB: klipmatic
     ports: ["55432:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -211,7 +211,7 @@ services:
 
 ```bash
 # Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:55432/cheapclipper
+DATABASE_URL=postgresql://postgres:postgres@localhost:55432/klipmatic
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
@@ -222,7 +222,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 R2_ENDPOINT=http://localhost:9000
 R2_ACCESS_KEY_ID=minioadmin
 R2_SECRET_ACCESS_KEY=minioadmin
-R2_BUCKET=cheapclipper
+R2_BUCKET=klipmatic
 
 # Enkripsi BYOK — 32 byte, base64. Buat dengan:
 #   openssl rand -base64 32
@@ -238,7 +238,7 @@ WORKER_POLL_INTERVAL_SEC=2
 `packages/shared/package.json`:
 ```json
 {
-  "name": "@cheapclipper/shared",
+  "name": "@klipmatic/shared",
   "version": "0.0.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -248,7 +248,7 @@ WORKER_POLL_INTERVAL_SEC=2
 
 `packages/shared/src/index.ts`:
 ```ts
-export const PACKAGE_NAME = '@cheapclipper/shared'
+export const PACKAGE_NAME = '@klipmatic/shared'
 ```
 
 `packages/shared/test/smoke.test.ts`:
@@ -257,7 +257,7 @@ import { expect, test } from 'vitest'
 import { PACKAGE_NAME } from '../src/index'
 
 test('paket shared dapat diimpor', () => {
-  expect(PACKAGE_NAME).toBe('@cheapclipper/shared')
+  expect(PACKAGE_NAME).toBe('@klipmatic/shared')
 })
 ```
 
@@ -525,7 +525,7 @@ export function normalizeSourceUrl(raw: string): NormalizedSource {
 
 `packages/shared/src/index.ts`:
 ```ts
-export const PACKAGE_NAME = '@cheapclipper/shared'
+export const PACKAGE_NAME = '@klipmatic/shared'
 export * from './url'
 export * from './errorCodes'
 ```
@@ -551,7 +551,7 @@ git commit -m "feat(shared): canonical source URL normalization for youtube, tik
 - Test: `packages/db/test/schema.test.ts`, `packages/db/test/helpers.ts`
 
 **Interfaces:**
-- Consumes: `SourceKind` dari `@cheapclipper/shared`
+- Consumes: `SourceKind` dari `@klipmatic/shared`
 - Produces: tabel Drizzle `profiles`, `apiKeys`, `sources`, `transcripts`, `llmRuns`, `projects`, `clipCandidates`, `mediaSegments`, `clips`, `jobs`; `function getDb(url: string)`; helper tes `withTestDb()`
 
 - [ ] **Step 1: Buat paket dan konfigurasi**
@@ -559,7 +559,7 @@ git commit -m "feat(shared): canonical source URL normalization for youtube, tik
 `packages/db/package.json`:
 ```json
 {
-  "name": "@cheapclipper/db",
+  "name": "@klipmatic/db",
   "version": "0.0.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -569,7 +569,7 @@ git commit -m "feat(shared): canonical source URL normalization for youtube, tik
     "migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@cheapclipper/shared": "workspace:*",
+    "@klipmatic/shared": "workspace:*",
     "drizzle-orm": "^0.38.0",
     "postgres": "^3.4.5"
   },
@@ -622,7 +622,7 @@ import { join } from 'node:path'
 import postgres from 'postgres'
 
 export const TEST_DB_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:55432/cheapclipper'
+  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:55432/klipmatic'
 
 /** Membuat schema bersih dari nol untuk satu berkas tes. */
 export async function freshDb() {
@@ -928,7 +928,7 @@ export * from './client'
 
 Run:
 ```bash
-cd packages/db && DATABASE_URL=postgresql://postgres:postgres@localhost:55432/cheapclipper bun run generate
+cd packages/db && DATABASE_URL=postgresql://postgres:postgres@localhost:55432/klipmatic bun run generate
 ```
 Ganti nama berkas yang dihasilkan menjadi `migrations/0000_init.sql` bila belum bernama demikian, karena `test/helpers.ts` merujuk nama itu.
 
@@ -1357,7 +1357,7 @@ Antrian adalah jantung sistem. `FOR UPDATE SKIP LOCKED` mudah dipakai keliru, da
 `apps/downloader/pyproject.toml`:
 ```toml
 [project]
-name = "cheapclipper-downloader"
+name = "klipmatic-downloader"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
@@ -1391,7 +1391,7 @@ import pytest
 
 TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:55432/cheapclipper",
+    "postgresql://postgres:postgres@localhost:55432/klipmatic",
 )
 DB_PKG = Path(__file__).resolve().parents[3] / "packages" / "db"
 
@@ -2407,7 +2407,7 @@ Run:
 ```bash
 cd apps/downloader
 R2_ENDPOINT=http://localhost:9000 R2_ACCESS_KEY_ID=minioadmin \
-R2_SECRET_ACCESS_KEY=minioadmin R2_BUCKET=cheapclipper \
+R2_SECRET_ACCESS_KEY=minioadmin R2_BUCKET=klipmatic \
 uv run pytest tests/test_ffmpeg.py tests/test_storage.py -v
 ```
 Expected: PASS, lima tes lulus.
@@ -2804,7 +2804,7 @@ git commit -m "feat(worker): ingest handler with cross-user source deduplication
 - Test: `apps/web/test/errorMessages.test.ts`, `apps/web/test/createProject.test.ts`
 
 **Interfaces:**
-- Consumes: `normalizeSourceUrl`, `UnsupportedUrlError`, `ErrorCode` dari `@cheapclipper/shared`; skema dari `@cheapclipper/db`
+- Consumes: `normalizeSourceUrl`, `UnsupportedUrlError`, `ErrorCode` dari `@klipmatic/shared`; skema dari `@klipmatic/db`
 - Produces:
   - `function messageFor(code: ErrorCode): string`
   - `POST /api/projects` menerima `{ url: string }`, mengembalikan `{ projectId: string, jobId: string }` atau `{ error: { code, message } }`
@@ -2815,7 +2815,7 @@ git commit -m "feat(worker): ingest handler with cross-user source deduplication
 `apps/web/package.json`:
 ```json
 {
-  "name": "@cheapclipper/web",
+  "name": "@klipmatic/web",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -2825,8 +2825,8 @@ git commit -m "feat(worker): ingest handler with cross-user source deduplication
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@cheapclipper/db": "workspace:*",
-    "@cheapclipper/shared": "workspace:*",
+    "@klipmatic/db": "workspace:*",
+    "@klipmatic/shared": "workspace:*",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.0",
     "next": "^15.1.0",
@@ -2845,7 +2845,7 @@ git commit -m "feat(worker): ingest handler with cross-user source deduplication
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  transpilePackages: ['@cheapclipper/shared', '@cheapclipper/db'],
+  transpilePackages: ['@klipmatic/shared', '@klipmatic/db'],
 }
 
 export default config
@@ -2856,7 +2856,7 @@ export default config
 `apps/web/test/errorMessages.test.ts`:
 ```ts
 import { expect, test } from 'vitest'
-import { ERROR_CODES } from '@cheapclipper/shared'
+import { ERROR_CODES } from '@klipmatic/shared'
 import { messageFor } from '../lib/errorMessages'
 
 test('setiap kode error punya kalimat Indonesia', () => {
@@ -2948,7 +2948,7 @@ Expected: FAIL — `lib/errorMessages` dan `lib/createProject` belum ada.
 
 `apps/web/lib/errorMessages.ts`:
 ```ts
-import type { ErrorCode } from '@cheapclipper/shared'
+import type { ErrorCode } from '@klipmatic/shared'
 
 const MESSAGES: Record<ErrorCode, string> = {
   SOURCE_UNSUPPORTED:
@@ -2987,7 +2987,7 @@ export function messageFor(code: ErrorCode): string {
 `apps/web/lib/createProject.ts`:
 ```ts
 import type { Sql } from 'postgres'
-import { normalizeSourceUrl } from '@cheapclipper/shared'
+import { normalizeSourceUrl } from '@klipmatic/shared'
 
 export interface CreateProjectResult {
   projectId: string
@@ -3073,7 +3073,7 @@ export function supabaseBrowser() {
 ```ts
 import { NextResponse } from 'next/server'
 import postgres from 'postgres'
-import { UnsupportedUrlError } from '@cheapclipper/shared'
+import { UnsupportedUrlError } from '@klipmatic/shared'
 import { createProjectFromUrl } from '@/lib/createProject'
 import { messageFor } from '@/lib/errorMessages'
 import { supabaseServer } from '@/lib/supabase/server'
@@ -3227,7 +3227,7 @@ Logika label dipisahkan dari komponen agar dapat diuji tanpa merender React maup
 
 `apps/web/components/jobProgressLabel.ts`:
 ```ts
-import type { ErrorCode } from '@cheapclipper/shared'
+import type { ErrorCode } from '@klipmatic/shared'
 import { messageFor } from '@/lib/errorMessages'
 
 export interface JobState {
@@ -3361,7 +3361,7 @@ export function UrlForm() {
 
 `apps/web/app/layout.tsx`:
 ```tsx
-export const metadata = { title: 'CheapClipper' }
+export const metadata = { title: 'Klipmatic' }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -3379,7 +3379,7 @@ import { UrlForm } from '@/components/UrlForm'
 export default function Home() {
   return (
     <main>
-      <h1>CheapClipper</h1>
+      <h1>Klipmatic</h1>
       <p>Ubah video panjang jadi klip pendek siap unggah.</p>
       <UrlForm />
     </main>

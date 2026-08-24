@@ -11,7 +11,7 @@ import { openApiKey, sealApiKey } from '../src/crypto'
 const HERE = dirname(fileURLToPath(import.meta.url))
 
 // Master key tetap, khusus tes. JANGAN dipakai di lingkungan mana pun.
-// Nilai base64 dari 32 byte ASCII "cheapclipper-test-master-key-32b".
+// Nilai base64 dari 32 byte ASCII "klipmatic-test-master-key-32b".
 const MASTER = 'Y2hlYXBjbGlwcGVyLXRlc3QtbWFzdGVyLWtleS0zMmI='
 
 const CASES = [

@@ -1,4 +1,4 @@
-# CheapClipper — Video Editor Timeline Foundation
+# Klipmatic — Video Editor Timeline Foundation
 
 **Tanggal:** 2026-07-28
 

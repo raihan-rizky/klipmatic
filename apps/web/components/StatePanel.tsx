@@ -41,7 +41,7 @@ export function StatePanel({
       <CardContent className="flex flex-col items-start gap-5 pt-5 sm:flex-row sm:items-center sm:pt-6">
         <span
           className={cn(
-            'flex size-12 shrink-0 items-center justify-center rounded-2xl bg-surface-soft text-primary',
+            'flex size-12 shrink-0 items-center justify-center rounded-lg bg-surface-soft text-primary',
             tone === 'warning' && 'text-warning',
             tone === 'danger' && 'text-danger',
           )}
@@ -49,7 +49,7 @@ export function StatePanel({
           <Icon className={cn('size-6', busy && 'animate-spin')} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-black tracking-[-0.025em]">{title}</h2>
+          <h2 className="text-xl font-black tracking-normal">{title}</h2>
           <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
         </div>
         {action && <div className="shrink-0">{action}</div>}

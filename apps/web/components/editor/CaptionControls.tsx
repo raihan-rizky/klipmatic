@@ -1,7 +1,7 @@
 'use client'
 
 import { Captions } from 'lucide-react'
-import type { EditSpecV3, TimelineCommand } from '@cheapclipper/engine'
+import type { EditSpecV3, TimelineCommand } from '@klipmatic/engine'
 
 type CaptionControlsProps = {
   spec: EditSpecV3
@@ -14,12 +14,12 @@ const RANGE_CLASS =
 export function CaptionControls({ spec, onCommand }: CaptionControlsProps) {
   return (
     <fieldset className="space-y-5">
-      <legend className="flex items-center gap-2 text-lg font-black tracking-[-0.025em]">
+      <legend className="flex items-center gap-2 text-lg font-black tracking-normal">
         <Captions className="size-5 text-primary" aria-hidden="true" />
         Caption
       </legend>
 
-      <label className="flex min-h-12 cursor-pointer items-center justify-between gap-4 rounded-xl border border-border bg-background/40 px-4">
+      <label className="flex min-h-12 cursor-pointer items-center justify-between gap-4 rounded-lg border border-border bg-background/40 px-4">
         <span className="text-sm font-bold">Tampilkan caption karaoke</span>
         <input
           type="checkbox"
@@ -103,7 +103,7 @@ export function CaptionControls({ spec, onCommand }: CaptionControlsProps) {
         />
       </div>
 
-      <div className="flex min-h-12 items-center justify-between gap-4 rounded-xl border border-border bg-background/40 px-4">
+      <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg border border-border bg-background/40 px-4">
         <label htmlFor="active-color" className="text-sm font-bold">Warna kata aktif</label>
         <input
           id="active-color"

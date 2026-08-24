@@ -1,4 +1,4 @@
-# CheapClipper — Full Frontend Design
+# Klipmatic — Full Frontend Design
 
 **Tanggal:** 2026-07-28  
 **Status:** Disetujui untuk perencanaan implementasi  
@@ -6,7 +6,7 @@
 
 ## Outcome
 
-CheapClipper mempunyai frontend Creator Studio yang konsisten, responsif, dan
+Klipmatic mempunyai frontend Creator Studio yang konsisten, responsif, dan
 accessible untuk alur landing, login, pemrosesan project, pemilihan kandidat,
 editor klip, serta pengaturan API key. Redesign mempertahankan kontrak API,
 alur data, dan kemampuan backend yang sudah ada.
@@ -69,7 +69,7 @@ eksternal.
 
 Root layout menyediakan app shell dengan:
 
-- brand CheapClipper;
+- brand Klipmatic;
 - navigasi ke pembuatan klip dan API Key;
 - akses akun;
 - content container responsif;

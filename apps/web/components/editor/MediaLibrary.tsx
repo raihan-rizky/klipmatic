@@ -6,7 +6,7 @@ import type {
   TimelineTransition,
   TransitionJoint,
   VisualTransform,
-} from '@cheapclipper/engine'
+} from '@klipmatic/engine'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -346,7 +346,7 @@ export function MediaLibrary({
             </h3>
             <ul className="space-y-2">
               {group.map((asset) => (
-                <li key={asset.id} className="rounded-xl border border-border bg-surface-raised p-2">
+                <li key={asset.id} className="rounded-lg border border-border bg-surface-raised p-2">
                   <div className="flex items-center gap-2">
                     {asset.status === 'ready' ? (
                       <button
@@ -358,7 +358,7 @@ export function MediaLibrary({
                         onDragStart={(event) => {
                           event.dataTransfer.effectAllowed = 'copy'
                           event.dataTransfer.setData(
-                            'application/x-cheapclipper-asset',
+                            'application/x-klipmatic-asset',
                             JSON.stringify({ assetId: asset.id }),
                           )
                         }}
@@ -434,7 +434,7 @@ export function MediaLibrary({
       })}
 
       {items.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted">
+        <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted">
           Belum ada media. Upload gambar, audio, atau video pertama kamu.
         </p>
       ) : null}
@@ -464,7 +464,7 @@ export function MediaLibrary({
           ))}
         </ul>
       ) : (
-        <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted">
+        <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted">
           Preset tidak ditemukan.
         </p>
       )}

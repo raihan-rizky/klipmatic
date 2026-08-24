@@ -1,4 +1,4 @@
-import type { VisualTransform } from '@cheapclipper/engine'
+import type { VisualTransform } from '@klipmatic/engine'
 
 type Point = { x: number; y: number }
 type Bounds = { width: number; height: number }

@@ -28,7 +28,7 @@ export const SheetContent = React.forwardRef<
       {children}
       <DialogPrimitive.Close
         aria-label="Tutup inspector"
-        className="absolute right-4 top-4 grid size-11 place-items-center rounded-xl text-muted hover:bg-surface-soft hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="absolute right-4 top-4 grid size-11 place-items-center rounded-lg text-muted hover:bg-surface-soft hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <X className="size-5" aria-hidden="true" />
       </DialogPrimitive.Close>

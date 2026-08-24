@@ -16,7 +16,12 @@ export async function supabaseServer() {
           return store.getAll()
         },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value, options }) => store.set(name, value, options))
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => store.set(name, value, options))
+          } catch {
+            // Server Components can read cookies but cannot persist refreshes.
+            // Middleware owns that response-level cookie update.
+          }
         },
       },
     },

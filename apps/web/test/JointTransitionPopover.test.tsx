@@ -69,7 +69,22 @@ test('ganti tipe lalu Add mengirim payload benar dan menutup', async () => {
 
 test('Escape menutup tanpa menambah', () => {
   const { onAdd, onClose } = renderPopover()
-  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(onClose).toHaveBeenCalledOnce()
+  expect(onAdd).not.toHaveBeenCalled()
+})
+
+test('memindahkan fokus ke dialog saat dibuka', () => {
+  renderPopover()
+
+  expect(screen.getByRole('button', { name: 'Fade' })).toHaveFocus()
+})
+
+test('interaksi pointer di luar popover menutupnya', () => {
+  const { onAdd, onClose } = renderPopover()
+
+  fireEvent.pointerDown(document.body)
+
   expect(onClose).toHaveBeenCalledOnce()
   expect(onAdd).not.toHaveBeenCalled()
 })

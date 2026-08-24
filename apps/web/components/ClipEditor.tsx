@@ -215,6 +215,7 @@ function ReadyClipEditor({
   const [playing, setPlaying] = useState(false)
   const { toasts, showToast, dismissToast } = useToasts()
   const [error, setError] = useState<string | null>(null)
+  const [expiredMediaError, setExpiredMediaError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [progress, setProgress] = useState(0)
   const [transitionDragActive, setTransitionDragActive] = useState(false)
@@ -224,12 +225,26 @@ function ReadyClipEditor({
   const candidateAssetId = payload.clip.editSpec.timeline.tracks
     .find((track) => track.id === payload.clip.editSpec.timeline.primaryTrackId)
     ?.clips[0]?.assetId ?? payload.assets[0]!.id
-  const timelineContext = useMemo<TimelineContext>(
-    () => ({
+  const assetsRef = useRef(assets)
+  assetsRef.current = assets
+
+  const assetMetaKey = useMemo(
+    () => [...BUILTIN_MEDIA, ...assets]
+      .map((asset) =>
+        `${asset.id}:${asset.mediaType}:${asset.duration}:${asset.width}:${asset.height}:${asset.hasAudio}`,
+      )
+      .sort()
+      .join('|'),
+    [assets],
+  )
+
+  const timelineContext = useMemo<TimelineContext>(() => {
+    const all = [...BUILTIN_MEDIA, ...assetsRef.current]
+    return {
       candidateDuration: payload.clip.durationSec,
       sourceId: payload.clip.id,
       candidateAssetId,
-      assets: Object.fromEntries([...BUILTIN_MEDIA, ...assets].map((asset) => [asset.id, {
+      assets: Object.fromEntries(all.map((asset) => [asset.id, {
         id: asset.id,
         mediaType: asset.mediaType,
         duration: asset.duration,
@@ -237,9 +252,10 @@ function ReadyClipEditor({
         height: asset.height,
         hasAudio: asset.hasAudio,
       }])),
-    }),
-    [assets, candidateAssetId, payload.clip.durationSec, payload.clip.id],
-  )
+    }
+    // Rebuild hanya saat metadata berubah (assetMetaKey), bukan tiap identitas array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetMetaKey, candidateAssetId, payload.clip.durationSec, payload.clip.id])
   const assetNames = useMemo(() => Object.fromEntries([
     ...BUILTIN_MEDIA.map((asset) => [asset.id, asset.name] as const),
     ...assets.map((asset) => [asset.id, asset.name] as const),
@@ -468,14 +484,22 @@ function ReadyClipEditor({
     () => assets.filter((asset) => asset.id !== candidateAssetId && !asset.id.startsWith('builtin:')),
     [assets, candidateAssetId],
   )
+  const previewAssetsKey = useMemo(
+    () => assets.map((asset) => `${asset.id}:${asset.url}`).sort().join('|'),
+    [assets],
+  )
   const previewAssets = useMemo(
-    () => assets.map((asset) =>
+    () => assetsRef.current.map((asset) =>
       asset.id === candidateAssetId ? { ...asset, url: mediaUrl } : asset,
     ),
-    [assets, candidateAssetId, mediaUrl],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed oleh previewAssetsKey + mediaUrl.
+    [previewAssetsKey, mediaUrl, candidateAssetId],
   )
   const expiringAssets = useMemo(() => uploadedAssets.filter((asset) => asset.expiresSoon), [uploadedAssets])
   const expiredAssets = useMemo(() => uploadedAssets.filter((asset) => asset.status === 'expired'), [uploadedAssets])
+  const currentExpiredMediaError = expiredAssets.length > 0
+    ? `Media kedaluwarsa: ${expiredAssets.map((asset) => asset.name).join(', ')}. Gunakan Ganti di Media Library untuk memulihkan clip terkait.`
+    : null
   const expiringSeenRef = useRef(false)
   useEffect(() => {
     if (expiringAssets.length === 0) {
@@ -490,11 +514,9 @@ function ReadyClipEditor({
     )
   }, [expiringAssets, showToast])
   useEffect(() => {
-    if (expiredAssets.length === 0) return
-    setError(
-      `Media kedaluwarsa: ${expiredAssets.map((asset) => asset.name).join(', ')}. Gunakan Ganti di Media Library untuk memulihkan clip terkait.`,
-    )
-  }, [expiredAssets])
+    setExpiredMediaError(currentExpiredMediaError)
+  }, [currentExpiredMediaError])
+  const visibleError = error ?? expiredMediaError ?? autosave.error
   const showGeneralControls = !selected || selected.kind === 'track' || selected.kind === 'clip'
   const inspector = (
     <div className="divide-y divide-border">
@@ -553,18 +575,21 @@ function ReadyClipEditor({
               canvasSelection={canvasSelection}
               onCanvasCommit={commitCanvasSelection}
               onAssetDrop={insertAsset}
-              errorBanner={(error || autosave.error) ? (
+              errorBanner={visibleError ? (
                 <div
                   role="alert"
                   className="flex items-center justify-between gap-3 rounded-lg border border-danger/60 bg-danger/10 p-3 text-sm"
                 >
-                  <span>{error ?? autosave.error}</span>
+                  <span>{visibleError}</span>
                   <Button
                     type="button"
                     size="icon"
                     variant="ghost"
                     aria-label="Tutup pesan galat"
-                    onClick={() => setError(null)}
+                    onClick={() => {
+                      if (error) setError(null)
+                      else setExpiredMediaError(null)
+                    }}
                   >
                     ×
                   </Button>
@@ -638,9 +663,9 @@ function ReadyClipEditor({
         }
       />
 
-      {(error || autosave.error) && (
+      {visibleError && (
         <div role="alert" className="sr-only">
-          {error ?? autosave.error}
+          {visibleError}
         </div>
       )}
     </>

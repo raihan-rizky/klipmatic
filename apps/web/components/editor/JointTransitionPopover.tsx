@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   DEFAULT_TRANSITION_DURATION,
   TRANSITION_TYPES,
@@ -27,19 +27,39 @@ export function JointTransitionPopover({
   const [duration, setDuration] = useState(() =>
     Math.min(DEFAULT_TRANSITION_DURATION, joint.maxDuration),
   )
+  const dialogRef = useRef<HTMLDivElement>(null)
 
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.stopPropagation()
+  useEffect(() => {
+    const dialog = dialogRef.current
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    dialog?.querySelector<HTMLElement>('button, input')?.focus()
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
       onClose()
     }
-  }
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (event.target instanceof Node && !dialog?.contains(event.target)) {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    document.addEventListener('pointerdown', closeOnOutsidePointer)
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape)
+      document.removeEventListener('pointerdown', closeOnOutsidePointer)
+      if (previousFocus?.isConnected) previousFocus.focus()
+    }
+  }, [onClose])
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-label="Tambahkan transition di cut point"
-      onKeyDown={onKeyDown}
       style={{ left }}
       className="absolute bottom-full left-0 z-40 mb-2 w-64 -translate-x-1/2 space-y-3 rounded-lg border border-border bg-surface-raised p-3 shadow-xl"
     >

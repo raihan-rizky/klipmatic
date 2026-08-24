@@ -1,4 +1,4 @@
-# CheapClipper — Desain P0 + P1: Ingest & Pipeline AI
+# Klipmatic — Desain P0 + P1: Ingest & Pipeline AI
 
 **Tanggal:** 2026-07-27
 **Status:** Disetujui untuk implementasi
@@ -8,9 +8,9 @@
 
 ## 1. Ringkasan
 
-CheapClipper adalah SaaS yang mengubah video panjang menjadi klip pendek vertikal (9:16) berisi hook viral untuk YouTube Shorts, TikTok, dan Instagram Reels — dilengkapi editor video berbasis web.
+Klipmatic adalah SaaS yang mengubah video panjang menjadi klip pendek vertikal (9:16) berisi hook viral untuk YouTube Shorts, TikTok, dan Instagram Reels — dilengkapi editor video berbasis web.
 
-Pembeda utamanya adalah **struktur biaya**. Kompetitor (Opus Clip, Klap, Vizard) menjalankan seluruh pipeline di server sehingga biaya komputasi naik linear terhadap jumlah user, memaksa harga langganan di kisaran USD 29/bulan. CheapClipper memindahkan tahap termahal — computer vision dan encoding video — ke browser user, dan menerapkan caching agresif berbasis sumber video. Hasilnya biaya marjinal di bawah Rp350 per video baru dan mendekati Rp0 untuk video yang sudah pernah diproses user lain.
+Pembeda utamanya adalah **struktur biaya**. Kompetitor (Opus Clip, Klap, Vizard) menjalankan seluruh pipeline di server sehingga biaya komputasi naik linear terhadap jumlah user, memaksa harga langganan di kisaran USD 29/bulan. Klipmatic memindahkan tahap termahal — computer vision dan encoding video — ke browser user, dan menerapkan caching agresif berbasis sumber video. Hasilnya biaya marjinal di bawah Rp350 per video baru dan mendekati Rp0 untuk video yang sudah pernah diproses user lain.
 
 Dokumen ini menspesifikasikan P0 dan P1: seluruh jalur server dari URL sampai daftar kandidat klip berskor. Rendering video dan editor tidak termasuk (lihat §11).
 
@@ -36,7 +36,7 @@ Indonesia. Ini bukan detail kosmetik — ia mengubah tiga keputusan teknis:
 | [m-hoseyny/teek](https://github.com/m-hoseyny/teek) | Next.js + FastAPI, transkripsi bisa diganti provider. |
 | [Augani/openreel-video](https://github.com/Augani/openreel-video) | Arsitektur editor browser: React + Zustand + Mediabunny + WebCodecs + WebGPU, state action-based, persist ke IndexedDB. Rujukan untuk P2-P4. |
 
-Semua proyek serupa memakai pola yang sama: Next.js/React di depan, FastAPI Python di belakang, Postgres, Docker Compose. CheapClipper mengikuti pola itu tetapi memindahkan CV dan encoding ke client.
+Semua proyek serupa memakai pola yang sama: Next.js/React di depan, FastAPI Python di belakang, Postgres, Docker Compose. Klipmatic mengikuti pola itu tetapi memindahkan CV dan encoding ke client.
 
 ### 2.3 Batasan yang diterima secara sadar
 

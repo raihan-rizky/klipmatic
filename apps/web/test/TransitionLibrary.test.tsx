@@ -8,7 +8,7 @@ import {
   TransitionLibrary,
   type TransitionDragPayload,
 } from '@/components/editor/TransitionLibrary'
-import type { TransitionJoint } from '@cheapclipper/engine'
+import type { TransitionJoint } from '@klipmatic/engine'
 
 afterEach(cleanup)
 
@@ -23,7 +23,7 @@ const joint: TransitionJoint = {
 function transitionTransfer(type: TransitionDragPayload['type']): DataTransfer {
   const values = new Map<string, string>()
   values.set(
-    'application/x-cheapclipper-transition',
+    'application/x-klipmatic-transition',
     JSON.stringify({ type, duration: 0.5 }),
   )
   return {
@@ -57,7 +57,7 @@ test('essential transition cards expose allowlisted drag data', () => {
     dataTransfer: transfer,
   })
 
-  expect(JSON.parse(transfer.getData('application/x-cheapclipper-transition')))
+  expect(JSON.parse(transfer.getData('application/x-klipmatic-transition')))
     .toEqual({ type: 'cross-dissolve', duration: 0.5 })
   expect(onDragStateChange).toHaveBeenCalledWith(true)
 })
