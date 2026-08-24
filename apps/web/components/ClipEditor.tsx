@@ -238,6 +238,19 @@ function ReadyClipEditor({
     }),
     [assets, candidateAssetId, payload.clip.durationSec, payload.clip.id],
   )
+  const assetNames = useMemo(() => Object.fromEntries([
+    ...BUILTIN_MEDIA.map((asset) => [asset.id, asset.name] as const),
+    ...assets.map((asset) => [asset.id, asset.name] as const),
+  ]), [assets])
+  const selectFirstClip = useCallback(() => {
+    const primary = history.present.timeline.tracks.find(
+      (track) => track.id === history.present.timeline.primaryTrackId,
+    )
+    const clip = primary?.clips[0]
+    if (primary && clip) {
+      setSelected({ kind: 'clip', trackId: primary.id, clipId: clip.id })
+    }
+  }, [history.present])
   const autosave = useEditorAutosave({
     clipId,
     spec: history.present,
@@ -480,6 +493,8 @@ function ReadyClipEditor({
         spec={history.present}
         selected={selected}
         onCommand={dispatchCommand}
+        assetNames={assetNames}
+        onSelectFirstClip={selectFirstClip}
       />
       {showGeneralControls ? <div className="p-5">
         <CropControls
