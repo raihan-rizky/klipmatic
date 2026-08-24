@@ -1,0 +1,180 @@
+<style>
+  .editor-shell {
+    margin-top: 20px;
+    overflow: hidden;
+    border: 1px solid #334155;
+    border-radius: 18px;
+    background: #0b1020;
+    color: #e2e8f0;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .25);
+  }
+  .editor-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid #27344d;
+    background: #111827;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .editor-main {
+    display: grid;
+    grid-template-columns: 220px minmax(280px, 1fr) 190px;
+    min-height: 390px;
+  }
+  .media-panel, .inspector { padding: 13px; background: #111827; }
+  .media-panel { border-right: 1px solid #27344d; }
+  .inspector { border-left: 1px solid #27344d; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tab, .tiny-btn {
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 6px 8px;
+    background: #172033;
+    color: #cbd5e1;
+    font-size: 10px;
+    font-weight: 800;
+  }
+  .tab.active { border-color: #8b5cf6; background: #5b21b6; color: white; }
+  .upload-zone {
+    margin-bottom: 10px;
+    padding: 14px 8px;
+    border: 1px dashed #64748b;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 10px;
+    color: #94a3b8;
+  }
+  .asset-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+  .asset {
+    display: grid;
+    min-height: 58px;
+    place-items: center;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #243147, #172033);
+    font-size: 22px;
+  }
+  .asset small { display: block; font-size: 8px; color: #cbd5e1; }
+  .stage-wrap {
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: radial-gradient(circle at 50% 40%, #26334d, #080c17 65%);
+  }
+  .canvas {
+    position: relative;
+    height: 330px;
+    aspect-ratio: 9 / 16;
+    overflow: hidden;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #334155, #0f172a);
+    box-shadow: 0 12px 40px rgba(0,0,0,.55);
+  }
+  .person {
+    position: absolute;
+    bottom: -35px;
+    left: 50%;
+    width: 128px;
+    height: 260px;
+    transform: translateX(-50%);
+    border-radius: 60px 60px 10px 10px;
+    background: linear-gradient(#f1c9a5 0 25%, #2563eb 25%);
+    opacity: .88;
+  }
+  .sticker {
+    position: absolute;
+    top: 34px;
+    right: 12px;
+    padding: 7px 9px;
+    border: 2px solid #facc15;
+    border-radius: 10px;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 900;
+    transform: rotate(2deg);
+  }
+  .caption-box {
+    position: absolute;
+    left: 50%;
+    bottom: 54px;
+    width: 155px;
+    transform: translateX(-50%);
+    border: 2px solid #a78bfa;
+    background: rgba(0,0,0,.82);
+    padding: 8px;
+    color: white;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 900;
+  }
+  .handle { position:absolute;width:8px;height:8px;border-radius:50%;background:white;border:2px solid #7c3aed; }
+  .h1 { left:-6px;top:-6px; }.h2 { right:-6px;top:-6px; }.h3 { left:-6px;bottom:-6px; }.h4 { right:-6px;bottom:-6px; }
+  .inspector h4, .media-panel h4 { margin: 0 0 9px; font-size: 11px; color: white; }
+  .field { margin: 10px 0; }
+  .field label { display:block;margin-bottom:4px;font-size:9px;color:#94a3b8; }
+  .slider { height: 5px; border-radius: 99px; background: linear-gradient(90deg,#8b5cf6 65%,#334155 65%); }
+  .timeline { padding: 10px 12px 14px; border-top: 1px solid #27344d; background: #0f172a; }
+  .timeline-tools { display:flex;gap:6px;margin-bottom:8px; }
+  .track { display:grid;grid-template-columns:90px 1fr;gap:8px;margin-top:5px;align-items:center; }
+  .track-name { font-size: 9px; color: #94a3b8; }
+  .rail { position:relative;height:27px;border-radius:6px;background:#172033; }
+  .clip { position:absolute;top:3px;bottom:3px;border-radius:5px;padding:4px 7px;font-size:8px;font-weight:800;overflow:hidden; }
+  .video { left:0;width:55%;background:#2563eb; }.video2 { left:55%;width:35%;background:#0f766e; }
+  .overlay { left:24%;width:30%;background:#db2777; }.caption { left:0;width:90%;background:#7c3aed; }.audio { left:12%;width:58%;background:#ca8a04; }
+  .transition-marker { position:absolute;left:54%;top:4px;width:19px;height:19px;transform:rotate(45deg);background:#f8fafc;border:3px solid #a78bfa;z-index:3; }
+  .playhead { position:absolute;left:38%;top:-4px;bottom:-4px;width:2px;background:#fb7185;z-index:4; }
+  .choice-row { display:flex;justify-content:center;gap:12px;margin-top:18px; }
+  .choice-row .option { width:auto; min-width:150px; }
+  @media (max-width: 900px) {
+    .editor-main { grid-template-columns: 180px 1fr; }
+    .inspector { display:none; }
+  }
+</style>
+
+<h2>Design 2 — Media-first editor layout</h2>
+<p class="subtitle">Media drawer di kiri, direct manipulation di canvas, inspector di kanan, timing di timeline.</p>
+
+<div class="editor-shell">
+  <div class="editor-topbar"><span>← Project / Klip fixture</span><span>Saved · Export</span></div>
+  <div class="editor-main">
+    <aside class="media-panel">
+      <h4>Insert Media</h4>
+      <div class="tabs"><span class="tab active">Uploads</span><span class="tab">Presets</span><span class="tab">Transitions</span></div>
+      <div class="upload-zone">Drop audio, picture, atau video<br><strong>Browse files</strong></div>
+      <div class="asset-grid">
+        <div class="asset">📷<small>City photo</small></div><div class="asset">➡️<small>Arrow sticker</small></div>
+        <div class="asset">🔔<small>Bell SFX</small></div><div class="asset">🎬<small>B-roll.mp4</small></div>
+      </div>
+    </aside>
+    <main class="stage-wrap">
+      <div class="canvas">
+        <div class="person"></div>
+        <div class="sticker">SUBSCRIBE</div>
+        <div class="caption-box">INI CAPTION YANG BISA DI-DRAG
+          <i class="handle h1"></i><i class="handle h2"></i><i class="handle h3"></i><i class="handle h4"></i>
+        </div>
+      </div>
+    </main>
+    <aside class="inspector">
+      <h4>Selected: Caption</h4>
+      <div class="field"><label>Position X / Y</label><div class="slider"></div></div>
+      <div class="field"><label>Scale</label><div class="slider" style="background:linear-gradient(90deg,#8b5cf6 45%,#334155 45%)"></div></div>
+      <div class="field"><label>Transition in</label><button class="tiny-btn">Fade · 0.3s</button></div>
+      <div class="field"><label>Transition out</label><button class="tiny-btn">None</button></div>
+    </aside>
+  </div>
+  <section class="timeline">
+    <div class="timeline-tools"><span class="tiny-btn">＋ Insert media</span><span class="tiny-btn">Split</span><span class="tiny-btn">Undo</span></div>
+    <div class="track"><span class="track-name">Video</span><div class="rail"><i class="playhead"></i><div class="clip video">Main clip</div><i class="transition-marker"></i><div class="clip video2">Clip B</div></div></div>
+    <div class="track"><span class="track-name">Overlay</span><div class="rail"><div class="clip overlay">Sticker / photo</div></div></div>
+    <div class="track"><span class="track-name">Captions</span><div class="rail"><div class="clip caption">Global caption position</div></div></div>
+    <div class="track"><span class="track-name">Audio / SFX</span><div class="rail"><div class="clip audio">Bell + linked audio</div></div></div>
+  </section>
+</div>
+
+<div class="choice-row">
+  <div class="option" data-choice="layout-approved" onclick="toggleSelect(this)"><div class="letter">✓</div><div class="content"><h3>Approve</h3><p>Layout dan flow sudah pas.</p></div></div>
+  <div class="option" data-choice="layout-revise" onclick="toggleSelect(this)"><div class="letter">↺</div><div class="content"><h3>Revise</h3><p>Ada bagian yang mau diubah.</p></div></div>
+</div>

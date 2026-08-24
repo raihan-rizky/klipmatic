@@ -1,0 +1,201 @@
+   ▲ Next.js 15.5.22
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.100:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1881ms
+ ✓ Compiled /middleware in 218ms (169 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 2.8s (725 modules)
+ GET / 200 in 4176ms
+ ○ Compiling /icon.svg ...
+ ✓ Compiled /icon.svg in 693ms (473 modules)
+ GET /icon.svg?cd4510ec474339d8 200 in 1082ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 2.2s (830 modules)
+ POST /api/projects 201 in 3572ms
+ ○ Compiling /projects/[id] ...
+ ✓ Compiled /projects/[id] in 6.4s (1133 modules)
+ GET / 200 in 4897ms
+ GET /projects/80276324-8108-4380-807d-00379311897e?job=c3c93c32-6c60-4695-b2a5-0e2e8c374b38 200 in 8300ms
+ GET / 200 in 241ms
+ GET /icon.svg?cd4510ec474339d8 200 in 93ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2.4s (1162 modules)
+ GET /login 200 in 3269ms
+ GET /icon.svg?cd4510ec474339d8 200 in 82ms
+ GET /login 200 in 92ms
+ ✓ Compiled in 1553ms (1150 modules)
+ GET /login 200 in 294ms
+ GET /projects/80276324-8108-4380-807d-00379311897e?job=c3c93c32-6c60-4695-b2a5-0e2e8c374b38 200 in 776ms
+ ○ Compiling /auth/callback ...
+ ✓ Compiled /auth/callback in 1394ms (1155 modules)
+ GET /auth/callback 307 in 1966ms
+ GET /login?status=callback-failed 200 in 906ms
+ ✓ Compiled /icon.svg in 402ms (736 modules)
+ GET /icon.svg?cd4510ec474339d8 200 in 636ms
+ GET /login 200 in 392ms
+ GET /icon.svg?cd4510ec474339d8 200 in 32ms
+ GET /auth/callback 307 in 73ms
+ GET /login?status=callback-failed 200 in 672ms
+ GET / 200 in 192ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 1064ms (743 modules)
+ POST /api/projects 201 in 1884ms
+ GET /projects/b3f97ff7-1472-4c1a-81bc-6b7e00ab6e12?job=788878aa-a379-42aa-9995-4e1d8eaac14a 200 in 453ms
+ GET /auth/callback 307 in 53ms
+ GET /login?status=callback-failed 200 in 595ms
+ GET /icon.svg?cd4510ec474339d8 200 in 56ms
+ GET /login 200 in 161ms
+ GET / 200 in 137ms
+ POST /login 303 in 289ms
+ GET /login 200 in 121ms
+ GET / 200 in 173ms
+ GET / 200 in 282ms
+ GET /icon.svg?cd4510ec474339d8 200 in 47ms
+ GET / 200 in 260ms
+ GET /icon.svg?cd4510ec474339d8 200 in 39ms
+ GET /login 200 in 119ms
+ GET /login 200 in 308ms
+ GET /icon.svg?cd4510ec474339d8 200 in 31ms
+ GET /login 200 in 308ms
+ GET /icon.svg?cd4510ec474339d8 200 in 44ms
+ ✓ Compiled in 1513ms (1167 modules)
+ GET /login 200 in 826ms
+ GET /login?status=callback-failed 200 in 832ms
+ GET /login 200 in 834ms
+ GET /login?status=callback-failed 200 in 811ms
+ GET /icon.svg?cd4510ec474339d8 200 in 76ms
+ ✓ Compiled in 478ms (435 modules)
+ ✓ Compiled in 508ms (435 modules)
+ GET /login 200 in 463ms
+ GET /login?status=callback-failed 200 in 484ms
+ GET /login 200 in 486ms
+ GET /login 200 in 431ms
+ GET /login?status=callback-failed 200 in 423ms
+ GET /login 200 in 425ms
+ ✓ Compiled in 2.5s (1146 modules)
+ GET /login?status=callback-failed 200 in 1273ms
+ GET /login 200 in 1279ms
+ GET /login 200 in 1278ms
+ ✓ Compiled in 503ms (433 modules)
+ GET /login 200 in 278ms
+ GET /login 200 in 281ms
+ GET /login?status=callback-failed 200 in 284ms
+ ✓ Compiled in 2.3s (1315 modules)
+ GET /login 200 in 2744ms
+ GET /login?status=callback-failed 200 in 2744ms
+ GET /login 200 in 2748ms
+ GET /login?status=callback-failed 200 in 310ms
+ GET /login 200 in 334ms
+ GET /login 200 in 311ms
+ GET / 200 in 561ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 1095ms (737 modules)
+ POST /api/projects 201 in 2456ms
+ GET /projects/83b3308a-bc56-44b8-afe0-31059bb987f4?job=eb49dec0-3ca8-43bb-8f2f-8a1f96ccace3 200 in 590ms
+ GET /login 200 in 143ms
+ ○ Compiling /icon.svg ...
+ ✓ Compiled /icon.svg in 691ms (739 modules)
+ GET /icon.svg?cd4510ec474339d8 200 in 865ms
+ GET /login 200 in 531ms
+ GET /login 200 in 722ms
+ GET /icon.svg?cd4510ec474339d8 200 in 33ms
+ GET /login 200 in 157ms
+ GET / 200 in 86ms
+ POST /api/projects 201 in 586ms
+ GET /projects/73425878-0fa0-4ec5-9e9a-3812cd9e8497?job=e9ea6938-48c1-4d6f-b6a9-3479a364f068 200 in 343ms
+ GET / 200 in 5000ms
+ GET /icon.svg?cd4510ec474339d8 200 in 56ms
+ GET /login 200 in 212ms
+ GET /icon.svg?cd4510ec474339d8 200 in 67ms
+ GET / 200 in 239ms
+ GET /icon.svg?cd4510ec474339d8 200 in 44ms
+ POST /api/projects 201 in 313ms
+ GET /projects/24d90883-009c-4e53-88ba-e0c4d616dc7c?job=eab871d9-b237-422f-a7ba-1e89072c3375 200 in 274ms
+ GET /icon.svg?cd4510ec474339d8 200 in 51ms
+ GET /projects/73425878-0fa0-4ec5-9e9a-3812cd9e8497?job=e9ea6938-48c1-4d6f-b6a9-3479a364f068 200 in 301ms
+ GET /icon.svg?cd4510ec474339d8 200 in 42ms
+ GET /login 200 in 137ms
+ GET / 200 in 146ms
+ POST /api/projects 201 in 507ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 275ms
+ ✓ Compiled in 6.9s (433 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 1157ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 1543ms
+ GET /icon.svg?cd4510ec474339d8 200 in 52ms
+ ✓ Compiled in 660ms (433 modules)
+ ✓ Compiled in 608ms (433 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 6354ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 168ms
+ ✓ Compiled in 515ms (433 modules)
+ ✓ Compiled in 492ms (433 modules)
+ ✓ Compiled in 495ms (433 modules)
+ ✓ Compiled in 765ms (433 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 968ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 208ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 173ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 213ms
+ ✓ Compiled in 466ms (433 modules)
+ ✓ Compiled in 448ms (433 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 215ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 151ms
+ ✓ Compiled in 448ms (433 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 3.4s (1151 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 404 in 4865ms
+ ✓ Compiled in 1865ms (437 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 926ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 1143ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 1178ms
+ ✓ Compiled in 656ms (437 modules)
+ ✓ Compiled in 480ms (437 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 196ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 200ms
+ ✓ Compiled in 788ms (433 modules)
+ ✓ Compiled in 530ms (433 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 5.9s (1479 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 500 in 7143ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 909ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 365ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 190ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 926ms
+ ✓ Compiled in 818ms (586 modules)
+ ✓ Compiled in 592ms (586 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1499ms (1484 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 404 in 2152ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 625ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 792ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 946ms
+ ✓ Compiled in 512ms (590 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 194ms
+ ✓ Compiled in 508ms (589 modules)
+ ✓ Compiled in 551ms (589 modules)
+ ✓ Compiled in 500ms (589 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 810ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 556ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 426ms
+ ✓ Compiled in 483ms (585 modules)
+ ✓ Compiled in 481ms (585 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 367ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 307ms
+ ✓ Compiled in 3.1s (1398 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 200 in 1588ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 7.6s (1480 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 500 in 12592ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 500 in 108ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 500 in 3118ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 500 in 74ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 500 in 1177ms
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 500 in 159ms
+ ✓ Compiled in 569ms (586 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 2.5s (1403 modules)
+ GET /projects/606fa063-58e9-4551-b378-cc209ab70f7c?job=4e73bbab-4531-47ff-8101-f13ab3b0beb0 404 in 4463ms
+ ✓ Compiled in 3.3s (585 modules)
+ ✓ Compiled in 545ms (585 modules)
+ ✓ Compiled in 1443ms (1399 modules)

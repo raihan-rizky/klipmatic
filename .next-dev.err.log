@@ -1,0 +1,319 @@
+$ next dev
+ ⨯ Error [PostgresError]: column c.thumbnail_status does not exist
+    at listCandidates (lib\candidates.ts:39:25)
+  37 |   if (!UUID_RE.test(projectId)) return []
+  38 |
+> 39 |   const rows = await sql`
+     |                         ^
+  40 |     select c.id, c.start_sec, c.end_sec, c.score, c.title, c.hook_text,
+  41 |            c.reason, c.transcript_slice, c.thumbnail_status,
+  42 |            c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42703',
+  position: '115',
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn',
+  digest: '361237619'
+}
+ ⨯ Error [PostgresError]: column c.thumbnail_status does not exist
+    at listCandidates (lib\candidates.ts:39:25)
+  37 |   if (!UUID_RE.test(projectId)) return []
+  38 |
+> 39 |   const rows = await sql`
+     |                         ^
+  40 |     select c.id, c.start_sec, c.end_sec, c.score, c.title, c.hook_text,
+  41 |            c.reason, c.transcript_slice, c.thumbnail_status,
+  42 |            c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42703',
+  position: '115',
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn',
+  digest: '361237619'
+}
+gagal membuat session magic link AUTH_CALLBACK_FAILED  callback tidak membawa token autentikasi
+gagal membuat session magic link AUTH_CALLBACK_FAILED  callback tidak membawa token autentikasi
+ ⨯ Error [PostgresError]: column c.thumbnail_status does not exist
+    at listCandidates (lib\candidates.ts:39:25)
+  37 |   if (!UUID_RE.test(projectId)) return []
+  38 |
+> 39 |   const rows = await sql`
+     |                         ^
+  40 |     select c.id, c.start_sec, c.end_sec, c.score, c.title, c.hook_text,
+  41 |            c.reason, c.transcript_slice, c.thumbnail_status,
+  42 |            c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42703',
+  position: '115',
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn',
+  digest: '361237619'
+}
+gagal membuat session magic link AUTH_CALLBACK_FAILED  callback tidak membawa token autentikasi
+ ⨯ Error [PostgresError]: column c.thumbnail_status does not exist
+    at listCandidates (lib\candidates.ts:39:25)
+  37 |   if (!UUID_RE.test(projectId)) return []
+  38 |
+> 39 |   const rows = await sql`
+     |                         ^
+  40 |     select c.id, c.start_sec, c.end_sec, c.score, c.title, c.hook_text,
+  41 |            c.reason, c.transcript_slice, c.thumbnail_status,
+  42 |            c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42703',
+  position: '115',
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn',
+  digest: '361237619'
+}
+ ⨯ Error [PostgresError]: column c.thumbnail_status does not exist
+    at listCandidates (lib\candidates.ts:39:25)
+  37 |   if (!UUID_RE.test(projectId)) return []
+  38 |
+> 39 |   const rows = await sql`
+     |                         ^
+  40 |     select c.id, c.start_sec, c.end_sec, c.score, c.title, c.hook_text,
+  41 |            c.reason, c.transcript_slice, c.thumbnail_status,
+  42 |            c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42703',
+  position: '115',
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn',
+  digest: '361237619'
+}
+ ⨯ Error [PostgresError]: column c.thumbnail_status does not exist
+    at listCandidates (lib\candidates.ts:39:25)
+  37 |   if (!UUID_RE.test(projectId)) return []
+  38 |
+> 39 |   const rows = await sql`
+     |                         ^
+  40 |     select c.id, c.start_sec, c.end_sec, c.score, c.title, c.hook_text,
+  41 |            c.reason, c.transcript_slice, c.thumbnail_status,
+  42 |            c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42703',
+  position: '115',
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn',
+  digest: '361237619'
+}
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Projects\cheapclipper\apps\web\.next\cache\webpack\client-development\5.pack.gz_' -> 'C:\Projects\cheapclipper\apps\web\.next\cache\webpack\client-development\5.pack.gz'
+ ⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/projects/606fa063-58e9-4551-b378-cc209ab70f7c'
+}
+2026-08-15T12:15:53.323Z ERROR page.project.failed project_id=606fa063-58e9-4551-b378-cc209ab70f7c error_class=PostgresError error_code=XX000
+ ⨯ Error [PostgresError]: (EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15
+    at listCandidates (lib\candidates.ts:39:25)
+  37 |   if (!UUID_RE.test(projectId)) return []
+  38 |
+> 39 |   const rows = await sql`
+     |                         ^
+  40 |     select c.id, c.start_sec, c.end_sec, c.score, c.title, c.hook_text,
+  41 |            c.reason, c.transcript_slice, c.thumbnail_status,
+  42 |            c.thumbnail_r2_key, s.thumbnail_url as source_thumbnail_url {
+  code: 'XX000',
+  severity_local: 'FATAL',
+  digest: '3350558578'
+}
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Projects\cheapclipper\apps\web\.next\cache\webpack\server-development\8.pack.gz_' -> 'C:\Projects\cheapclipper\apps\web\.next\cache\webpack\server-development\8.pack.gz'
+ ⨯ ./lib/observability.ts
+Error:   [31mx[0m Expression expected
+     ,-[[36;1;4mC:\Projects\cheapclipper\apps\web\lib\observability.ts[0m:170:1]
+ [2m167[0m |     log: RequestLogger,
+ [2m168[0m |   ) => Promise<Response>,
+ [2m169[0m | ) {
+ [2m170[0m | ): LoggedRoute<TContext> {
+     : [35;1m^[0m
+ [2m171[0m |   const wrapped = async (request: Request, context?: TContext): Promise<Response> => {
+ [2m172[0m |     const supplied = request.headers.get('x-request-id') ?? ''
+ [2m173[0m |     const requestId = REQUEST_ID.test(supplied) ? supplied : crypto.randomUUID()
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./lib/observability.ts
+./app/projects/[id]/page.tsx
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Projects\cheapclipper\apps\web\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projects\\cheapclipper\\apps\\web\\.next\\routes-manifest.json'
+}
+ ⨯ Error: Cannot find module './951.js'
+Require stack:
+- C:\Projects\cheapclipper\apps\web\.next\server\webpack-runtime.js
+- C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\require.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\load-components.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\utils.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\options.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\index.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\next.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:325)
+    at Object.<anonymous> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:371) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+[Error: ENOENT: no such file or directory, open 'C:\Projects\cheapclipper\apps\web\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projects\\cheapclipper\\apps\\web\\.next\\routes-manifest.json'
+}
+ ⨯ Error: Cannot find module './951.js'
+Require stack:
+- C:\Projects\cheapclipper\apps\web\.next\server\webpack-runtime.js
+- C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\require.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\load-components.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\utils.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\options.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\index.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\next.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:325)
+    at Object.<anonymous> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:371) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+[Error: ENOENT: no such file or directory, open 'C:\Projects\cheapclipper\apps\web\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projects\\cheapclipper\\apps\\web\\.next\\routes-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Projects\cheapclipper\apps\web\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projects\\cheapclipper\\apps\\web\\.next\\routes-manifest.json',
+  page: '/projects/606fa063-58e9-4551-b378-cc209ab70f7c'
+}
+ ⨯ Error: Cannot find module './951.js'
+Require stack:
+- C:\Projects\cheapclipper\apps\web\.next\server\webpack-runtime.js
+- C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\require.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\load-components.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\utils.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\options.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\index.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\next.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:325)
+    at Object.<anonymous> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:371) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+[Error: ENOENT: no such file or directory, open 'C:\Projects\cheapclipper\apps\web\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projects\\cheapclipper\\apps\\web\\.next\\routes-manifest.json',
+  page: '/projects/606fa063-58e9-4551-b378-cc209ab70f7c'
+}
+ ⨯ Error: Cannot find module './951.js'
+Require stack:
+- C:\Projects\cheapclipper\apps\web\.next\server\webpack-runtime.js
+- C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\require.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\load-components.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\utils.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\options.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\index.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\next.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:325)
+    at Object.<anonymous> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:371) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+[Error: ENOENT: no such file or directory, open 'C:\Projects\cheapclipper\apps\web\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projects\\cheapclipper\\apps\\web\\.next\\routes-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Projects\cheapclipper\apps\web\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projects\\cheapclipper\\apps\\web\\.next\\routes-manifest.json',
+  page: '/projects/606fa063-58e9-4551-b378-cc209ab70f7c'
+}
+ ⨯ Error: Cannot find module './951.js'
+Require stack:
+- C:\Projects\cheapclipper\apps\web\.next\server\webpack-runtime.js
+- C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\require.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\load-components.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\utils.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\options.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\index.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\next.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:325)
+    at Object.<anonymous> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:371) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+[Error: ENOENT: no such file or directory, open 'C:\Projects\cheapclipper\apps\web\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projects\\cheapclipper\\apps\\web\\.next\\routes-manifest.json',
+  page: '/projects/606fa063-58e9-4551-b378-cc209ab70f7c'
+}
+ ⨯ Error: Cannot find module './951.js'
+Require stack:
+- C:\Projects\cheapclipper\apps\web\.next\server\webpack-runtime.js
+- C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\require.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\load-components.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\utils.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\options.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\swc\index.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\config.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\next.js
+- C:\Projects\cheapclipper\node_modules\.bun\next@15.5.22+005eabf3d8b6ef06\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:325)
+    at Object.<anonymous> (C:\Projects\cheapclipper\apps\web\.next\server\pages\_document.js:1:371) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+[Error: ENOENT: no such file or directory, open 'C:\Projects\cheapclipper\apps\web\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projects\\cheapclipper\\apps\\web\\.next\\routes-manifest.json'
+}
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Projects\cheapclipper\apps\web\.next\cache\webpack\client-development\7.pack.gz_' -> 'C:\Projects\cheapclipper\apps\web\.next\cache\webpack\client-development\7.pack.gz'

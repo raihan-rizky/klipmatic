@@ -1,0 +1,148 @@
+<style>
+  .transition-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .transition-card {
+    cursor: pointer;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  }
+  .transition-card:hover { transform: translateY(-3px); }
+  .transition-card.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+  .demo {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: #111827;
+  }
+  .scene {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 900;
+    color: white;
+  }
+  .scene-a { background: linear-gradient(145deg, #f97316, #db2777); }
+  .scene-b { background: linear-gradient(145deg, #2563eb, #14b8a6); }
+  .essential .scene-b { animation: dissolve 3s ease-in-out infinite; }
+  .creator .scene-a { animation: slide-a 3s cubic-bezier(.65,0,.35,1) infinite; }
+  .creator .scene-b { animation: slide-b 3s cubic-bezier(.65,0,.35,1) infinite; }
+  .full .scene-a { animation: zoom-a 3s ease-in-out infinite; }
+  .full .scene-b {
+    clip-path: inset(0 100% 0 0);
+    animation: wipe-b 3s ease-in-out infinite;
+  }
+  @keyframes dissolve {
+    0%, 30% { opacity: 0; }
+    58%, 78% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes slide-a {
+    0%, 30% { transform: translateX(0); }
+    62%, 78% { transform: translateX(-100%); }
+    100% { transform: translateX(0); }
+  }
+  @keyframes slide-b {
+    0%, 30% { transform: translateX(100%); }
+    62%, 78% { transform: translateX(0); }
+    100% { transform: translateX(100%); }
+  }
+  @keyframes zoom-a {
+    0%, 30% { transform: scale(1); opacity: 1; }
+    62%, 78% { transform: scale(1.45); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes wipe-b {
+    0%, 30% { clip-path: inset(0 100% 0 0); }
+    62%, 78% { clip-path: inset(0 0 0 0); }
+    100% { clip-path: inset(0 100% 0 0); }
+  }
+  .body { padding: 16px; }
+  .body h3 { margin: 0 0 6px; }
+  .body p { margin: 0 0 12px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 11%, var(--surface));
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .recommended {
+    display: inline-flex;
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  @media (max-width: 820px) {
+    .transition-grid { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scene { animation-duration: 0.001ms !important; }
+  }
+</style>
+
+<h2>Pilih built-in transition pack</h2>
+<p class="subtitle">Preview-nya looping. Klik satu pack yang paling cocok buat Klipmatic.</p>
+
+<div class="transition-grid">
+  <article class="transition-card essential" data-choice="essential" onclick="toggleSelect(this)">
+    <div class="demo" aria-label="Preview essential transitions">
+      <div class="scene scene-a">A</div>
+      <div class="scene scene-b">B</div>
+    </div>
+    <div class="body">
+      <h3>A. Essential</h3>
+      <p>Clean dan aman untuk hampir semua konten.</p>
+      <div class="chips">
+        <span class="chip">Fade</span><span class="chip">Dissolve</span><span class="chip">Dip to black</span>
+      </div>
+    </div>
+  </article>
+
+  <article class="transition-card creator" data-choice="creator" onclick="toggleSelect(this)">
+    <div class="demo" aria-label="Preview creator transitions">
+      <div class="scene scene-a">A</div>
+      <div class="scene scene-b">B</div>
+    </div>
+    <div class="body">
+      <span class="recommended">Recommended</span>
+      <h3>B. Creator</h3>
+      <p>Balanced buat Shorts, Reels, dan talking-head clips.</p>
+      <div class="chips">
+        <span class="chip">Essential pack</span><span class="chip">Slide 4 arah</span><span class="chip">Zoom</span>
+      </div>
+    </div>
+  </article>
+
+  <article class="transition-card full" data-choice="full" onclick="toggleSelect(this)">
+    <div class="demo" aria-label="Preview full transitions">
+      <div class="scene scene-a">A</div>
+      <div class="scene scene-b">B</div>
+    </div>
+    <div class="body">
+      <h3>C. Full</h3>
+      <p>Paling lengkap, tapi UI dan render engine lebih heavy.</p>
+      <div class="chips">
+        <span class="chip">Creator pack</span><span class="chip">Wipe</span><span class="chip">Spin</span><span class="chip">Blur</span>
+      </div>
+    </div>
+  </article>
+</div>

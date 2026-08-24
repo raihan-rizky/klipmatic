@@ -1,0 +1,73 @@
+<style>
+  .flow { display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:center;margin:22px 0; }
+  .step { min-height:118px;padding:14px;border:1px solid var(--border);border-radius:16px;background:var(--surface); }
+  .step strong { display:block;margin-bottom:8px; }
+  .step p { margin:0;color:var(--muted);font-size:13px; }
+  .arrow { font-size:24px;color:var(--accent);font-weight:900; }
+  .mini-rail { position:relative;height:34px;margin:14px 0 8px;border-radius:7px;background:#111827; }
+  .mini-clip { position:absolute;top:4px;bottom:4px;display:grid;place-items:center;border-radius:5px;background:#2563eb;color:white;font-size:10px;font-weight:800; }
+  .whole { left:4px;right:4px; }
+  .left { left:4px;width:47%; }.right { right:4px;width:47%;background:#0f766e; }
+  .cut { position:absolute;left:50%;top:-4px;bottom:-4px;width:2px;background:#fb7185; }
+  .transition-icon { position:absolute;left:calc(50% - 11px);top:6px;z-index:3;width:22px;height:22px;display:grid;place-items:center;transform:rotate(45deg);border:2px solid #7c3aed;border-radius:4px;background:white;color:#7c3aed;box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  .transition-icon span { transform:rotate(-45deg);font-size:10px;font-weight:900; }
+  .editor { overflow:hidden;border:1px solid #334155;border-radius:18px;background:#0b1020;color:#e2e8f0; }
+  .main { display:grid;grid-template-columns:210px 1fr;min-height:290px; }
+  .library { padding:14px;border-right:1px solid #27344d;background:#111827; }
+  .library h4 { margin:0 0 10px;font-size:12px; }
+  .transition-item { margin:8px 0;padding:10px;border:1px solid #475569;border-radius:10px;background:#172033;font-size:11px;font-weight:800; }
+  .transition-item.active { border-color:#a78bfa;background:#4c1d95; }
+  .workspace { display:grid;place-items:center;padding:20px;background:radial-gradient(circle,#26334d,#080c17); }
+  .canvas { position:relative;height:220px;aspect-ratio:9/16;overflow:hidden;border-radius:10px;background:linear-gradient(135deg,#f97316,#db2777); }
+  .canvas:after { content:'Cross Dissolve Preview';position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#14b8a6);color:white;font-size:11px;font-weight:900;opacity:.5; }
+  .timeline { padding:14px;border-top:1px solid #27344d;background:#0f172a; }
+  .tools { display:flex;gap:7px;margin-bottom:10px; }
+  .btn { padding:6px 9px;border:1px solid #334155;border-radius:8px;background:#172033;font-size:10px;font-weight:800; }
+  .timeline .mini-rail { margin:0;height:42px;background:#172033; }
+  .timeline .mini-clip { top:6px;bottom:6px;font-size:11px; }
+  .hint { margin-top:8px;color:#94a3b8;font-size:10px;text-align:center; }
+  .rules { display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px; }
+  .rule { padding:12px;border-radius:12px;background:color-mix(in srgb,var(--accent) 7%,var(--surface));font-size:12px; }
+  .choice-row { display:flex;justify-content:center;gap:12px;margin-top:18px; }
+  .choice-row .option { width:auto;min-width:150px; }
+  @media(max-width:850px){.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);text-align:center}.main{grid-template-columns:150px 1fr}.rules{grid-template-columns:1fr}}
+</style>
+
+<h2>Design 2 v2 — Split first, then drop transition</h2>
+<p class="subtitle">Transition video hanya punya valid drop target setelah clip di-split. Icon selalu berada tepat di joint dua potongan.</p>
+
+<div class="flow">
+  <div class="step"><strong>1. Video masih panjang</strong><div class="mini-rail"><div class="mini-clip whole">Long video</div></div><p>Belum ada transition slot.</p></div>
+  <div class="arrow">→</div>
+  <div class="step"><strong>2. Split di playhead</strong><div class="mini-rail"><div class="mini-clip left">Clip A</div><i class="cut"></i><div class="mini-clip right">Clip B</div></div><p>Joint baru menjadi drop target.</p></div>
+  <div class="arrow">→</div>
+  <div class="step"><strong>3. Drag transition</strong><div class="mini-rail"><div class="mini-clip left">Clip A</div><div class="transition-icon"><span>↔</span></div><div class="mini-clip right">Clip B</div></div><p>Icon di tengah membuka inspector.</p></div>
+</div>
+
+<div class="editor">
+  <div class="main">
+    <aside class="library">
+      <h4>Transitions · Essential</h4>
+      <div class="transition-item">Fade</div>
+      <div class="transition-item active">↗ Drag: Cross Dissolve</div>
+      <div class="transition-item">Dip to Black</div>
+    </aside>
+    <main class="workspace"><div class="canvas"></div></main>
+  </div>
+  <section class="timeline">
+    <div class="tools"><span class="btn">Split</span><span class="btn">Delete transition</span><span class="btn">Duration 0.5s</span></div>
+    <div class="mini-rail"><div class="mini-clip left">Clip A</div><div class="transition-icon"><span>↔</span></div><div class="mini-clip right">Clip B</div></div>
+    <div class="hint">Drop zone aktif di sambungan · transition icon selectable · drag replacement supported</div>
+  </section>
+</div>
+
+<div class="rules">
+  <div class="rule"><strong>No split, no slot.</strong><br>Drop ke video utuh menampilkan “Split clip terlebih dahulu”.</div>
+  <div class="rule"><strong>Non-destructive.</strong><br>Durasi transition dibatasi handle media kedua clip, tanpa merusak source.</div>
+  <div class="rule"><strong>Safe mutation.</strong><br>Join hilang saat salah satu clip dihapus; semua action tetap undoable.</div>
+</div>
+
+<div class="choice-row">
+  <div class="option" data-choice="transition-flow-approved" onclick="toggleSelect(this)"><div class="letter">✓</div><div class="content"><h3>Approve v2</h3><p>Split/drop/icon flow sudah pas.</p></div></div>
+  <div class="option" data-choice="transition-flow-revise" onclick="toggleSelect(this)"><div class="letter">↺</div><div class="content"><h3>Revise lagi</h3><p>Masih ada interaction yang perlu diubah.</p></div></div>
+</div>
