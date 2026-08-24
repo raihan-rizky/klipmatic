@@ -25,7 +25,7 @@ export function selectionHeading(
       (item) => item.id === selected.transitionId,
     )
     return {
-      title: `Transition Â· ${transition ? TRANSITION_LABELS[transition.type] : '?'}`,
+      title: `Transition · ${transition ? TRANSITION_LABELS[transition.type] : '?'}`,
       hint: 'Atur tipe dan durasi tanpa mengubah panjang video.',
     }
   }
@@ -40,13 +40,13 @@ export function selectionHeading(
     const clip = track.clips.find((item) => item.id === selected.clipId)
     const name = clip ? assetNames[clip.assetId] ?? clip.assetId : '?'
     return {
-      title: `Clip Â· ${name}`,
+      title: `Clip · ${name}`,
       hint: 'Geser di canvas untuk memindah atau resize overlay.',
     }
   }
   if (track) {
     return {
-      title: `Track Â· ${track.name}`,
+      title: `Track · ${track.name}`,
       hint: 'Rename, duplikat, atau hapus layer.',
     }
   }
@@ -131,6 +131,7 @@ export function LayerInspector({
           ) : null
         })() : null}
         <Accordion
+          key={selected?.kind}
           type="single"
           collapsible
           defaultValue={selected?.kind === 'track' ? 'layer-settings' : undefined}

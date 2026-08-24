@@ -30,7 +30,7 @@ test('selectionHeading menghasilkan judul per jenis seleksi', () => {
     clipId: primaryClipId(spec),
   }
   expect(selectionHeading(spec, clipSel, assetNames)).toEqual({
-    title: 'Clip Â· Klip fixture',
+    title: 'Clip · Klip fixture',
     hint: 'Geser di canvas untuk memindah atau resize overlay.',
   })
   expect(selectionHeading(spec, null, assetNames).title).toBe('Editor')
@@ -43,7 +43,7 @@ test('selectionHeading menghasilkan judul per jenis seleksi', () => {
       transitionId: transitionSpec.timeline.transitions[0]!.id,
     },
     assetNames,
-  ).title).toBe('Transition Â· Cross Dissolve')
+  ).title).toBe('Transition · Cross Dissolve')
 })
 
 test('header kontekstual tampil dan accordion layer settings hadir', () => {
@@ -61,7 +61,7 @@ test('header kontekstual tampil dan accordion layer settings hadir', () => {
     />,
   )
 
-  expect(screen.getByText('Clip Â· Klip fixture')).toBeVisible()
+  expect(screen.getByText('Clip · Klip fixture')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Layer settings' })).toBeVisible()
 })
 
@@ -97,11 +97,11 @@ test('seleksi track membuka accordion layer settings secara default', () => {
     />,
   )
 
-  // Nama track video dari fixture â€” verifikasi dulu nama aslinya:
+  // Nama track video dari fixture — verifikasi dulu nama aslinya:
   // lihat output `makeEditorSpec()` di packages/engine (createDefaultEditSpecV3).
   const primaryName = spec.timeline.tracks.find(
     (track) => track.id === spec.timeline.primaryTrackId,
   )!.name
-  expect(screen.getByText(`Track Â· ${primaryName}`)).toBeVisible()
+  expect(screen.getByText(`Track · ${primaryName}`)).toBeVisible()
   expect(screen.getByLabelText('Nama layer')).toBeVisible()
 })
