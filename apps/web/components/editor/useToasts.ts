@@ -23,30 +23,51 @@ export function useToasts(options?: {
 }) {
   const durations = { ...DEFAULT_DURATIONS, ...options?.durationMs }
   const [toasts, setToasts] = useState<EditorToast[]>([])
+  // Akuntansi slot hidup di ref supaya semua keputusan (enqueue, dequeue,
+  // penjadwalan timer) terjadi di luar updater. Updater yang murni bisa
+  // dipanggil ulang React kapan saja (StrictMode dev memanggilnya dua kali)
+  // tanpa menimbulkan efek sisi ganda.
+  const visibleIdsRef = useRef<Set<string>>(new Set())
   const queueRef = useRef<EditorToast[]>([])
   const timersRef = useRef(new Map<string, number>())
+  // scheduleAutoDismiss dipanggil dari dalam removeAndSurface dan
+  // sebaliknya lewat callback timer; ref memutus siklus dependensi
+  // antara kedua useCallback tanpa mengorbankan kestabilan identitas.
+  const removeAndSurfaceRef = useRef<(id: string) => void>(() => {})
 
   const scheduleAutoDismiss = useCallback(
     (toast: EditorToast) => {
       const timer = window.setTimeout(() => {
-        timersRef.current.delete(toast.id)
-        setToasts((current) => {
-          const next = current.filter((item) => item.id !== toast.id)
-          const queued = queueRef.current.shift()
-          if (queued) {
-            next.push(queued)
-            scheduleAutoDismiss(queued)
-          }
-          return next
-        })
+        removeAndSurfaceRef.current(toast.id)
       }, durations[toast.tone])
       timersRef.current.set(toast.id, timer)
     },
-    // durations adalah objek baru tiap render bila options dikirim; kunci oleh
-    // nilai primitifnya lewat JSON agar callback stabil.
+    // durations adalah objek baru tiap render bila options dikirim; kunci
+    // deps oleh nilai primitifnya agar callback tetap stabil antar-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [durations.success, durations.info, durations.warning],
   )
+
+  const removeAndSurface = useCallback(
+    (id: string) => {
+      timersRef.current.delete(id)
+      visibleIdsRef.current.delete(id)
+      setToasts((current) => current.filter((item) => item.id !== id))
+      if (visibleIdsRef.current.size < MAX_VISIBLE) {
+        const queued = queueRef.current.shift()
+        if (queued) {
+          visibleIdsRef.current.add(queued.id)
+          scheduleAutoDismiss(queued)
+          setToasts((current) => [...current, queued])
+        }
+      }
+    },
+    [scheduleAutoDismiss],
+  )
+
+  useEffect(() => {
+    removeAndSurfaceRef.current = removeAndSurface
+  }, [removeAndSurface])
 
   const showToast = useCallback(
     (message: string, tone: ToastTone = 'info') => {
@@ -55,14 +76,13 @@ export function useToasts(options?: {
         tone,
         message,
       }
-      setToasts((current) => {
-        if (current.length >= MAX_VISIBLE) {
-          queueRef.current.push(toast)
-          return current
-        }
-        scheduleAutoDismiss(toast)
-        return [...current, toast]
-      })
+      if (visibleIdsRef.current.size >= MAX_VISIBLE) {
+        queueRef.current.push(toast)
+        return
+      }
+      visibleIdsRef.current.add(toast.id)
+      scheduleAutoDismiss(toast)
+      setToasts((current) => [...current, toast])
     },
     [scheduleAutoDismiss],
   )
@@ -75,19 +95,10 @@ export function useToasts(options?: {
         timersRef.current.delete(id)
       }
       queueRef.current = queueRef.current.filter((item) => item.id !== id)
-      setToasts((current) => {
-        const next = current.filter((item) => item.id !== id)
-        if (next.length < MAX_VISIBLE) {
-          const queued = queueRef.current.shift()
-          if (queued) {
-            next.push(queued)
-            scheduleAutoDismiss(queued)
-          }
-        }
-        return next
-      })
+      if (!visibleIdsRef.current.has(id)) return
+      removeAndSurface(id)
     },
-    [scheduleAutoDismiss],
+    [removeAndSurface],
   )
 
   useEffect(
@@ -95,6 +106,7 @@ export function useToasts(options?: {
       for (const timer of timersRef.current.values()) window.clearTimeout(timer)
       timersRef.current.clear()
       queueRef.current = []
+      visibleIdsRef.current.clear()
     },
     [],
   )

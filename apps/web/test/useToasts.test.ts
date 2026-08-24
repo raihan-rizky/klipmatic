@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook } from '@testing-library/react'
+import { createElement, StrictMode } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { useToasts } from '@/components/editor/useToasts'
 
@@ -60,4 +61,24 @@ test('dismissToast menghapus toast spesifik', () => {
   const firstId = result.current.toasts[0]!.id
   act(() => result.current.dismissToast(firstId))
   expect(result.current.toasts.map((toast) => toast.message)).toEqual(['dua'])
+})
+
+test('StrictMode double-invocation tidak merusak akuntansi slot antrean', () => {
+  vi.useFakeTimers()
+  const { result } = renderHook(() => useToasts(), {
+    wrapper: ({ children }) => createElement(StrictMode, null, children),
+  })
+  act(() => {
+    for (let index = 0; index < 5; index += 1) {
+      result.current.showToast(`pesan ${index}`, 'info')
+    }
+  })
+  expect(result.current.toasts).toHaveLength(3)
+
+  act(() => result.current.dismissToast(result.current.toasts[0]!.id))
+  expect(result.current.toasts.map((toast) => toast.message)).toEqual([
+    'pesan 1',
+    'pesan 2',
+    'pesan 3',
+  ])
 })
