@@ -15,10 +15,11 @@ import {
   type VisualTransform,
 } from '@klipmatic/engine'
 import { StatePanel } from '@/components/StatePanel'
-import { Alert } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { CaptionControls } from '@/components/editor/CaptionControls'
 import { CropControls } from '@/components/editor/CropControls'
 import { EditorHeader } from '@/components/editor/EditorHeader'
+import { EditorToasts } from '@/components/editor/EditorToasts'
 import { EditorWorkspace } from '@/components/editor/EditorWorkspace'
 import {
   createEditorHistory,
@@ -40,6 +41,7 @@ import { TimelinePreview } from '@/components/editor/TimelinePreview'
 import { ShortcutHelpDialog } from '@/components/editor/ShortcutHelpDialog'
 import { useGlobalShortcuts } from '@/components/editor/useGlobalShortcuts'
 import { useEditorAutosave } from '@/components/editor/useEditorAutosave'
+import { useToasts } from '@/components/editor/useToasts'
 import type { ClipEditorPayload } from '@/lib/clipTypes'
 import { BUILTIN_MEDIA, getBuiltInAsset } from '@/lib/builtinMedia'
 import { browserExportSupport, exportClipMp4 } from '@/lib/browserExport'
@@ -69,11 +71,13 @@ export function ClipEditor({ clipId }: { clipId: string }) {
           | { error?: { message?: string } }
         if (!active) return
         if (!response.ok || !('clip' in body)) {
-          setError(
-            'error' in body
-              ? body.error?.message ?? 'Editor gagal dimuat.'
-              : 'Editor gagal dimuat.',
-          )
+          if (!('segment' in body)) {
+            setError(
+              'error' in body
+                ? body.error?.message ?? 'Editor gagal dimuat.'
+                : 'Editor gagal dimuat.',
+            )
+          }
           pollAgain()
           return
         }
@@ -82,7 +86,6 @@ export function ClipEditor({ clipId }: { clipId: string }) {
         if (body.segment.status === 'pending') pollAgain()
       } catch {
         if (!active) return
-        setError('Koneksi ke status video sempat terputus.')
         pollAgain()
       }
     }
@@ -210,7 +213,7 @@ function ReadyClipEditor({
     Math.min(10, payload.clip.durationSec / 2),
   )
   const [playing, setPlaying] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const { toasts, showToast, dismissToast } = useToasts()
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -308,7 +311,7 @@ function ReadyClipEditor({
     const builtIn = getBuiltInAsset(assetId)
     const asset = assets.find((item) => item.id === assetId) ?? builtIn
     if (!asset || asset.status !== 'ready') {
-      setNotice('Media belum siap dipakai. Tunggu proses pengecekan selesai.')
+      showToast('Media belum siap dipakai. Tunggu proses pengecekan selesai.', 'warning')
       return
     }
     const id = globalThis.crypto.randomUUID()
@@ -342,7 +345,7 @@ function ReadyClipEditor({
     })
     setSelected({ kind: 'clip', trackId, clipId })
     setPlaying(false)
-  }, [assets, dispatchCommand, playhead])
+  }, [assets, dispatchCommand, playhead, showToast])
 
   const canvasSelection = useMemo<CanvasSelection | null>(() => {
     if (selected?.kind !== 'clip') {
@@ -404,20 +407,20 @@ function ReadyClipEditor({
   async function autoFocus(): Promise<void> {
     const video = primaryVideoRef.current
     if (!video) {
-      setNotice('Preview belum siap. Coba lagi setelah frame video muncul.')
+      showToast('Preview belum siap. Coba lagi setelah frame video muncul.', 'warning')
       return
     }
-    setNotice('Mendeteksi wajah di frame aktif…')
+    showToast('Mendeteksi wajah di frame aktif…', 'info')
     try {
       const focusX = await detectFaceFocusX(video)
       if (focusX === null) {
-        setNotice('Wajah tidak ditemukan. Geser fokus secara manual.')
+        showToast('Wajah tidak ditemukan. Geser fokus secara manual.', 'warning')
         return
       }
       dispatchCommand({ type: 'updateCrop', crop: { focusX } })
-      setNotice('Fokus crop mengikuti wajah terbesar di frame ini.')
+      showToast('Fokus crop mengikuti wajah terbesar di frame ini.', 'success')
     } catch {
-      setNotice('Auto-focus tidak tersedia. Slider manual tetap bisa dipakai.')
+      showToast('Auto-focus tidak tersedia. Slider manual tetap bisa dipakai.', 'warning')
     }
   }
 
@@ -449,7 +452,7 @@ function ReadyClipEditor({
         onProgress: setProgress,
       })
       await markRenderStatus('done')
-      setNotice('Ekspor selesai dan file sudah diunduh.')
+      showToast('Ekspor selesai dan file sudah diunduh.', 'success')
     } catch (cause) {
       await markRenderStatus('failed').catch(() => undefined)
       setError(cause instanceof Error ? cause.message : 'Ekspor gagal.')
@@ -473,6 +476,25 @@ function ReadyClipEditor({
   )
   const expiringAssets = useMemo(() => uploadedAssets.filter((asset) => asset.expiresSoon), [uploadedAssets])
   const expiredAssets = useMemo(() => uploadedAssets.filter((asset) => asset.status === 'expired'), [uploadedAssets])
+  const expiringSeenRef = useRef(false)
+  useEffect(() => {
+    if (expiringAssets.length === 0) {
+      expiringSeenRef.current = false
+      return
+    }
+    if (expiringSeenRef.current) return
+    expiringSeenRef.current = true
+    showToast(
+      `${expiringAssets.map((asset) => asset.name).join(', ')} akan dihapus kurang dari 1 hari kalau project tidak dipakai.`,
+      'warning',
+    )
+  }, [expiringAssets, showToast])
+  useEffect(() => {
+    if (expiredAssets.length === 0) return
+    setError(
+      `Media kedaluwarsa: ${expiredAssets.map((asset) => asset.name).join(', ')}. Gunakan Ganti di Media Library untuk memulihkan clip terkait.`,
+    )
+  }, [expiredAssets])
   const showGeneralControls = !selected || selected.kind === 'track' || selected.kind === 'clip'
   const inspector = (
     <div className="divide-y divide-border">
@@ -515,22 +537,42 @@ function ReadyClipEditor({
           />
         }
         preview={
-          <TimelinePreview
-            spec={history.present}
-            assets={previewAssets}
-            words={payload.words}
-            playhead={playhead}
-            playing={playing}
-            onPlayheadChange={setPlayhead}
-            onPlayingChange={setPlaying}
-            onStall={setError}
-            onPrimaryVideoChange={(video) => {
-              primaryVideoRef.current = video
-            }}
-            canvasSelection={canvasSelection}
-            onCanvasCommit={commitCanvasSelection}
-            onAssetDrop={insertAsset}
-          />
+          <div className="relative">
+            <TimelinePreview
+              spec={history.present}
+              assets={previewAssets}
+              words={payload.words}
+              playhead={playhead}
+              playing={playing}
+              onPlayheadChange={setPlayhead}
+              onPlayingChange={setPlaying}
+              onStall={setError}
+              onPrimaryVideoChange={(video) => {
+                primaryVideoRef.current = video
+              }}
+              canvasSelection={canvasSelection}
+              onCanvasCommit={commitCanvasSelection}
+              onAssetDrop={insertAsset}
+              errorBanner={(error || autosave.error) ? (
+                <div
+                  role="alert"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-danger/60 bg-danger/10 p-3 text-sm"
+                >
+                  <span>{error ?? autosave.error}</span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Tutup pesan galat"
+                    onClick={() => setError(null)}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ) : null}
+            />
+            <EditorToasts toasts={toasts} onDismiss={dismissToast} />
+          </div>
         }
         mediaLibrary={
           <MediaLibrary
@@ -596,35 +638,9 @@ function ReadyClipEditor({
         }
       />
 
-      {(notice || error || autosave.error) && (
-        <div className="mt-4 space-y-2" aria-live="polite">
-          {notice && (
-            <Alert tone="success" role="status">
-              {notice}
-            </Alert>
-          )}
-          {(error || autosave.error) && (
-            <Alert tone="danger" role="alert">
-              {error ?? autosave.error}
-            </Alert>
-          )}
-        </div>
-      )}
-
-      {(expiringAssets.length > 0 || expiredAssets.length > 0) && (
-        <div className="mt-4 space-y-2" aria-live="polite">
-          {expiringAssets.length > 0 && (
-            <Alert tone="warning" role="status">
-              {expiringAssets.map((asset) => asset.name).join(', ')} akan dihapus
-              kurang dari 1 hari kalau project tidak dipakai.
-            </Alert>
-          )}
-          {expiredAssets.length > 0 && (
-            <Alert tone="danger" role="alert">
-              Media kedaluwarsa: {expiredAssets.map((asset) => asset.name).join(', ')}.
-              Gunakan Ganti di Media Library untuk memulihkan clip terkait.
-            </Alert>
-          )}
+      {(error || autosave.error) && (
+        <div role="alert" className="sr-only">
+          {error ?? autosave.error}
         </div>
       )}
     </>

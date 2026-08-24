@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pause, Play } from 'lucide-react'
 import {
   drawTimelineComposite,
@@ -33,6 +33,7 @@ type TimelinePreviewProps = {
   onPlayheadChange: (outputTime: number) => void
   onPlayingChange: (playing: boolean) => void
   onStall: (message: string) => void
+  errorBanner?: ReactNode
   onPrimaryVideoChange?: (video: HTMLVideoElement | null) => void
   canvasSelection?: CanvasSelection | null
   onCanvasCommit?: (commit: CanvasSelectionCommit) => void
@@ -58,6 +59,7 @@ export function TimelinePreview({
   onPlayheadChange,
   onPlayingChange,
   onStall,
+  errorBanner = null,
   onPrimaryVideoChange,
   canvasSelection = null,
   onCanvasCommit,
@@ -69,6 +71,7 @@ export function TimelinePreview({
   )
   const controllerRef = useRef<TimelinePlaybackController | null>(null)
   const reportedTimeRef = useRef(playhead)
+  const [stalled, setStalled] = useState(false)
   const callbacksRef = useRef({
     onPlayheadChange,
     onPlayingChange,
@@ -183,6 +186,7 @@ export function TimelinePreview({
       onFrame: (active) =>
         drawFrame(active, active[0]?.outputTime ?? reportedTimeRef.current),
       onStall: (message) => {
+        setStalled(true)
         callbacksRef.current.onPlayingChange(false)
         callbacksRef.current.onStall(message)
       },
@@ -209,11 +213,25 @@ export function TimelinePreview({
     const controller = controllerRef.current
     if (!controller) return
     if (playing) {
-      void controller.play().catch(() => undefined)
+      void controller.play()
+        .then(() => setStalled(false))
+        .catch(() => undefined)
     } else {
       controller.pause()
     }
   }, [playing])
+
+  async function retryPlayback(): Promise<void> {
+    const controller = controllerRef.current
+    if (!controller) return
+    await controller.seek(reportedTimeRef.current).catch(() => undefined)
+    try {
+      await controller.play()
+      setStalled(false)
+    } catch {
+      // Tetap stalled; banner tetap tampil.
+    }
+  }
 
   useEffect(() => {
     if (Math.abs(playhead - reportedTimeRef.current) <= 0.04) return
@@ -308,6 +326,34 @@ export function TimelinePreview({
           />
         </div>
       </div>
+
+      {(stalled || errorBanner) ? (
+        <div className="space-y-2 border-t border-white/10 px-3 py-2">
+          {stalled ? (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-lg border border-danger/60 bg-danger/10 p-3 text-sm"
+            >
+              <span>Video berhenti merespons.</span>
+              <span className="flex shrink-0 items-center gap-1">
+                <Button type="button" size="sm" variant="secondary" onClick={() => void retryPlayback()}>
+                  Coba putar lagi
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Tutup pesan galat"
+                  onClick={() => setStalled(false)}
+                >
+                  ×
+                </Button>
+              </span>
+            </div>
+          ) : null}
+          {errorBanner}
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-3 border-t border-white/10 bg-surface px-3 py-2">
         <Button

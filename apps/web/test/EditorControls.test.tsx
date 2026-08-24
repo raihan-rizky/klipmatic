@@ -231,6 +231,27 @@ test('preview renders distinct image, video, and audio asset elements', () => {
   )
 })
 
+test('errorBanner dirender di atas transport', () => {
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+
+  render(
+    <TimelinePreview
+      spec={makeEditorSpec()}
+      assets={[candidateVideo]}
+      words={[]}
+      playhead={0}
+      playing={false}
+      onPlayheadChange={vi.fn()}
+      onPlayingChange={vi.fn()}
+      onStall={vi.fn()}
+      errorBanner={<div role="alert">Ekspor gagal: codec hilang.</div>}
+    />,
+  )
+
+  expect(screen.getByRole('alert')).toHaveTextContent('Ekspor gagal: codec hilang.')
+})
+
 const candidateVideo: ResolvedMediaAsset = {
   id: 'asset-candidate',
   name: 'Candidate.mp4',
