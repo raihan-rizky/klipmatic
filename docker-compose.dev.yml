@@ -1,4 +1,22 @@
 services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: klipmatic-web:dev
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/klipmatic
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
