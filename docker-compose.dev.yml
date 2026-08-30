@@ -18,15 +18,17 @@ services:
       start_period: 5s
 
   migrate:
-    image: postgres:16-alpine
+    build:
+      context: packages/db
+      dockerfile: Dockerfile.migrate
+    image: klipmatic-migrate:dev
     restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       PGPASSWORD: postgres
-    volumes:
-      - ./packages/db/migrations:/migrations:ro
+
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
