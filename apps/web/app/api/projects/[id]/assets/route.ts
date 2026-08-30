@@ -7,7 +7,7 @@ import {
   type CreateMediaUploadInput,
 } from '@/lib/mediaAssets'
 import { errorFields, type RequestLogger, withRequestLogging } from '@/lib/observability'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
 const STATUS_BY_CODE = {
   ASSET_INVALID: 400,
@@ -18,12 +18,8 @@ const STATUS_BY_CODE = {
   ASSET_READ_ONLY: 409,
 } as const
 
-async function userId(): Promise<string | null> {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user?.id ?? null
+async function userId(): Promise<string> {
+  return (await currentAppUser()).id
 }
 
 function unauthorized() {

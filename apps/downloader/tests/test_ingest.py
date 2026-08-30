@@ -154,6 +154,30 @@ def test_caption_youtube_layak_melewati_download_audio_dan_provider(conn, deps):
     assert '"timing_precision": "estimated"' in body
 
 
+def test_probe_blocked_memakai_transcript_fallback_gratis(conn, deps):
+    u = _user(conn, "blocked-fallback@test.id")
+    s = _source(conn, u, "blocked-fallback-video")
+    p = _project(conn, u, s)
+
+    def blocked_probe(url):
+        raise JobError("SOURCE_BLOCKED", "blocked", terminal=False)
+
+    deps["probe"] = blocked_probe
+    deps["transcript_fallback_fn"] = lambda url, duration, env=None: CAPTION
+
+    handle_ingest(conn, _job(conn, s, p, u), **deps)
+
+    source = conn.execute(
+        "select status, audio_r2_key, error_code from sources where id = %s", (s,)
+    ).fetchone()
+    transcript = conn.execute(
+        "select provider, cost_usd from transcripts where source_id = %s", (s,)
+    ).fetchone()
+    assert source == ("ready", None, None)
+    assert transcript[0] == "youtube_caption"
+    assert float(transcript[1]) == 0.0
+
+
 def test_sumber_unlisted_tetap_privat(conn, deps):
     u = _user(conn, "b@test.id")
     s = _source(conn, u)

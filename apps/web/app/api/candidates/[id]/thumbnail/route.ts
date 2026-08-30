@@ -3,21 +3,12 @@ import { CandidateNotFoundError, loadCandidateThumbnail } from '@/lib/candidates
 import { sql } from '@/lib/db'
 import { errorFields, withRequestLogging } from '@/lib/observability'
 import { signedR2Get } from '@/lib/r2'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
 export const GET = withRequestLogging<{ params: Promise<{ id: string }> }>(
   '/api/candidates/[id]/thumbnail',
   async (_request, ctx, log) => {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Silakan masuk dulu.' } },
-      { status: 401 },
-    )
-  }
+  const user = await currentAppUser()
 
   try {
     const thumbnail = await loadCandidateThumbnail(sql, user.id, (await ctx.params).id)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,6 +39,9 @@ class SourceMeta:
     duration_sec: int
     thumbnail_url: str | None
     availability: str
+    provider: str = "yt-dlp"
+    media_url: str | None = None
+    is_fixture: bool = False
 
 
 def classify_ytdlp_error(stderr: str) -> JobError:
@@ -79,11 +83,16 @@ def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
         else "run"
     )
     return run_command(
-        args,
+        _with_provider_args(args),
         tool="yt-dlp",
         operation=operation,
         timeout_sec=1800,
     )
+
+
+def _with_provider_args(args: list[str]) -> list[str]:
+    value = os.getenv("YTDLP_EXTRACTOR_ARGS", "").strip()
+    return [*args, "--extractor-args", value] if value else args
 
 
 def probe(url: str) -> SourceMeta:
@@ -91,6 +100,24 @@ def probe(url: str) -> SourceMeta:
     if proc.returncode != 0:
         raise classify_ytdlp_error(proc.stderr)
     return parse_meta(json.loads(proc.stdout))
+
+
+def probe_with_fallback(url: str) -> SourceMeta:
+    try:
+        return probe(url)
+    except JobError as error:
+        if error.code != "SOURCE_BLOCKED":
+            raise
+        from app.providers.youtube_adapter import fetch_metadata
+
+        metadata = fetch_metadata(url)
+        if metadata is not None:
+            return metadata
+        if not os.getenv("COBALT_URL"):
+            raise
+        from app.providers.cobalt import CobaltProvider
+
+        return CobaltProvider(os.environ["COBALT_URL"]).probe(url)
 
 
 _PROGRESS_RE = re.compile(r"\[download\]\s+(\d+(?:\.\d+)?)%")
@@ -101,7 +128,7 @@ def download_audio(url: str, dest: Path, on_progress: Callable[[int], None]) -> 
     dest.parent.mkdir(parents=True, exist_ok=True)
     with SubprocessSpan("yt-dlp", "download_audio", 3600) as span:
         proc = subprocess.Popen(
-            [
+            _with_provider_args([
                 "yt-dlp",
                 "-f",
                 "bestaudio/best",
@@ -111,7 +138,7 @@ def download_audio(url: str, dest: Path, on_progress: Callable[[int], None]) -> 
                 "-o",
                 str(dest),
                 url,
-            ],
+            ]),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -124,7 +151,12 @@ def download_audio(url: str, dest: Path, on_progress: Callable[[int], None]) -> 
         proc.wait(timeout=3600)
         span.finish(proc.returncode)
         if proc.returncode != 0:
-            raise classify_ytdlp_error(proc.stderr.read() if proc.stderr else "")
+            error = classify_ytdlp_error(proc.stderr.read() if proc.stderr else "")
+            if error.code == "SOURCE_BLOCKED" and os.getenv("COBALT_URL"):
+                from app.providers.cobalt import CobaltProvider
+
+                return CobaltProvider(os.environ["COBALT_URL"]).download(url, dest)
+            raise error
     if not dest.exists():
         raise JobError("INTERNAL", "yt-dlp selesai tanpa menghasilkan berkas")
     return dest

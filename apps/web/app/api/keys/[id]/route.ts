@@ -3,21 +3,12 @@ import { deleteApiKey } from '@/lib/apiKeys'
 import { sql } from '@/lib/db'
 import { messageFor } from '@/lib/errorMessages'
 import { errorFields, withRequestLogging } from '@/lib/observability'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
 export const DELETE = withRequestLogging<{ params: Promise<{ id: string }> }>(
   '/api/keys/[id]',
   async (_req, ctx, log) => {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Silakan masuk dulu.' } },
-      { status: 401 },
-    )
-  }
+  const user = await currentAppUser()
 
   const { id } = await ctx.params
   try {

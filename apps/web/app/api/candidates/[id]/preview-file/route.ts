@@ -3,14 +3,10 @@ import { CandidateNotFoundError, loadCandidatePreviewFile } from '@/lib/candidat
 import { sql } from '@/lib/db'
 import { errorFields, withRequestLogging } from '@/lib/observability'
 import { signedR2Get } from '@/lib/r2'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
-async function userId(): Promise<string | null> {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user?.id ?? null
+async function userId(): Promise<string> {
+  return (await currentAppUser()).id
 }
 
 export const GET = withRequestLogging<{ params: Promise<{ id: string }> }>(

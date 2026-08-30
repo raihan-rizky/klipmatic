@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { supabaseBrowser } from '@/lib/supabase/client'
 import { type JobState, progressLabel } from './jobProgressLabel'
 
 type PipelineJob = JobState & {
@@ -18,69 +17,67 @@ const PIPELINE_TYPES = ['ingest', 'transcribe', 'analyze', 'prepare_thumbnails']
 
 export function JobProgress({ projectId }: { projectId: string }) {
   const [job, setJob] = useState<PipelineJob | null>(null)
+  const [pollError, setPollError] = useState<string | null>(null)
+  const [initialLoadDone, setInitialLoadDone] = useState(false)
 
   useEffect(() => {
-    const supabase = supabaseBrowser()
+    let active = true
 
     async function refreshJob() {
-      const { data } = await supabase
-      .from('jobs')
-        .select('id, type, status, progress, error_code')
-        .eq('project_id', projectId)
-        .in('type', [...PIPELINE_TYPES])
-        .order('created_at', { ascending: false })
-
-      const latest = data?.[0] as
-        | {
+      try {
+        const response = await fetch(`/api/projects/${projectId}/job`, { cache: 'no-store' })
+        if (!response.ok) throw new Error(`JOB_STATUS_${response.status}`)
+        const body = await response.json() as {
+          job?: {
             id: string
             type: PipelineJob['type']
             status: JobState['status']
             progress: number
             error_code: string | null
-          }
-        | undefined
-      if (!latest) return
+          } | null
+        }
+        const latest = body.job
+        if (!active) return
+        setInitialLoadDone(true)
+        setPollError(null)
+        if (!latest) {
+          setPollError('Status proses belum tersedia. Muat ulang halaman untuk mencoba lagi.')
+          return
+        }
 
-      setJob({
-        id: latest.id,
-        type: latest.type,
-        status: latest.status,
-        progress: latest.progress,
-        errorCode: latest.error_code,
-      })
+        setJob({
+          id: latest.id,
+          type: latest.type,
+          status: latest.status,
+          progress: latest.progress,
+          errorCode: latest.error_code,
+        })
 
-      // Kandidat baru boleh tampil setelah preview-nya siap atau worker sudah
-      // mencapai terminal state sehingga halaman tidak reload di tengah tahap.
-      if (
-        latest.type === 'prepare_thumbnails' &&
-        (latest.status === 'done' || latest.status === 'failed' || latest.status === 'dead')
-      ) {
-        window.location.reload()
+        if (
+          latest.type === 'prepare_thumbnails' &&
+          (latest.status === 'done' || latest.status === 'failed' || latest.status === 'dead')
+        ) {
+          window.location.reload()
+        }
+      } catch (error) {
+        console.error('status job gagal dimuat', error)
+        if (active) {
+          setInitialLoadDone(true)
+          setPollError('Status proses gagal dimuat. Muat ulang halaman untuk mencoba lagi.')
+        }
       }
     }
 
     void refreshJob()
-
-    const channel = supabase
-      .channel(`pipeline:${projectId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'jobs', filter: `project_id=eq.${projectId}` },
-        () => void refreshJob(),
-      )
-      .subscribe()
-
-    // Supabase Realtime bisa belum memasukkan tabel jobs ke publication.
-    // Polling ringan ini menjaga development tetap bergerak tanpa setup dashboard.
     const poll = window.setInterval(() => void refreshJob(), 3000)
 
     return () => {
+      active = false
       window.clearInterval(poll)
-      void supabase.removeChannel(channel)
     }
   }, [projectId])
 
-  if (!job) {
+  if (!job && !initialLoadDone) {
     return (
       <Card>
         <CardContent className="space-y-4 pt-5 sm:pt-6">
@@ -88,6 +85,18 @@ export function JobProgress({ projectId }: { projectId: string }) {
           <Skeleton className="h-5 w-48" />
           <Skeleton className="h-2.5 w-full" />
           <Skeleton className="h-16 w-full" />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!job) {
+    return (
+      <Card className="border-danger/35">
+        <CardContent className="pt-5 sm:pt-6">
+          <p role="alert" className="font-bold text-danger">
+            {pollError ?? 'Status proses belum tersedia.'}
+          </p>
         </CardContent>
       </Card>
     )

@@ -149,8 +149,10 @@ export function ClipEditor({ clipId }: { clipId: string }) {
     return (
       <StatePanel
         tone="danger"
-        title="Segmen video gagal disiapkan"
-        description="Coba buat ulang klip dari kandidat di halaman project."
+        title={payload?.segment.errorCode === 'SOURCE_FIXTURE' ? 'Media asli tidak tersedia' : 'Segmen video gagal disiapkan'}
+        description={payload?.segment.errorCode === 'SOURCE_FIXTURE'
+          ? 'Upstream memblokir pengambilan video asli. Fixture lokal tidak dapat diekspor sebagai video asli.'
+          : 'Coba buat ulang klip dari kandidat di halaman project.'}
       />
     )
   }
@@ -452,6 +454,14 @@ function ReadyClipEditor({
   }
 
   async function runExport(): Promise<void> {
+    if (payload.segment.status !== 'ready' || payload.segment.isFixture || !mediaUrl) {
+      setError(
+        payload.segment.errorCode === 'SOURCE_FIXTURE'
+          ? 'Media asli tidak tersedia. Fixture lokal tidak dapat diekspor sebagai video asli.'
+          : 'Potongan video belum siap diekspor.',
+      )
+      return
+    }
     setExporting(true)
     setProgress(0)
     setError(null)

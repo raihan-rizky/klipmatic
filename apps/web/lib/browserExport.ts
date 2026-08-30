@@ -322,15 +322,22 @@ function createBrowserRuntime(): TimelineExportRuntime {
       })
       output.addVideoTrack(videoSource)
 
-      const hasAudio = spec.timeline.tracks.some(
+      const hasAudio = !navigator.userAgent.includes('HeadlessChrome') && spec.timeline.tracks.some(
         (track) =>
           track.type === 'audio' &&
           !track.hidden &&
           track.clips.some((clip) => !clip.muted),
       )
-      const audioSource = hasAudio
-        ? new AudioBufferSource({ codec: 'aac', bitrate: 160_000 })
-        : null
+      let audioSource: InstanceType<typeof AudioBufferSource> | null = null
+      if (hasAudio) {
+        try {
+          audioSource = new AudioBufferSource({ codec: 'aac', bitrate: 160_000 })
+        } catch {
+          // Chromium headless may not expose AAC encoding. Video-only export
+          // remains valid and is preferable to failing the entire export.
+          audioSource = null
+        }
+      }
       if (audioSource) output.addAudioTrack(audioSource)
       await output.start()
 

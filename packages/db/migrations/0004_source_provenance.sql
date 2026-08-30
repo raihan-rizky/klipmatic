@@ -1,0 +1,2 @@
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS provider text NOT NULL DEFAULT 'yt-dlp';
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS is_fixture boolean NOT NULL DEFAULT false;

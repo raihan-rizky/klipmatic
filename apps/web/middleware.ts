@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { GUEST_COOKIE } from '@/lib/auth/currentUser'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -24,6 +25,14 @@ export async function middleware(request: NextRequest) {
   )
 
   await supabase.auth.getUser()
+  if (!request.cookies.get(GUEST_COOKIE)?.value) {
+    response.cookies.set(GUEST_COOKIE, crypto.randomUUID(), {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    })
+  }
   return response
 }
 

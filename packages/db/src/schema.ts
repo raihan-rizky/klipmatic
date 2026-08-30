@@ -68,6 +68,8 @@ export const sources = pgTable(
     thumbnailUrl: text('thumbnail_url'),
     audioR2Key: text('audio_r2_key'),
     audioSha256: text('audio_sha256'),
+    provider: text('provider').notNull().default('yt-dlp'),
+    isFixture: boolean('is_fixture').notNull().default(false),
     status: text('status').notNull().default('pending'),
     errorCode: text('error_code'),
     createdAt: createdAt(),

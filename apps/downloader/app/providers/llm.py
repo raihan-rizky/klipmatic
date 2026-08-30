@@ -25,23 +25,28 @@ TEMPERATURE = 0.4
 def nebius_key_from_env(
     env: Mapping[str, str] | None = None,
 ) -> ApiKeyRecord | None:
-    """Membuat credential server-side Nebius untuk default sementara.
+    """Membuat credential server-side LLM dari environment.
 
-    Selama NEBIUS_API_KEY diset, key operator ini didahulukan atas BYOK user.
-    Ini sengaja eksplisit dan mudah dicabut: hapus env tersebut untuk kembali
-    ke pemilihan key terenkripsi dari tabel api_keys.
+    LLM_* adalah konfigurasi provider aktif. NEBIUS_* dipertahankan sebagai
+    fallback kompatibilitas agar deployment lama tidak langsung rusak.
     """
     source = env if env is not None else os.environ
-    secret = source.get("NEBIUS_API_KEY", "").strip()
+    legacy_nebius = bool(source.get("NEBIUS_API_KEY") and not source.get("LLM_API_KEY"))
+    secret = (source.get("LLM_API_KEY") or source.get("NEBIUS_API_KEY") or "").strip()
     if not secret:
         return None
-    base_url = source.get("NEBIUS_BASE_URL", NEBIUS_BASE).strip() or NEBIUS_BASE
+    base_url = (
+        source.get("LLM_BASE_URL")
+        or source.get("NEBIUS_BASE_URL")
+        or NEBIUS_BASE
+    ).strip() or NEBIUS_BASE
     model = (
-        source.get("NEBIUS_MODEL", NEBIUS_DEFAULT_MODEL).strip()
+        source.get("LLM_MODEL")
+        or source.get("NEBIUS_MODEL")
         or NEBIUS_DEFAULT_MODEL
-    )
+    ).strip() or NEBIUS_DEFAULT_MODEL
     return ApiKeyRecord(
-        id="env:nebius",
+        id="env:nebius" if legacy_nebius else "env:llm",
         provider="openai_compat",
         base_url=base_url,
         model=model,

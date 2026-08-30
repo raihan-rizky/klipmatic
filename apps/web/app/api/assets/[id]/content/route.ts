@@ -3,7 +3,7 @@ import { sql } from '@/lib/db'
 import { loadAssetObject, MediaAssetError } from '@/lib/mediaAssets'
 import { errorFields, withRequestLogging } from '@/lib/observability'
 import { signedR2Get } from '@/lib/r2'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
 const STATUS_BY_CODE = {
   ASSET_INVALID: 400,
@@ -17,16 +17,7 @@ const STATUS_BY_CODE = {
 export const GET = withRequestLogging<{ params: Promise<{ id: string }> }>(
   '/api/assets/[id]/content',
   async (_request, ctx, log) => {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Silakan masuk dulu.' } },
-      { status: 401 },
-    )
-  }
+  const user = await currentAppUser()
 
   try {
     const object = await loadAssetObject(sql, user.id, (await ctx.params).id)

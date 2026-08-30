@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import ClassVar
 
 import httpx
 import pytest
@@ -279,3 +280,51 @@ def test_transcribe_logs_each_fallback_attempt_without_secrets(
     assert events[-1][1]["result_count"] > 0
     assert "RAHASIA" not in caplog.text
     assert "private-audio" not in caplog.text
+
+
+def test_transcribe_default_memakai_backend_lokal_tanpa_api_key(monkeypatch, tmp_path: Path):
+    monkeypatch.delenv("TRANSCRIBE_PROVIDERS", raising=False)
+    audio = tmp_path / "a.opus"
+    audio.write_bytes(b"x")
+
+    def local_fn(audio_path, duration_sec, env=None):
+        assert audio_path == audio
+        assert duration_sec == 60
+        return TranscriptResult(
+            language="id",
+            text="halo lokal",
+            words=[],
+            provider="local_whisper",
+            model="small",
+            cost_usd=0.0,
+        )
+
+    result = transcribe(audio, 60, local_fn=local_fn)
+    assert result.provider == "local_whisper"
+    assert result.cost_usd == 0.0
+
+
+def test_local_transcribe_mengubah_word_timestamp_model():
+    from app.providers.local_transcription import transcribe_local
+
+    class WordToken:
+        def __init__(self, word, start, end):
+            self.word, self.start, self.end = word, start, end
+
+    class Segment:
+        text = " halo dunia "
+        start = 0.0
+        end = 2.0
+        words: ClassVar[list[WordToken]] = [
+            WordToken(" halo", 0.0, 0.8),
+            WordToken(" dunia", 0.8, 2.0),
+        ]
+
+    class Model:
+        def transcribe(self, audio, **kwargs):
+            return iter([Segment()]), type("Info", (), {"language": "id"})()
+
+    result = transcribe_local(Path("audio.opus"), 2, model=Model())
+    assert result.provider == "local_whisper"
+    assert result.cost_usd == 0.0
+    assert [word.text for word in result.words] == ["halo", "dunia"]

@@ -11,6 +11,15 @@ Kalau layak, audio penuh tidak perlu diunduh dan biaya transkripsi menjadi
 nol. DeepInfra/Groq otomatis menjadi fallback; keduanya tetap menjadi jalur
 utama untuk TikTok dan Google Drive.
 
+Provider sumber YouTube berjalan berurutan: `yt-dlp` tetap utama dan memakai
+`bgutil-ytdlp-pot-provider` lokal bila tersedia; `youtubei.js` adalah adapter
+metadata opsional; Cobalt self-hosted menjadi fallback media kedua. Cobalt
+public tidak dipakai. Bila semua provider upstream gagal dan
+`GUEST_FALLBACK_ON_SOURCE_BLOCKED=true`, worker boleh memakai fixture lokal
+untuk smoke test saja. Fixture disimpan dengan `sources.provider=guest_fixture`
+dan `sources.is_fixture=true`; fixture tidak pernah dipromosikan sebagai
+sumber publik atau diklaim sebagai video asli.
+
 P2 editor sudah memakai timeline multi-track dengan trim, split, auto-ripple,
 layer video/audio/caption, undo/redo selama tab aktif, serta autosave. Preview
 9:16, crop/focus wajah opsional, caption karaoke, dan export MP4 H.264/AAC

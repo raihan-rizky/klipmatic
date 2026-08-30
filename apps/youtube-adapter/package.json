@@ -1,0 +1,6 @@
+{
+  "name": "klipmatic-youtube-adapter",
+  "private": true,
+  "type": "module",
+  "dependencies": { "youtubei.js": "^14.0.0" }
+}

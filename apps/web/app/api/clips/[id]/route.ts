@@ -2,14 +2,10 @@ import { NextResponse } from 'next/server'
 import { ClipNotFoundError, loadClipEditor, updateClip } from '@/lib/clips'
 import { sql } from '@/lib/db'
 import { errorFields, withRequestLogging } from '@/lib/observability'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
-async function userId(): Promise<string | null> {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user?.id ?? null
+async function userId(): Promise<string> {
+  return (await currentAppUser()).id
 }
 
 function missing() {

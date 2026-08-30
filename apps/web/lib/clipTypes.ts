@@ -27,6 +27,7 @@ export interface ClipEditorPayload {
   words: TranscriptWord[]
   segment: {
     status: 'pending' | 'ready' | 'failed'
+    isFixture?: boolean
     url: string | null
     jobId: string | null
     errorCode: string | null

@@ -22,6 +22,8 @@ def conn():
         c.execute((DB_PKG / "migrations" / "0001_media_assets.sql").read_text())
         c.execute((DB_PKG / "migrations" / "0002_candidate_previews.sql").read_text())
         c.execute((DB_PKG / "migrations" / "0003_candidate_preview_renders.sql").read_text())
+        c.execute((DB_PKG / "migrations" / "0004_source_provenance.sql").read_text())
+        c.execute((DB_PKG / "migrations" / "0005_segment_provenance.sql").read_text())
     with psycopg.connect(TEST_DB_URL) as c:
         yield c
 

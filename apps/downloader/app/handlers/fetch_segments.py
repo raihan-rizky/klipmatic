@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
+import subprocess
 import tempfile
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
@@ -60,6 +62,25 @@ def _validate(ranges: list[dict[str, Any]], duration_sec: int) -> list[tuple[Dec
     return out
 
 
+def _guest_fixture_segment(dest: Path, duration_sec: float) -> Path:
+    """Buat MP4 lokal deterministik untuk smoke-test saat upstream memblokir."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(
+        [
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=0x172033:s=720x1280:r=30",
+            "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
+            "-t", f"{max(duration_sec, 1.0):.3f}", "-shortest",
+            "-vf", "drawtext=text='SOURCE MEDIA UNAVAILABLE - FIXTURE ONLY':fontcolor=white:fontsize=28:x=(w-text_w)/2:y=(h-text_h)/2",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(dest),
+        ],
+        check=False,
+        capture_output=True,
+    )
+    if proc.returncode != 0 or not dest.exists():
+        raise JobError("INTERNAL", "gagal membuat guest fixture segment", terminal=True)
+    return dest
+
+
 def _maybe_refine_caption(
     conn: psycopg.Connection,
     job: Job,
@@ -102,10 +123,8 @@ def _maybe_refine_caption(
         extract_audio(segment, audio)
         result = transcribe(audio, duration_sec)
         storage.put_bytes(key, serialize_transcript(result), "application/json")
-    except JobError as error:
-        # Precision pass adalah enhancement. Ketiadaan key atau provider down
-        # tidak boleh menghilangkan segment dan caption estimasi yang sudah ada.
-        log.warning("precision caption clip %s dilewati: %s", clip_id, error.code)
+    except Exception as error:  # noqa: BLE001 - precision pass bersifat opsional
+        log.warning("precision caption clip %s dilewati: %s", clip_id, type(error).__name__)
     finally:
         audio.unlink(missing_ok=True)
 
@@ -184,7 +203,14 @@ def handle_fetch_segments(
             # dan yt-dlp yang menolak menimpa berkas lama membuat rentang kedua
             # merekam video rentang pertama tanpa satu pun error.
             dest = tmp_root / f"{source_id}-{start}-{end}.mp4"
-            download(url, start, end, dest)
+            is_fixture = False
+            try:
+                download(url, start, end, dest)
+            except JobError as error:
+                if error.code != "SOURCE_BLOCKED" or os.getenv("GUEST_FALLBACK_ON_SOURCE_BLOCKED", "false").lower() != "true":
+                    raise
+                _guest_fixture_segment(dest, float(end - start))
+                is_fixture = True
 
             # Kunci berasal dari digest isi, jadi dua rentang yang menghasilkan
             # byte identik hanya menempati satu objek di R2.
@@ -224,14 +250,15 @@ def handle_fetch_segments(
             conn.execute(
                 """
                 insert into media_segments
-                       (source_id, start_sec, end_sec, r2_key, bytes, expires_at)
-                values (%s, %s, %s, %s, %s, %s)
+                       (source_id, start_sec, end_sec, r2_key, bytes, expires_at, is_fixture)
+                values (%s, %s, %s, %s, %s, %s, %s)
                 on conflict (source_id, start_sec, end_sec) do update
                    set r2_key = excluded.r2_key,
                        bytes = excluded.bytes,
-                       expires_at = excluded.expires_at
+                       expires_at = excluded.expires_at,
+                       is_fixture = excluded.is_fixture
                 """,
-                (source_id, start, end, key, dest.stat().st_size, expires_at),
+                (source_id, start, end, key, dest.stat().st_size, expires_at, is_fixture),
             )
             conn.commit()
 

@@ -1,23 +1,46 @@
 from __future__ import annotations
 
 import tempfile
+import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import psycopg
 
 from app.errors import JobError
 from app.ffmpeg import extract_audio as _extract_audio
 from app.ffmpeg import sha256_file
+from app.providers.transcription import TranscriptResult, Word
+from app.providers.youtube_captions import (
+    caption_first_enabled,
+)
+from app.providers.youtube_captions import (
+    fetch_youtube_caption as _fetch_youtube_caption,
+)
+from app.providers.youtube_transcript_api import (
+    fetch_youtube_transcript as _fetch_youtube_transcript,
+)
 from app.queue import Job, enqueue, heartbeat
-from app.providers.transcription import TranscriptResult
-from app.providers.youtube_captions import caption_first_enabled
-from app.providers.youtube_captions import fetch_youtube_caption as _fetch_youtube_caption
 from app.storage import Storage, storage_from_env
 from app.transcripts import store_transcript
 from app.ytdlp import SourceMeta
 from app.ytdlp import download_audio as _download_audio
-from app.ytdlp import probe as _probe
+from app.ytdlp import probe_with_fallback as _probe
+
+
+def _guest_fixture_transcript() -> tuple[SourceMeta, TranscriptResult]:
+    """Fixture eksplisit untuk smoke-test lokal saat upstream YouTube memblokir."""
+    words = [
+        Word(text, start, start + 2.0)
+        for text, start in zip(
+            "Ini adalah fixture guest untuk menguji alur klip editor dan export video lokal".split(),
+            range(0, 18, 2),
+        )
+    ]
+    return (
+        SourceMeta('Guest fixture video', 'Klipmatic Test', 60, None, 'fixture', provider='guest_fixture', is_fixture=True),
+        TranscriptResult('id', ' '.join(w.text for w in words), words, 'guest_fixture', 'local', 0.0, 'estimated'),
+    )
 
 
 def _find_reusable_source(
@@ -108,6 +131,7 @@ def handle_ingest(
     download_audio: Callable[..., Path] = _download_audio,
     extract_audio: Callable[[Path, Path], Path] = _extract_audio,
     caption_fn: Callable[[str, int, Path], TranscriptResult | None] = _fetch_youtube_caption,
+    transcript_fallback_fn: Callable[..., TranscriptResult | None] = _fetch_youtube_transcript,
     workdir: Path | None = None,
 ) -> None:
     """Fase 1: coba caption YouTube, baru ambil audio bila perlu.
@@ -138,9 +162,42 @@ def handle_ingest(
 
     try:
         heartbeat(conn, job.id, 5)
-        meta = probe(url)
-
         tmp_root = workdir or Path(tempfile.mkdtemp(prefix="cc-ingest-"))
+        try:
+            meta = probe(url)
+        except JobError as error:
+            if error.code != "SOURCE_BLOCKED" or kind != "youtube":
+                raise
+            try:
+                recovered = transcript_fallback_fn(url, 0)
+            except ValueError:
+                raise error from None
+            if recovered is None:
+                if os.getenv("GUEST_FALLBACK_ON_SOURCE_BLOCKED", "false").lower() != "true":
+                    raise
+                meta, recovered = _guest_fixture_transcript()
+                store_transcript(conn, storage, source_id, recovered)
+                conn.execute(
+                    "update sources set title = %s, channel = %s, duration_sec = %s, "
+                    "thumbnail_url = %s, provider = %s, is_fixture = %s, status = 'ready', error_code = null, updated_at = now() "
+                    "where id = %s",
+                    (meta.title, meta.channel, meta.duration_sec, meta.thumbnail_url, meta.provider, meta.is_fixture, source_id),
+                )
+                conn.commit()
+                heartbeat(conn, job.id, 95)
+                _enqueue_transcribe(conn, job, source_id, project_id)
+                return
+            store_transcript(conn, storage, source_id, recovered)
+            conn.execute(
+                "update sources set status = 'ready', error_code = null, updated_at = now() "
+                "where id = %s",
+                (source_id,),
+            )
+            conn.commit()
+            heartbeat(conn, job.id, 95)
+            _enqueue_transcribe(conn, job, source_id, project_id)
+            return
+
         caption = (
             caption_fn(url, meta.duration_sec, tmp_root)
             if kind == "youtube" and caption_first_enabled()
@@ -154,6 +211,7 @@ def handle_ingest(
                 """
                 update sources
                    set title = %s, channel = %s, duration_sec = %s, thumbnail_url = %s,
+                       provider = %s, is_fixture = %s,
                        status = 'ready', error_code = null, updated_at = now()
                  where id = %s
                 """,
@@ -162,6 +220,8 @@ def handle_ingest(
                     meta.channel,
                     meta.duration_sec,
                     meta.thumbnail_url,
+                    meta.provider,
+                    meta.is_fixture,
                     source_id,
                 ),
             )
@@ -192,6 +252,7 @@ def handle_ingest(
             """
             update sources
                set title = %s, channel = %s, duration_sec = %s, thumbnail_url = %s,
+                   provider = %s, is_fixture = %s,
                    audio_r2_key = %s, audio_sha256 = %s, status = 'ready',
                    error_code = null, updated_at = now()
              where id = %s
@@ -201,6 +262,8 @@ def handle_ingest(
                 meta.channel,
                 meta.duration_sec,
                 meta.thumbnail_url,
+                meta.provider,
+                meta.is_fixture,
                 key,
                 digest,
                 source_id,

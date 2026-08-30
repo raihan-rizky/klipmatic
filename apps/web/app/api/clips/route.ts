@@ -2,19 +2,10 @@ import { NextResponse } from 'next/server'
 import { ClipNotFoundError, createClipFromCandidate } from '@/lib/clips'
 import { sql } from '@/lib/db'
 import { errorFields, withRequestLogging } from '@/lib/observability'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
 export const POST = withRequestLogging('/api/clips', async (req, _ctx, log) => {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Silakan masuk dulu.' } },
-      { status: 401 },
-    )
-  }
+  const user = await currentAppUser()
   const body = (await req.json().catch(() => null)) as { candidateId?: unknown } | null
   try {
     const result = await createClipFromCandidate(

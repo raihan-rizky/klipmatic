@@ -154,8 +154,8 @@ def handle_analyze(
     body = json.loads(storage.get_bytes(transcript_key).decode("utf-8"))
     words = [Word(w["text"], float(w["start"]), float(w["end"])) for w in body["words"]]
 
-    # Nebius env adalah default operator sementara. Menghapus
-    # NEBIUS_API_KEY langsung mengembalikan perilaku ke BYOK per user.
+    # LLM_* env adalah default operator sementara. Menghapus
+    # LLM_API_KEY mengembalikan perilaku ke BYOK per user.
     key: ApiKeyRecord = nebius_key_from_env() or load_api_key(conn, job.user_id or "")
     input_hash = compute_input_hash(transcript_id, PROMPT_VERSION, key.model)
 

@@ -102,10 +102,10 @@ export async function loadClipSegment(
   sql: Sql,
   userId: string,
   clipId: string,
-): Promise<{ key: string; bytes: number }> {
+): Promise<{ key: string; bytes: number; isFixture: boolean }> {
   if (!UUID_RE.test(clipId)) throw new ClipNotFoundError()
   const [segment] = await sql`
-    select ms.r2_key, ms.bytes
+    select ms.r2_key, ms.bytes, ms.is_fixture
       from clips cl
       join clip_candidates c on c.id = cl.candidate_id
       join projects p on p.id = cl.project_id
@@ -121,6 +121,7 @@ export async function loadClipSegment(
   return {
     key: segment.r2_key as string,
     bytes: Number(segment.bytes),
+    isFixture: Boolean(segment.is_fixture),
   }
 }
 
@@ -136,6 +137,7 @@ export async function loadClipPreview(
            c.preview_status,
            c.preview_r2_key,
            segment.id as segment_id,
+           segment.is_fixture as segment_is_fixture,
            job.id as job_id,
            job.status as job_status,
            job.error_code as job_error_code
@@ -165,8 +167,8 @@ export async function loadClipPreview(
   if (!row) throw new ClipNotFoundError()
 
   const prerenderReady = row.preview_status === 'ready' && Boolean(row.preview_r2_key)
-  const segmentReady = Boolean(row.segment_id)
-  const failed = row.preview_status === 'failed' || row.job_status === 'failed' || row.job_status === 'dead'
+  const segmentReady = Boolean(row.segment_id) && !Boolean(row.segment_is_fixture)
+  const failed = Boolean(row.segment_is_fixture) || row.preview_status === 'failed' || row.job_status === 'failed' || row.job_status === 'dead'
 
   if (prerenderReady) {
     return {
@@ -313,6 +315,14 @@ export async function loadClipEditor(
               limit 1
            ) as segment_key,
            (
+           select ms.is_fixture from media_segments ms
+            where ms.source_id = p.source_id
+              and ms.start_sec = c.start_sec
+              and ms.end_sec = c.end_sec
+              and ms.expires_at > now()
+            limit 1
+           ) as segment_is_fixture,
+           (
              select ms.bytes from media_segments ms
               where ms.source_id = p.source_id
                 and ms.start_sec = c.start_sec
@@ -356,15 +366,16 @@ export async function loadClipEditor(
   const endSec = Number(row.end_sec)
   const segmentKey = row.segment_key as string | null
   const candidateDuration = endSec - startSec
-  const segmentUrl = segmentKey ? `/api/clips/${clipId}/segment` : null
+  const segmentFixture = Boolean(row.segment_is_fixture)
+  const segmentUrl = segmentKey && !segmentFixture ? `/api/clips/${clipId}/segment` : null
   const candidateAsset = await upsertCandidateAsset(sql, {
     userId,
     projectId: String(row.project_id),
     clipId,
     name: String(row.title),
     duration: candidateDuration,
-    ready: Boolean(segmentKey),
-    failed: row.job_status === 'failed' || row.job_status === 'dead',
+    ready: Boolean(segmentKey) && !segmentFixture,
+    failed: segmentFixture || row.job_status === 'failed' || row.job_status === 'dead',
     bytes: Number(row.segment_bytes ?? 0),
     url: segmentUrl,
   })
@@ -435,14 +446,15 @@ export async function loadClipEditor(
     },
     words,
     segment: {
-      status: segmentKey
+      status: segmentKey && !segmentFixture
         ? 'ready'
-        : row.job_status === 'failed' || row.job_status === 'dead'
+        : segmentFixture || row.job_status === 'failed' || row.job_status === 'dead'
           ? 'failed'
           : 'pending',
       url: segmentUrl,
+      isFixture: segmentFixture,
       jobId: (row.job_id as string | null) ?? null,
-      errorCode: (row.job_error_code as string | null) ?? null,
+      errorCode: segmentFixture ? 'SOURCE_FIXTURE' : (row.job_error_code as string | null) ?? null,
     },
     assets,
   }

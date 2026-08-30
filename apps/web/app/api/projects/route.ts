@@ -4,19 +4,10 @@ import { createProjectFromUrl } from '@/lib/createProject'
 import { sql } from '@/lib/db'
 import { messageFor } from '@/lib/errorMessages'
 import { errorFields, withRequestLogging } from '@/lib/observability'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
 export const POST = withRequestLogging('/api/projects', async (req, _ctx, log) => {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Silakan masuk dulu.' } },
-      { status: 401 },
-    )
-  }
+  const user = await currentAppUser()
 
   let url: unknown
   try {
@@ -32,6 +23,14 @@ export const POST = withRequestLogging('/api/projects', async (req, _ctx, log) =
   }
 
   try {
+    // Auth tetap berasal dari Supabase, sedangkan data aplikasi berada di
+    // PostgreSQL lokal. Pastikan user Auth memiliki profil lokal sebelum
+    // membuat source/project yang memiliki foreign key ke profiles.user_id.
+    await sql`
+      insert into profiles (user_id)
+      values (${user.id})
+      on conflict (user_id) do nothing
+    `
     const result = await createProjectFromUrl(sql, user.id, url)
     log.info('project.created', {
       project_id: result.projectId,

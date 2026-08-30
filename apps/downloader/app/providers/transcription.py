@@ -159,13 +159,34 @@ def transcribe(
     http: httpx.Client | None = None,
     providers: list[ProviderConfig] | None = None,
     env: Mapping[str, str] | None = None,
+    local_fn=None,
 ) -> TranscriptResult:
-    """Mencoba tiap penyedia sesuai urutan di TRANSCRIBE_PROVIDERS.
+    """Transcribe locally by default; use HTTP providers only when explicit.
 
-    Rantai fallback tetap ada berapa pun jumlah penyedianya, karena penyedia
-    mana pun bisa mengalami gangguan.
+    The legacy HTTP provider chain remains available for explicit migration
+    compatibility, but a free deployment needs no URL, key, or subscription.
     """
-    chain = providers if providers is not None else load_providers(env)
+    e = _env(env)
+    configured_names = e.get("TRANSCRIBE_PROVIDERS", "").strip()
+    if providers is None and not configured_names:
+        if local_fn is None:
+            from app.providers.local_transcription import transcribe_local
+
+            local_fn = transcribe_local
+        started = time.monotonic()
+        result = local_fn(audio, duration_sec, env=e)
+        emit(
+            log,
+            "provider.request.completed",
+            provider=result.provider,
+            operation="transcribe",
+            attempt=1,
+            result_count=len(result.words),
+            duration_ms=elapsed_ms(started),
+        )
+        return result
+
+    chain = providers if providers is not None else load_providers(e)
     model = cache_model(env)
     client = http or httpx.Client(timeout=600)
 

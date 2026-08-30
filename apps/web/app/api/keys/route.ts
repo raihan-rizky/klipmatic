@@ -3,14 +3,10 @@ import { ApiKeyValidationError, listApiKeys, saveApiKey } from '@/lib/apiKeys'
 import { sql } from '@/lib/db'
 import { messageFor } from '@/lib/errorMessages'
 import { errorFields, withRequestLogging } from '@/lib/observability'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
-async function currentUserId(): Promise<string | null> {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user?.id ?? null
+async function currentUserId(): Promise<string> {
+  return (await currentAppUser()).id
 }
 
 function unauthorized() {

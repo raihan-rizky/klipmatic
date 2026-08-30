@@ -52,30 +52,40 @@ export function PasswordAuthForm({ initialMessage }: Props) {
     }
 
     const supabase = supabaseBrowser()
-    const result = registering
-      ? await supabase.auth.signUp({ email, password })
-      : await supabase.auth.signInWithPassword({ email, password })
-
-    if (result.error) {
-      console.error('auth password gagal', {
-        name: result.error.name,
-        code: result.error.code,
-        status: result.error.status,
-        message: result.error.message,
+    try {
+      const authRequest = registering
+        ? supabase.auth.signUp({ email, password })
+        : supabase.auth.signInWithPassword({ email, password })
+      const timeout = new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error('AUTH_REQUEST_TIMEOUT')), 15_000)
       })
-      setMessage(authMessage(result.error))
-      setSending(false)
-      return
-    }
+      const result = await Promise.race([authRequest, timeout])
 
-    if (!result.data.session) {
-      setMessage('Akun dibuat, tapi verifikasi email masih aktif di Supabase.')
-      setSending(false)
-      return
-    }
+      if (result.error) {
+        console.error('auth password gagal', {
+          name: result.error.name,
+          code: result.error.code,
+          status: result.error.status,
+          message: result.error.message,
+        })
+        setMessage(authMessage(result.error))
+        setSending(false)
+        return
+      }
 
-    setMessage(registering ? 'Akun berhasil dibuat.' : 'Berhasil masuk.')
-    window.location.assign('/')
+      if (!result.data.session) {
+        setMessage('Akun dibuat, tapi verifikasi email masih aktif di Supabase.')
+        setSending(false)
+        return
+      }
+
+      setMessage(registering ? 'Akun berhasil dibuat.' : 'Berhasil masuk.')
+      window.location.assign('/')
+    } catch (error) {
+      console.error('auth password request gagal', error)
+      setMessage('Server autentikasi tidak merespons. Coba lagi.')
+      setSending(false)
+    }
   }
 
   return (

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { latestThumbnailJobStatus, listCandidates, projectViewState } from '@/lib/candidates'
 import { sql } from '@/lib/db'
 import { errorFields, writeEvent } from '@/lib/observability'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
 export default async function ProjectPage({
   params,
@@ -21,28 +21,7 @@ export default async function ProjectPage({
   const { id } = await params
   const { job } = await searchParams
 
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return (
-      <section className="grid min-h-[calc(100vh-12rem)] place-items-center">
-        <StatePanel
-          title="Masuk untuk melihat project"
-          description="Silakan masuk dulu. Kandidat dan progress analisis hanya tersedia untuk pemilik project."
-          action={
-            <Button asChild>
-              <Link href="/login">
-                <LogIn className="size-4" aria-hidden="true" />
-                Buka halaman akun
-              </Link>
-            </Button>
-          }
-        />
-      </section>
-    )
-  }
+  const user = await currentAppUser()
 
   const [candidates, thumbnailJobStatus] = await Promise.all([
     listCandidates(sql, user.id, id),

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { deleteProjectUpload, MediaAssetError } from '@/lib/mediaAssets'
 import { errorFields, withRequestLogging } from '@/lib/observability'
-import { supabaseServer } from '@/lib/supabase/server'
+import { currentAppUser } from '@/lib/auth/currentUser'
 
 const STATUS_BY_CODE = {
   ASSET_INVALID: 400,
@@ -16,16 +16,7 @@ const STATUS_BY_CODE = {
 export const DELETE = withRequestLogging<{
   params: Promise<{ id: string; assetId: string }>
 }>('/api/projects/[id]/assets/[assetId]', async (_request, ctx, log) => {
-  const supabase = await supabaseServer()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Silakan masuk dulu.' } },
-      { status: 401 },
-    )
-  }
+  const user = await currentAppUser()
   const { id, assetId } = await ctx.params
   try {
     await deleteProjectUpload(sql, user.id, id, assetId)
